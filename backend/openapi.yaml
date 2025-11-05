@@ -1,0 +1,44 @@
+openapi: 3.1.0
+info:
+  title: MyndSelf Mock API
+  version: "0.1.0"
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+  /api/subscribe:
+    post:
+      summary: Subscribe to beta
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '200': { description: OK }
+        '400': { description: Invalid email }
+  /api/mood:
+    get:
+      summary: List moods
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create a mood entry
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mood: { type: string }
+                note: { type: string }
+      responses:
+        '200': { description: OK }

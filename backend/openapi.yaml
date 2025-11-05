@@ -1,17 +1,44 @@
 openapi: 3.1.0
 info:
   title: MyndSelf Mock API
-  version: "0.1.0"
+  version: 0.1.0
+  description: >
+    Lightweight mock backend for MyndSelf.ai MVP.
+    Provides endpoints for health check, subscriptions, and mood tracking.
+servers:
+  - url: https://myndself-backend.onrender.com
+    description: Render deployment
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: health
+    description: Service health
+  - name: subscription
+    description: User email subscriptions
+  - name: mood
+    description: Mood tracking endpoints
+
 paths:
   /healthz:
     get:
-      summary: Health check
+      summary: Health check endpoint
+      tags: [health]
       responses:
         '200':
-          description: OK
+          description: Server is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+
   /api/subscribe:
     post:
-      summary: Subscribe to beta
+      summary: Subscribe a user by email
+      tags: [subscription]
       requestBody:
         required: true
         content:
@@ -20,25 +47,102 @@ paths:
               type: object
               required: [email]
               properties:
-                email: { type: string, format: email }
-      responses:
-        '200': { description: OK }
-        '400': { description: Invalid email }
-  /api/mood:
-    get:
-      summary: List moods
+                email:
+                  type: string
+                  format: email
+                  example: test@example.com
       responses:
         '200':
-          description: OK
+          description: Subscription successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+        '400':
+          description: Invalid email format
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: false
+                  error:
+                    type: string
+                    example: invalid_email
+
+  /api/mood:
+    get:
+      summary: Retrieve all mood entries
+      tags: [mood]
+      responses:
+        '200':
+          description: List of mood entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MoodEntry'
+
     post:
-      summary: Create a mood entry
+      summary: Submit a new mood entry
+      tags: [mood]
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                mood: { type: string }
-                note: { type: string }
+              $ref: '#/components/schemas/MoodInput'
       responses:
-        '200': { description: OK }
+        '200':
+          description: Mood entry created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  item:
+                    $ref: '#/components/schemas/MoodEntry'
+
+components:
+  schemas:
+    MoodInput:
+      type: object
+      properties:
+        mood:
+          type: string
+          example: calm
+        note:
+          type: string
+          example: "Had a good meditation session today."
+    MoodEntry:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        mood:
+          type: string
+          example: calm
+        note:
+          type: string
+          example: ""
+        at:
+          type: string
+          format: date-time
+          example: "2025-11-04T18:45:00Z"

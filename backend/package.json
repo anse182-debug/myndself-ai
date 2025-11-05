@@ -1,0 +1,17 @@
+{
+  "name": "myndself-backend-mock",
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon index.js",
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@fastify/cors": "^9.0.0",
+    "dotenv": "^16.4.5",
+    "fastify": "^4.26.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

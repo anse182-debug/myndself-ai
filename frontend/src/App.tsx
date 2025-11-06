@@ -68,7 +68,10 @@ export default function App() {
           Join the Beta
         </h2>
         {!submitted ? (
-          <form onSubmit={handleJoin} className="flex flex-col md:flex-row gap-3 justify-center">
+          <form
+            onSubmit={handleJoin}
+            className="flex flex-col md:flex-row gap-3 justify-center"
+          >
             <input
               type="email"
               placeholder="Your email"
@@ -85,7 +88,9 @@ export default function App() {
             </button>
           </form>
         ) : (
-          <p className="text-emerald-300 mt-4">Thank you! You're on the list 💫</p>
+          <p className="text-emerald-300 mt-4">
+            Thank you! You're on the list 💫
+          </p>
         )}
       </section>
 

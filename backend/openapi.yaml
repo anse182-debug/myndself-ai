@@ -2,7 +2,7 @@ openapi: 3.1.0
 info:
   title: MyndSelf Mock API
   version: 0.1.0
-  description: >
+  description: Generates a psychologically safe reflective response using CBT and ACT principles.
     Lightweight mock backend for MyndSelf.ai MVP.
     Provides endpoints for health check, subscriptions, and mood tracking.
 servers:

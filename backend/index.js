@@ -85,6 +85,32 @@ app.post('/api/mood', async (req) => {
   return { ok: true, item }
 })
 
+// POST /api/reflection
+app.post('/api/reflection', async (req) => {
+  const { mood, note } = req.body || {}
+
+  // Risposta empatica statica per demo
+  const response = (() => {
+    if (mood === 'sad') {
+      return "I'm sorry you're feeling down today. Sometimes just acknowledging it helps. Maybe take a small break or write something positive that happened recently."
+    }
+    if (mood === 'calm') {
+      return "That's great — staying calm is a powerful state. Try to capture what helped you stay balanced today so you can repeat it tomorrow."
+    }
+    if (mood === 'stressed') {
+      return "Stress can be a signal that you care deeply. Remember to slow your breathing and give yourself permission to pause for a moment."
+    }
+    return "Thanks for sharing. Take a moment to reflect on how your energy feels right now — even a few mindful breaths can bring clarity."
+  })()
+
+  return {
+    ok: true,
+    reflection: response,
+    at: new Date().toISOString(),
+  }
+})
+
+
 // porta: Render passa PORT nell'ambiente
 const port = Number(process.env.PORT || 8080)
 const host = '0.0.0.0'

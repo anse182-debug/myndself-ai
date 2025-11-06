@@ -2,6 +2,7 @@ import { motion } from 'framer-motion'
 import { Logo } from './components/Logo'
 import { Section } from './components/Section'
 import { CTAForm } from './components/CTAForm'
+import { useState } from "react"
 
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
@@ -97,3 +98,59 @@ export default function App() {
     </div>
   )
 }
+
+export default function App() {
+  const [mood, setMood] = useState("")
+  const [note, setNote] = useState("")
+  const [reflection, setReflection] = useState("")
+
+  const handleReflect = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/reflection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood, note }),
+      })
+      const data = await res.json()
+      setReflection(data.reflection || "No response.")
+    } catch (err) {
+      setReflection("Error connecting to reflection service.")
+    }
+  }
+
+  return (
+    <section className="max-w-3xl mx-auto py-20 text-center">
+      <h2 className="text-3xl font-semibold mb-4 text-white">Daily Reflection (Demo)</h2>
+
+      <input
+        type="text"
+        placeholder="Your mood (e.g. calm, stressed)"
+        value={mood}
+        onChange={(e) => setMood(e.target.value)}
+        className="w-full p-3 mb-3 rounded bg-white/10 text-white"
+      />
+
+      <textarea
+        placeholder="Add a note (optional)"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        className="w-full p-3 mb-3 rounded bg-white/10 text-white"
+      />
+
+      <button
+        onClick={handleReflect}
+        className="bg-emerald-400 text-gray-900 font-semibold px-5 py-2 rounded-lg hover:bg-emerald-300 transition"
+      >
+        Reflect
+      </button>
+
+      {reflection && (
+        <div className="mt-6 bg-white/10 p-4 rounded text-white text-left">
+          <strong>AI Reflection:</strong>
+          <p className="mt-2 text-emerald-200">{reflection}</p>
+        </div>
+      )}
+    </section>
+  )
+}
+

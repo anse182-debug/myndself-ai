@@ -9,35 +9,29 @@ type ReflectionEntry = {
 }
 
 export default function App() {
-  // join beta
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
-
-  // daily check-in
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
   const [loading, setLoading] = useState(false)
-
-  // history
   const [history, setHistory] = useState<ReflectionEntry[]>([])
 
-  // load history from localStorage at startup
+  // carica storico dal backend
   useEffect(() => {
-    const raw = localStorage.getItem("myndself-reflections")
-    if (raw) {
+    async function fetchHistory() {
       try {
-        setHistory(JSON.parse(raw))
-      } catch {
-        // ignore
+        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`)
+        const data = await res.json()
+        if (data?.ok && Array.isArray(data.items)) {
+          setHistory(data.items.reverse())
+        }
+      } catch (err) {
+        console.error("Failed to fetch mood data:", err)
       }
     }
+    fetchHistory()
   }, [])
-
-  // save history to localStorage whenever it changes
-  useEffect(() => {
-    localStorage.setItem("myndself-reflections", JSON.stringify(history))
-  }, [history])
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,8 +69,15 @@ export default function App() {
         at: now,
       }
 
+      // aggiorna lista e salva su backend
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
+      await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newEntry),
+      })
+
       setMood("")
       setNote("")
     } catch (err) {

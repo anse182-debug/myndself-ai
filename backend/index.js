@@ -1,126 +1,130 @@
-import Fastify from 'fastify'
-import dotenv from 'dotenv'
-import fastifyCors from '@fastify/cors'
+import Fastify from "fastify"
+import cors from "@fastify/cors"
+import dotenv from "dotenv"
+import OpenAI from "openai"
 
 dotenv.config()
 
-// crea server
-const app = Fastify({
-  logger: false, // puoi mettere true se vuoi log su Render
+const app = Fastify()
+
+// Enable CORS for frontend URL (configurable)
+await app.register(cors, {
+  origin: process.env.CORS_ORIGIN || "*",
 })
 
-// CORS: consenti il tuo dominio Vercel
-const allowedOrigin =
-  process.env.CORS_ORIGIN ||
-  'https://myndself-ai.vercel.app' || // puoi cambiarlo col tuo dominio reale
-  '*'
+// --- OpenAI client initialization ---
+const openai = process.env.OPENAI_API_KEY
+  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  : null
 
-await app.register(fastifyCors, {
-  origin: (origin, cb) => {
-    // consenti richieste server-to-server e dallo stesso host
-    if (!origin) return cb(null, true)
-    if (origin === allowedOrigin) {
-      return cb(null, true)
-    }
-    // in dev puoi permettere tutti
-    if (process.env.NODE_ENV !== 'production') {
-      return cb(null, true)
-    }
-    return cb(new Error('Not allowed'), false)
-  },
-  methods: ['GET', 'POST', 'OPTIONS']
+// --- Health Check ---
+app.get("/healthz", async () => {
+  return { ok: true, status: "healthy" }
 })
 
-// store in memoria (ok per mock)
-const state = {
-  signups: [],
-  moods: [
-    {
-      id: 1,
-      mood: 'calm',
-      note: 'demo entry',
-      at: new Date().toISOString(),
-    },
-  ],
-}
-
-// healthcheck per Render
-app.get('/healthz', async () => ({ ok: true }))
-
-// POST /api/subscribe  { email }
-app.post('/api/subscribe', async (req, reply) => {
+// --- Subscribe Endpoint ---
+app.post("/api/subscribe", async (req, res) => {
   const { email } = req.body || {}
 
-  if (
-    !email ||
-    typeof email !== 'string' ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  ) {
-    return reply.code(400).send({ ok: false, error: 'invalid_email' })
+  if (!email || !email.includes("@")) {
+    return res.status(400).send({ ok: false, error: "invalid_email" })
   }
 
-  state.signups.push({
-    email,
-    at: new Date().toISOString(),
-  })
-
+  // Mock subscription logic
+  console.log("📬 New subscriber:", email)
   return { ok: true }
 })
 
-// GET /api/mood
-app.get('/api/mood', async () => {
-  return { ok: true, items: state.moods }
+// --- Mood Endpoints ---
+const moodEntries = []
+
+app.get("/api/mood", async () => {
+  return { ok: true, items: moodEntries }
 })
 
-// POST /api/mood  { mood, note? }
-app.post('/api/mood', async (req) => {
-  const { mood, note } = req.body || {}
-  const item = {
-    id: state.moods.length + 1,
-    mood: mood || 'neutral',
-    note: note || '',
-    at: new Date().toISOString(),
-  }
-  state.moods.push(item)
-  return { ok: true, item }
-})
-
-// POST /api/reflection
-app.post('/api/reflection', async (req) => {
+app.post("/api/mood", async (req, res) => {
   const { mood, note } = req.body || {}
 
-  // Risposta empatica statica per demo
-  const response = (() => {
-    if (mood === 'sad') {
-      return "I'm sorry you're feeling down today. Sometimes just acknowledging it helps. Maybe take a small break or write something positive that happened recently."
-    }
-    if (mood === 'calm') {
-      return "That's great — staying calm is a powerful state. Try to capture what helped you stay balanced today so you can repeat it tomorrow."
-    }
-    if (mood === 'stressed') {
-      return "Stress can be a signal that you care deeply. Remember to slow your breathing and give yourself permission to pause for a moment."
-    }
-    return "Thanks for sharing. Take a moment to reflect on how your energy feels right now — even a few mindful breaths can bring clarity."
-  })()
+  if (!mood) {
+    return res.status(400).send({ ok: false, error: "missing_mood" })
+  }
 
-  return {
-    ok: true,
-    reflection: response,
+  const entry = {
+    id: moodEntries.length + 1,
+    mood,
+    note: note || "",
     at: new Date().toISOString(),
+  }
+
+  moodEntries.push(entry)
+  return { ok: true, item: entry }
+})
+
+// --- Reflection Endpoint (AI-powered CBT/ACT) ---
+app.post("/api/reflection", async (req, res) => {
+  const { mood, note } = req.body || {}
+
+  // Prompt “psychologically safe” for AI coach
+  const prompt = `
+You are MyndSelf, an AI reflective coach that helps users develop emotional awareness using CBT and ACT principles.
+You are NOT a therapist. Your tone should be warm, nonjudgmental, and reflective.
+Base your response on the user's current mood and note.
+Always validate emotions, suggest gentle reflection, and encourage mindful observation.
+
+Example style:
+- “It sounds like you’re feeling tense — that’s understandable. Try taking a slow breath and noticing where you feel that tension.”
+- “You mentioned calm — that’s wonderful. Maybe take a moment to appreciate what helped you reach that state.”
+
+User input:
+Mood: ${mood || "unknown"}
+Note: ${note || "(none provided)"}
+
+Now generate a short reflective message (2–3 sentences).
+`
+
+  try {
+    let reflection = ""
+
+    if (openai) {
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content:
+              "You are a supportive reflective AI coach using CBT and ACT principles. Never diagnose; focus on awareness and self-compassion.",
+          },
+          { role: "user", content: prompt },
+        ],
+        temperature: 0.8,
+        max_tokens: 200,
+      })
+      reflection = completion.choices[0].message.content.trim()
+    } else {
+      reflection =
+        "Thanks for sharing. Reflect gently on your current state and remember that emotions pass like waves."
+    }
+
+    res.send({
+      ok: true,
+      reflection,
+      at: new Date().toISOString(),
+    })
+  } catch (err) {
+    console.error("❌ Reflection error:", err)
+    res.status(500).send({
+      ok: false,
+      error: "AI reflection unavailable",
+    })
   }
 })
 
-
-// porta: Render passa PORT nell'ambiente
-const port = Number(process.env.PORT || 8080)
-const host = '0.0.0.0'
-
-app
-  .listen({ port, host })
-  .then(() => {
-    console.log(`MyndSelf mock API running on http://${host}:${port}`)
-  })
-  .catch((err) => {
+// --- Start Server ---
+const PORT = process.env.PORT || 8080
+app.listen({ port: PORT, host: "0.0.0.0" }, (err, address) => {
+  if (err) {
     console.error(err)
     process.exit(1)
-  })
+  }
+  console.log(`🚀 MyndSelf backend running on ${address}`)
+})

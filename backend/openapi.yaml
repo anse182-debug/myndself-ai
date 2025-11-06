@@ -96,6 +96,42 @@ paths:
                     items:
                       $ref: '#/components/schemas/MoodEntry'
 
+  /api/reflection:
+    post:
+      summary: Generate a reflective AI response based on mood
+      tags: [reflection]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mood:
+                  type: string
+                  example: "calm"
+                note:
+                  type: string
+                  example: "Feeling peaceful after a walk."
+      responses:
+        '200':
+          description: Reflective response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    example: true
+                  reflection:
+                    type: string
+                    example: "That's great — staying calm is a powerful state..."
+                  at:
+                    type: string
+                    format: date-time
+                    example: "2025-11-06T18:45:00Z"
+
     post:
       summary: Submit a new mood entry
       tags: [mood]

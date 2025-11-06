@@ -16,7 +16,7 @@ await app.register(cors, {
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null
-console.log("[MyndSelf] OpenAI key present:", !!process.env.OPENAI_API_KEY)
+
 
 // --- Health Check ---
 app.get("/healthz", async () => {
@@ -88,7 +88,7 @@ Now generate a short reflective message (2–3 sentences).
 
     if (openai) {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-3.5-turbo",
         messages: [
           {
             role: "system",

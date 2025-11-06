@@ -16,6 +16,7 @@ await app.register(cors, {
 const openai = process.env.OPENAI_API_KEY
   ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
   : null
+console.log("[MyndSelf] OpenAI key present:", !!process.env.OPENAI_API_KEY)
 
 // --- Health Check ---
 app.get("/healthz", async () => {

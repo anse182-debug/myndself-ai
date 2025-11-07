@@ -44,13 +44,22 @@ export default function App() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
+
+    const redirectUrl =
+      import.meta.env.VITE_SITE_URL || window.location.origin
+
     const { error } = await supabase.auth.signInWithOtp({
       email: emailForLogin,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: redirectUrl },
     })
+
     setAuthLoading(false)
-    if (error) alert(error.message)
-    else alert("Check your email for the magic login link!")
+
+    if (error) {
+      alert(error.message)
+    } else {
+      alert("Check your email for the magic login link!")
+    }
   }
 
   const handleLogout = async () => {
@@ -240,9 +249,7 @@ export default function App() {
         )}
       </section>
 
-      {/* RESTO SEZIONI */}
-      {/* ... (Daily Check-In e History restano identici) ... */}
-
+      {/* FOOTER */}
       <footer className="max-w-6xl mx-auto px-6 pb-10 text-sm text-white/60 text-center">
         © {new Date().getFullYear()} MyndSelf.ai — All rights reserved.
       </footer>

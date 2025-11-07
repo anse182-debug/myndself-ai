@@ -15,6 +15,7 @@ type ReflectionEntry = {
   mood: string
   note: string
   reflection: string
+  tags?: string[]
   at?: string
   created_at?: string
 }
@@ -29,7 +30,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false)
   const [emailForLogin, setEmailForLogin] = useState("")
 
-  // daily check-in
+  // check-in
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
@@ -37,10 +38,9 @@ export default function App() {
 
   // data
   const [history, setHistory] = useState<ReflectionEntry[]>([])
-  // anon id fallback
   const [userId, setUserId] = useState<string>("")
 
-  // 1) init supabase session
+  // 1) init session
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user)
@@ -55,7 +55,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // 2) anon user id fallback
+  // 2) anon id fallback
   useEffect(() => {
     let stored = localStorage.getItem("myndself-user-id")
     if (!stored) {
@@ -65,7 +65,7 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // 3) fetch history from backend (Supabase-backed) filtered by user
+  // 3) fetch history
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
@@ -87,7 +87,7 @@ export default function App() {
     fetchHistory()
   }, [user, userId])
 
-  // auth handlers
+  // login
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -102,18 +102,15 @@ export default function App() {
 
     setAuthLoading(false)
 
-    if (error) {
-      alert(error.message)
-    } else {
-      alert("Check your email for the magic login link!")
-    }
+    if (error) alert(error.message)
+    else alert("Check your email for the magic login link!")
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
-  // join beta submit
+  // join beta
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -128,7 +125,7 @@ export default function App() {
     }
   }
 
-  // reflect handler
+  // reflect
   const handleReflect = async () => {
     if (!mood && !note) return
     setLoading(true)
@@ -149,20 +146,20 @@ export default function App() {
         mood: mood || "unspecified",
         note: note || "",
         reflection: data.reflection || "No response.",
+        tags: Array.isArray(data.tags) ? data.tags : [],
         at: now,
       }
 
-      // 2) aggiorniamo UI
+      // 2) aggiorna UI
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
 
-      // 3) salviamo su backend (che salva su Supabase)
+      // 3) salva su backend
       await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...newEntry,
-          // se l'utente è loggato usiamo il suo id Supabase, altrimenti quello anonimo
           user_id: user?.id || userId,
         }),
       })
@@ -171,7 +168,7 @@ export default function App() {
       setNote("")
     } catch (err) {
       console.error(err)
-      setReflection("Error connecting to reflection service.")
+      setReflection("Errore di connessione al servizio di riflessione.")
     } finally {
       setLoading(false)
     }
@@ -179,13 +176,12 @@ export default function App() {
 
   // chart data
   const chartData = useMemo(() => {
-    // mappiamo il mood a numeri in modo semplice
     const moodToScore = (m: string) => {
-      const val = m.toLowerCase()
-      if (val.includes("calm") || val.includes("serene") || val.includes("ok")) return 4
-      if (val.includes("happy") || val.includes("good") || val.includes("hope")) return 5
-      if (val.includes("stressed") || val.includes("tired")) return 2
-      if (val.includes("sad") || val.includes("down")) return 1
+      const val = m?.toLowerCase?.() || ""
+      if (val.includes("calm") || val.includes("seren") || val.includes("tran")) return 4
+      if (val.includes("felic") || val.includes("happy") || val.includes("hope")) return 5
+      if (val.includes("stress") || val.includes("ansia") || val.includes("tired")) return 2
+      if (val.includes("trist") || val.includes("sad")) return 1
       return 3
     }
 
@@ -198,7 +194,7 @@ export default function App() {
           label: entry.mood,
         }
       })
-      .reverse() // dalla più vecchia alla più nuova per il grafico
+      .reverse()
   }, [history])
 
   return (
@@ -277,19 +273,19 @@ export default function App() {
           Daily Check-In
         </h2>
         <p className="text-white/60 mb-6 text-center">
-          Tell MyndSelf how you feel right now. It will reflect it back using CBT/ACT style.
+          Tell MyndSelf how you feel right now. It will reflect it back in your language.
         </p>
 
         <div className="space-y-3">
           <input
             type="text"
-            placeholder="Your mood (e.g. calm, stressed, hopeful)"
+            placeholder="Il tuo stato d'animo (es. calmo, stressato, speranzoso)"
             value={mood}
             onChange={(e) => setMood(e.target.value)}
             className="w-full p-3 rounded bg-white/10 text-white"
           />
           <textarea
-            placeholder="Add a note (what happened, what you noticed...)"
+            placeholder="Aggiungi una nota (cosa è successo, cosa hai notato...)"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="w-full p-3 rounded bg-white/10 text-white min-h-[120px]"
@@ -299,7 +295,7 @@ export default function App() {
             disabled={loading}
             className="bg-emerald-400 text-gray-900 font-semibold px-5 py-2 rounded-lg hover:bg-emerald-300 transition disabled:opacity-50"
           >
-            {loading ? "Reflecting..." : "Get reflection"}
+            {loading ? "Rifletto..." : "Ottieni la riflessione"}
           </button>
         </div>
 
@@ -311,27 +307,26 @@ export default function App() {
         )}
       </section>
 
-      {/* MOOD TREND (chart) */}
+      {/* MOOD TREND */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-semibold mb-4 text-emerald-200">
           Mood trend
         </h2>
         {chartData.length === 0 ? (
           <p className="text-white/40 text-sm">
-            No data yet. Add a check-in above.
+            Nessun dato ancora. Aggiungi un check-in sopra.
           </p>
         ) : (
           <div className="bg-white/5 rounded-lg p-4 border border-white/5 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis dataKey="date" stroke="#d1fae5" />
-                <YAxis
-                  domain={[0, 6]}
-                  tickCount={7}
-                  stroke="#d1fae5"
-                />
+                <YAxis domain={[0, 6]} tickCount={7} stroke="#d1fae5" />
                 <Tooltip
-                  contentStyle={{ background: "#111827", border: "1px solid #10b981" }}
+                  contentStyle={{
+                    background: "#111827",
+                    border: "1px solid #10b981",
+                  }}
                   labelStyle={{ color: "#fff" }}
                 />
                 <Line
@@ -354,7 +349,9 @@ export default function App() {
           Your reflections
         </h2>
         {history.length === 0 ? (
-          <p className="text-white/40">No check-ins yet. Try adding one above.</p>
+          <p className="text-white/40">
+            Nessun check-in ancora. Prova ad aggiungerne uno sopra.
+          </p>
         ) : (
           <ul className="space-y-4">
             {history.map((entry) => (
@@ -373,15 +370,30 @@ export default function App() {
                 {entry.note && (
                   <p className="text-white/80 mb-2 text-sm">{entry.note}</p>
                 )}
-                <p className="text-emerald-100 text-sm">
-                  {entry.reflection}
-                </p>
+                {entry.reflection && (
+                  <p className="text-emerald-100 text-sm">
+                    {entry.reflection}
+                  </p>
+                )}
+                {entry.tags && entry.tags.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {entry.tags.map((tag, i) => (
+                      <span
+                        key={i}
+                        className="text-xs bg-emerald-500/20 text-emerald-200 px-2 py-1 rounded-full"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
         )}
       </section>
 
+      {/* FOOTER */}
       <footer className="max-w-6xl mx-auto px-6 pb-10 text-sm text-white/60 text-center">
         © {new Date().getFullYear()} MyndSelf.ai — All rights reserved.
       </footer>

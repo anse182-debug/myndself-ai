@@ -31,26 +31,38 @@ app.post("/api/subscribe", async (req, res) => {
   return { ok: true }
 })
 
-// --- Mood endpoints (Supabase storage) ---
-app.get("/api/mood", async (_, res) => {
-  const { data, error } = await supabase
+// GET /api/mood?user_id=abc
+app.get("/api/mood", async (req, res) => {
+  const userId = req.query.user_id
+
+  let query = supabase
     .from("mood_entries")
     .select("*")
     .order("created_at", { ascending: false })
+
+  if (userId) {
+    query = query.eq("user_id", userId)
+  }
+
+  const { data, error } = await query
   if (error) return res.status(500).send({ ok: false, error: error.message })
   return { ok: true, items: data }
 })
 
+// POST /api/mood
 app.post("/api/mood", async (req, res) => {
-  const { mood, note, reflection } = req.body || {}
+  const { mood, note, reflection, user_id } = req.body || {}
   if (!mood) return res.status(400).send({ ok: false, error: "missing_mood" })
+
   const { data, error } = await supabase
     .from("mood_entries")
-    .insert([{ mood, note, reflection }])
+    .insert([{ mood, note, reflection, user_id }])
     .select()
+
   if (error) return res.status(500).send({ ok: false, error: error.message })
   return { ok: true, item: data?.[0] }
 })
+
 
 // --- Reflection endpoint ---
 app.post("/api/reflection", async (req, res) => {

@@ -1,113 +1,136 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
-import dotenv from "dotenv"
-import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
+import OpenAI from "openai"
 
-dotenv.config()
+const app = Fastify({ logger: true })
 
-const app = Fastify()
+// --- CONFIG ---
+const PORT = process.env.PORT || 8080
+const SUPABASE_URL = process.env.SUPABASE_URL
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const OPENAI_KEY = process.env.OPENAI_API_KEY
 
+// --- CLIENTS ---
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const openai = new OpenAI({ apiKey: OPENAI_KEY })
+
+// --- MIDDLEWARE ---
 await app.register(cors, {
-  origin: process.env.CORS_ORIGIN || "*",
+  origin: ["*"],
+  methods: ["GET", "POST", "OPTIONS"],
 })
 
-// --- Supabase client ---
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
-
-// --- OpenAI setup ---
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-// --- Health check ---
-app.get("/healthz", async () => ({ ok: true, status: "healthy" }))
-
-// --- Subscribe endpoint ---
-app.post("/api/subscribe", async (req, res) => {
-  const { email } = req.body || {}
-  if (!email || !email.includes("@")) {
-    return res.status(400).send({ ok: false, error: "invalid_email" })
-  }
-  console.log("📬 New subscriber:", email)
-  return { ok: true }
+// --- HEALTH CHECK ---
+app.get("/", async (_, reply) => {
+  reply.send({ ok: true, service: "MyndSelf backend is running" })
 })
 
-// GET /api/mood?user_id=abc
-app.get("/api/mood", async (req, res) => {
-  const userId = req.query.user_id
-
-  let query = supabase
-    .from("mood_entries")
-    .select("*")
-    .order("created_at", { ascending: false })
-
-  if (userId) {
-    query = query.eq("user_id", userId)
-  }
-
-  const { data, error } = await query
-  if (error) return res.status(500).send({ ok: false, error: error.message })
-  return { ok: true, items: data }
-})
-
-// POST /api/mood
-app.post("/api/mood", async (req, res) => {
-  const { mood, note, reflection, user_id } = req.body || {}
-  if (!mood) return res.status(400).send({ ok: false, error: "missing_mood" })
-
-  const { data, error } = await supabase
-    .from("mood_entries")
-    .insert([{ mood, note, reflection, user_id }])
-    .select()
-
-  if (error) return res.status(500).send({ ok: false, error: error.message })
-  return { ok: true, item: data?.[0] }
-})
-
-
-// --- Reflection endpoint ---
-app.post("/api/reflection", async (req, res) => {
-  const { mood, note } = req.body || {}
-  const prompt = `
-You are MyndSelf, an AI reflective coach that helps users develop emotional awareness using CBT and ACT principles.
-You are NOT a therapist. Your tone should be warm, nonjudgmental, and reflective.
-Always validate emotions, suggest gentle reflection, and encourage mindful observation.
-
-User input:
-Mood: ${mood || "unknown"}
-Note: ${note || "(none provided)"}
-
-Now generate a short reflective message (2–3 sentences).
-`
-
+// --- REFLECTION ENDPOINT (AI + TAGGING) ---
+app.post("/api/reflection", async (req, reply) => {
   try {
+    const { mood, note } = req.body
+
+    if (!mood && !note) {
+      return reply.status(400).send({ error: "Missing mood or note" })
+    }
+
+    const prompt = `
+The user reports:
+Mood: ${mood}
+Note: ${note}
+
+You are MyndSelf.ai — an AI coach using CBT and ACT.
+Respond with a short compassionate reflection (max 3 sentences)
+and infer up to 3 emotional tags based on the text.
+
+Respond ONLY in this JSON format:
+{
+  "reflection": "...",
+  "tags": ["tag1", "tag2"]
+}`
+
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are a supportive reflective AI coach using CBT and ACT principles. Never diagnose; focus on awareness and self-compassion.",
-        },
-        { role: "user", content: prompt },
-      ],
-      temperature: 0.8,
-      max_tokens: 200,
+      messages: [{ role: "user", content: prompt }],
+      response_format: { type: "json_object" },
     })
 
-    const reflection = completion?.choices?.[0]?.message?.content?.trim() || ""
-    res.send({ ok: true, reflection, at: new Date().toISOString() })
-  } catch (err) {
-    console.error("❌ Reflection error:", err)
-    res.status(500).send({ ok: false, error: "AI reflection unavailable" })
+    const result = JSON.parse(completion.choices[0].message.content || "{}")
+
+    const reflection =
+      result.reflection ||
+      "Reflect gently on what you feel. Every emotion is valid."
+    const tags = Array.isArray(result.tags) ? result.tags : []
+
+    reply.send({ reflection, tags })
+  } catch (error) {
+    console.error("❌ Reflection error:", error)
+    const message =
+      error?.error?.message ||
+      error?.message ||
+      "An internal error occurred generating reflection."
+    reply.status(500).send({ reflection: message, tags: [] })
   }
 })
 
-// --- Start server ---
-const PORT = process.env.PORT || 8080
-app.listen({ port: PORT, host: "0.0.0.0" }, (err, address) => {
-  if (err) {
-    console.error(err)
-    process.exit(1)
+// --- SUBSCRIBE (newsletter / beta) ---
+app.post("/api/subscribe", async (req, reply) => {
+  try {
+    const { email } = req.body
+    if (!email) return reply.status(400).send({ ok: false, error: "Missing email" })
+
+    const { data, error } = await supabase
+      .from("subscribers")
+      .insert([{ email }])
+      .select()
+
+    if (error) throw error
+
+    reply.send({ ok: true, data })
+  } catch (err) {
+    console.error("❌ Subscribe error:", err)
+    reply.status(500).send({ ok: false })
   }
-  console.log(`🚀 MyndSelf backend (Supabase) running on ${address}`)
+})
+
+// --- MOOD SAVE ---
+app.post("/api/mood", async (req, reply) => {
+  try {
+    const { id, user_id, mood, note, reflection, at, tags } = req.body
+
+    const { data, error } = await supabase
+      .from("mood_entries")
+      .insert([{ id, user_id, mood, note, reflection, at, tags }])
+      .select()
+
+    if (error) throw error
+    reply.send({ ok: true, data })
+  } catch (err) {
+    console.error("❌ Mood save error:", err)
+    reply.status(500).send({ ok: false })
+  }
+})
+
+// --- MOOD HISTORY ---
+app.get("/api/mood", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    const { data, error } = await supabase
+      .from("mood_entries")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+
+    if (error) throw error
+    reply.send({ ok: true, items: data })
+  } catch (err) {
+    console.error("❌ Mood fetch error:", err)
+    reply.status(500).send({ ok: false, items: [] })
+  }
+})
+
+// --- START SERVER ---
+app.listen({ port: PORT, host: "0.0.0.0" }, () => {
+  console.log(`🚀 MyndSelf backend running on port ${PORT}`)
 })

@@ -1,15 +1,24 @@
 {
-  "name": "myndself-backend-mock",
-  "version": "0.1.0",
+  "name": "myndself-backend",
+  "version": "1.0.0",
+  "description": "MyndSelf.ai backend service with Fastify, OpenAI, and Supabase integration",
   "type": "module",
+  "main": "index.js",
   "scripts": {
-    "dev": "node index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
-    "fastify": "^4.26.2",
     "@fastify/cors": "^9.0.0",
+    "@supabase/supabase-js": "^2.45.3",
     "dotenv": "^16.4.5",
-    "openai": "^4.70.0"
+    "fastify": "^4.27.2",
+    "openai": "^4.67.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.x"
   }
 }

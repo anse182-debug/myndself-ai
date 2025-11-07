@@ -1,40 +1,22 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import dotenv from "dotenv"
-import fs from "fs"
-import path from "path"
 import OpenAI from "openai"
+import { createClient } from "@supabase/supabase-js"
 
 dotenv.config()
 
 const app = Fastify()
 
-// --- CORS per frontend ---
 await app.register(cors, {
   origin: process.env.CORS_ORIGIN || "*",
 })
 
-// --- Path file locale persistente (mock database) ---
-const __dirname = path.resolve()
-const DATA_FILE = path.join(__dirname, "mood-data.json")
-
-function readMoodData() {
-  try {
-    const data = fs.readFileSync(DATA_FILE, "utf8")
-    return JSON.parse(data)
-  } catch {
-    return []
-  }
-}
-
-function writeMoodData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2))
-}
+// --- Supabase client ---
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)
 
 // --- OpenAI setup ---
-const hasKey = !!process.env.OPENAI_API_KEY
-console.log("[MyndSelf] OpenAI key present:", hasKey)
-const openai = hasKey ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 // --- Health check ---
 app.get("/healthz", async () => ({ ok: true, status: "healthy" }))
@@ -49,33 +31,28 @@ app.post("/api/subscribe", async (req, res) => {
   return { ok: true }
 })
 
-// --- Mood endpoints (con salvataggio in file) ---
-app.get("/api/mood", async () => {
-  const items = readMoodData()
-  return { ok: true, items }
+// --- Mood endpoints (Supabase storage) ---
+app.get("/api/mood", async (_, res) => {
+  const { data, error } = await supabase
+    .from("mood_entries")
+    .select("*")
+    .order("created_at", { ascending: false })
+  if (error) return res.status(500).send({ ok: false, error: error.message })
+  return { ok: true, items: data }
 })
 
 app.post("/api/mood", async (req, res) => {
   const { mood, note, reflection } = req.body || {}
-  if (!mood) {
-    return res.status(400).send({ ok: false, error: "missing_mood" })
-  }
-
-  const data = readMoodData()
-  const entry = {
-    id: data.length + 1,
-    mood,
-    note: note || "",
-    reflection: reflection || "",
-    at: new Date().toISOString(),
-  }
-
-  data.push(entry)
-  writeMoodData(data)
-  return { ok: true, item: entry }
+  if (!mood) return res.status(400).send({ ok: false, error: "missing_mood" })
+  const { data, error } = await supabase
+    .from("mood_entries")
+    .insert([{ mood, note, reflection }])
+    .select()
+  if (error) return res.status(500).send({ ok: false, error: error.message })
+  return { ok: true, item: data?.[0] }
 })
 
-// --- Reflection endpoint (AI CBT/ACT) ---
+// --- Reflection endpoint ---
 app.post("/api/reflection", async (req, res) => {
   const { mood, note } = req.body || {}
   const prompt = `
@@ -91,35 +68,22 @@ Now generate a short reflective message (2–3 sentences).
 `
 
   try {
-    let reflection = ""
-
-    if (openai) {
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are a supportive reflective AI coach using CBT and ACT principles. Never diagnose; focus on awareness and self-compassion.",
-          },
-          { role: "user", content: prompt },
-        ],
-        temperature: 0.8,
-        max_tokens: 200,
-      })
-      reflection = completion?.choices?.[0]?.message?.content?.trim()
-      console.log("[MyndSelf] OpenAI response:", reflection)
-    } else {
-      console.warn("[MyndSelf] No OpenAI key detected, using fallback.")
-      reflection =
-        "Thanks for sharing. Reflect gently on your current state and remember that emotions pass like waves."
-    }
-
-    res.send({
-      ok: true,
-      reflection,
-      at: new Date().toISOString(),
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a supportive reflective AI coach using CBT and ACT principles. Never diagnose; focus on awareness and self-compassion.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.8,
+      max_tokens: 200,
     })
+
+    const reflection = completion?.choices?.[0]?.message?.content?.trim() || ""
+    res.send({ ok: true, reflection, at: new Date().toISOString() })
   } catch (err) {
     console.error("❌ Reflection error:", err)
     res.status(500).send({ ok: false, error: "AI reflection unavailable" })
@@ -133,5 +97,5 @@ app.listen({ port: PORT, host: "0.0.0.0" }, (err, address) => {
     console.error(err)
     process.exit(1)
   }
-  console.log(`🚀 MyndSelf backend running on ${address}`)
+  console.log(`🚀 MyndSelf backend (Supabase) running on ${address}`)
 })

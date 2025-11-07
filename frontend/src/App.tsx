@@ -16,22 +16,36 @@ export default function App() {
   const [reflection, setReflection] = useState("")
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState<ReflectionEntry[]>([])
+  const [userId, setUserId] = useState<string>("")
 
-  // carica storico dal backend
+  // --- genera o recupera userId anonimo ---
   useEffect(() => {
+    let stored = localStorage.getItem("myndself-user-id")
+    if (!stored) {
+      stored = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
+      localStorage.setItem("myndself-user-id", stored)
+    }
+    setUserId(stored)
+  }, [])
+
+  // --- carica storico da backend filtrato per userId ---
+  useEffect(() => {
+    if (!userId) return
     async function fetchHistory() {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`)
+        const res = await fetch(
+          `${import.meta.env.VITE_API_BASE}/api/mood?user_id=${userId}`
+        )
         const data = await res.json()
         if (data?.ok && Array.isArray(data.items)) {
-          setHistory(data.items.reverse())
+          setHistory(data.items)
         }
       } catch (err) {
         console.error("Failed to fetch mood data:", err)
       }
     }
     fetchHistory()
-  }, [])
+  }, [userId])
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,7 +89,7 @@ export default function App() {
       await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newEntry),
+        body: JSON.stringify({ ...newEntry, user_id: userId }),
       })
 
       setMood("")

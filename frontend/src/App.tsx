@@ -21,7 +21,7 @@ type ReflectionEntry = {
 }
 
 export default function App() {
-  // join beta
+  // newsletter / beta
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
@@ -39,8 +39,9 @@ export default function App() {
   // data
   const [history, setHistory] = useState<ReflectionEntry[]>([])
   const [userId, setUserId] = useState<string>("")
+  const [weeklyInsight, setWeeklyInsight] = useState<string>("")
 
-  // 1) init session
+  // init auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user)
@@ -55,7 +56,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // 2) anon id fallback
+  // anon id fallback
   useEffect(() => {
     let stored = localStorage.getItem("myndself-user-id")
     if (!stored) {
@@ -65,7 +66,7 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // 3) fetch history
+  // fetch history
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
@@ -101,16 +102,15 @@ export default function App() {
     })
 
     setAuthLoading(false)
-
     if (error) alert(error.message)
-    else alert("Check your email for the magic login link!")
+    else alert("Check your email for the magic link!")
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
-  // join beta
+  // newsletter
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -125,14 +125,13 @@ export default function App() {
     }
   }
 
-  // reflect
+  // reflection
   const handleReflect = async () => {
     if (!mood && !note) return
     setLoading(true)
     setReflection("")
-
     try {
-      // 1) chiediamo all'AI
+      // 1) chiamiamo AI
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -168,9 +167,23 @@ export default function App() {
       setNote("")
     } catch (err) {
       console.error(err)
-      setReflection("Errore di connessione al servizio di riflessione.")
+      setReflection("Errore durante la riflessione.")
     } finally {
       setLoading(false)
+    }
+  }
+
+  // weekly insight
+  const handleWeeklySummary = async () => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_BASE}/api/summary?user_id=${user?.id || userId}`
+      )
+      const data = await res.json()
+      setWeeklyInsight(data.summary || "Nessun riepilogo disponibile.")
+    } catch (err) {
+      console.error("Errore nel riepilogo:", err)
+      setWeeklyInsight("Errore nel generare il riepilogo settimanale.")
     }
   }
 
@@ -190,8 +203,7 @@ export default function App() {
         const dateStr = entry.at || entry.created_at || ""
         return {
           date: dateStr ? new Date(dateStr).toLocaleDateString() : "",
-          score: moodToScore(entry.mood || ""),
-          label: entry.mood,
+          score: moodToScore(entry.mood),
         }
       })
       .reverse()
@@ -273,19 +285,19 @@ export default function App() {
           Daily Check-In
         </h2>
         <p className="text-white/60 mb-6 text-center">
-          Tell MyndSelf how you feel right now. It will reflect it back in your language.
+          Tell MyndSelf how you feel right now — it will reflect in your language.
         </p>
 
         <div className="space-y-3">
           <input
             type="text"
-            placeholder="Il tuo stato d'animo (es. calmo, stressato, speranzoso)"
+            placeholder="Il tuo stato d'animo"
             value={mood}
             onChange={(e) => setMood(e.target.value)}
             className="w-full p-3 rounded bg-white/10 text-white"
           />
           <textarea
-            placeholder="Aggiungi una nota (cosa è successo, cosa hai notato...)"
+            placeholder="Aggiungi una nota"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             className="w-full p-3 rounded bg-white/10 text-white min-h-[120px]"
@@ -305,6 +317,28 @@ export default function App() {
             <p className="mt-2 text-emerald-100">{reflection}</p>
           </div>
         )}
+      </section>
+
+      {/* WEEKLY INSIGHT */}
+      <section className="max-w-4xl mx-auto px-6 pb-10">
+        <div className="bg-white/5 rounded-lg p-5 border border-white/5">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <h2 className="text-2xl font-semibold text-emerald-200">
+              Weekly Insight
+            </h2>
+            <button
+              onClick={handleWeeklySummary}
+              className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition"
+            >
+              Generate Summary
+            </button>
+          </div>
+          <p className="text-white/70 text-sm leading-relaxed">
+            {weeklyInsight
+              ? weeklyInsight
+              : "Ask MyndSelf to analyze your recent reflections and give you a gentle summary."}
+          </p>
+        </div>
       </section>
 
       {/* MOOD TREND */}
@@ -371,9 +405,7 @@ export default function App() {
                   <p className="text-white/80 mb-2 text-sm">{entry.note}</p>
                 )}
                 {entry.reflection && (
-                  <p className="text-emerald-100 text-sm">
-                    {entry.reflection}
-                  </p>
+                  <p className="text-emerald-100 text-sm">{entry.reflection}</p>
                 )}
                 {entry.tags && entry.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-2">

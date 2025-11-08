@@ -50,6 +50,14 @@ export default function App() {
   const [weeklyInsight, setWeeklyInsight] = useState<string>("")
   const [insightHistory, setInsightHistory] = useState<SummaryItem[]>([])
 
+  // Reflect Chat
+  const [chatMessages, setChatMessages] = useState<
+  { role: "user" | "assistant"; content: string }[]
+  >([])
+  const [chatInput, setChatInput] = useState("")
+  const [chatLoading, setChatLoading] = useState(false)
+
+
   // init auth
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -421,6 +429,109 @@ export default function App() {
         </div>
       </section>
 
+{/* REFLECT CHAT */}
+<section className="max-w-4xl mx-auto px-6 pb-10">
+  <div className="bg-white/5 rounded-lg p-5 border border-white/5">
+    <div className="flex items-center justify-between mb-4">
+      <h2 className="text-2xl font-semibold text-emerald-200">
+        Reflect with MyndSelf
+      </h2>
+      {chatMessages.length > 0 && (
+        <button
+          onClick={() => setChatMessages([])}
+          className="text-xs text-white/40 hover:text-white/70"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+    <p className="text-white/50 text-sm mb-4">
+      Start a short reflective conversation. MyndSelf will ask you gentle, CBT/ACT-style questions.
+    </p>
+
+    {/* Chat window */}
+    <div className="bg-gray-950/30 rounded-lg mb-4 max-h-64 overflow-y-auto space-y-3 p-3 border border-white/5">
+      {chatMessages.length === 0 ? (
+        <p className="text-white/30 text-sm">
+          Tell me what's on your mind today 💬
+        </p>
+      ) : (
+        chatMessages.map((m, idx) => (
+          <div
+            key={idx}
+            className={`text-sm p-2 rounded ${
+              m.role === "user"
+                ? "bg-emerald-500/10 text-white ml-auto max-w-[80%] border border-emerald-500/20"
+                : "bg-white/5 text-white max-w-[85%]"
+            }`}
+          >
+            {m.content}
+          </div>
+        ))
+      )}
+    </div>
+
+    {/* Input + send */}
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault()
+        if (!chatInput.trim()) return
+
+        const newMessages = [
+          ...chatMessages,
+          { role: "user" as const, content: chatInput.trim() },
+        ]
+        setChatMessages(newMessages)
+        setChatInput("")
+        setChatLoading(true)
+
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: user?.id || userId,
+              messages: newMessages,
+            }),
+          })
+          const data = await res.json()
+          setChatMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: data.reply || "..." },
+          ])
+        } catch (err) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: "Non riesco a rispondere ora, riprova tra poco.",
+            },
+          ])
+        } finally {
+          setChatLoading(false)
+        }
+      }}
+      className="flex gap-3"
+    >
+      <input
+        type="text"
+        value={chatInput}
+        onChange={(e) => setChatInput(e.target.value)}
+        placeholder="Scrivi qui il tuo pensiero..."
+        className="flex-1 px-3 py-2 rounded bg-white/10 text-white border border-white/10"
+      />
+      <button
+        type="submit"
+        disabled={chatLoading}
+        className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition disabled:opacity-50"
+      >
+        {chatLoading ? "..." : "Send"}
+      </button>
+    </form>
+  </div>
+</section>
+
+      
       {/* MOOD TREND */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-semibold mb-4 text-emerald-200">

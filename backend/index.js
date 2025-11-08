@@ -8,12 +8,11 @@ const app = Fastify({ logger: true })
 // ENV
 const PORT = process.env.PORT || 8080
 const SUPABASE_URL = process.env.SUPABASE_URL
-// preferisci la service role se presente, altrimenti la key normale
 const SUPABASE_KEY =
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
 const OPENAI_KEY = process.env.OPENAI_API_KEY
 
-// clients
+// Clients
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 const openai = new OpenAI({ apiKey: OPENAI_KEY })
 
@@ -23,53 +22,50 @@ await app.register(cors, {
   methods: ["GET", "POST", "OPTIONS"],
 })
 
-// health
+// Health check
 app.get("/", async () => {
   return { ok: true, service: "MyndSelf backend is running" }
 })
 
-// AI reflection con lingua = input + tags
+// --- REFLECTION (multilingual + tags) ---
 app.post("/api/reflection", async (req, reply) => {
   try {
     const { mood, note } = req.body || {}
-
-    if (!mood && !note) {
+    if (!mood && !note)
       return reply.status(400).send({ error: "Missing mood or note" })
-    }
 
     const prompt = `
 You are MyndSelf.ai — an AI emotional reflection coach.
-The user may write in ITALIAN or ENGLISH (or another language).
-Your job:
+The user may write in ITALIAN, ENGLISH or another language.
+Your task:
 1. Detect the user's language.
-2. Answer in the SAME language as the user.
-3. Give a short, compassionate reflection (max 3 sentences) in CBT/ACT tone.
-4. Extract up to 3 emotional tags (short words, e.g. "Calm", "Stress", "Hope").
+2. Answer in the SAME language.
+3. Give a short, compassionate reflection (max 3 sentences, CBT/ACT tone).
+4. Extract up to 3 emotional tags (short words, e.g. "Calm", "Hope").
 
 User input:
 Mood: ${mood}
 Note: ${note}
 
-Respond ONLY as valid JSON, like:
+Respond ONLY in valid JSON, like:
 {
   "reflection": "....",
   "tags": ["...", "..."]
 }
-`
+    `
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.8,
-      max_tokens: 200,
     })
 
     const raw = completion.choices?.[0]?.message?.content || "{}"
-    let parsed
+    let parsed = {}
     try {
       parsed = JSON.parse(raw)
-    } catch (e) {
+    } catch {
       parsed = {}
     }
 
@@ -79,39 +75,34 @@ Respond ONLY as valid JSON, like:
     const tags = Array.isArray(parsed.tags) ? parsed.tags : []
 
     reply.send({ reflection, tags })
-  } catch (error) {
-    console.error("❌ Reflection error:", error)
+  } catch (err) {
+    console.error("❌ Reflection error:", err)
     reply
       .status(500)
-      .send({ reflection: "Servizio temporaneamente non disponibile.", tags: [] })
+      .send({ reflection: "Servizio non disponibile.", tags: [] })
   }
 })
 
-// subscribe (semplice)
+// --- SUBSCRIBE ---
 app.post("/api/subscribe", async (req, reply) => {
   const { email } = req.body || {}
-  if (!email || !email.includes("@")) {
+  if (!email || !email.includes("@"))
     return reply.status(400).send({ ok: false, error: "invalid_email" })
-  }
 
-  // opzionale: salva in una tabella "subscribers", se l'hai creata
   try {
     await supabase.from("subscribers").insert([{ email }])
   } catch (e) {
-    // non bloccare la risposta al frontend
-    console.warn("subscribe insert error (non blocking):", e.message)
+    console.warn("⚠️ Subscriber insert non blocking:", e.message)
   }
 
   reply.send({ ok: true })
 })
 
-// salva mood
+// --- SAVE MOOD ---
 app.post("/api/mood", async (req, reply) => {
   try {
     const { id, user_id, mood, note, reflection, at, tags } = req.body || {}
-    if (!mood) {
-      return reply.status(400).send({ ok: false, error: "missing_mood" })
-    }
+    if (!mood) return reply.status(400).send({ ok: false, error: "missing_mood" })
 
     const payload = {
       id,
@@ -128,11 +119,7 @@ app.post("/api/mood", async (req, reply) => {
       .insert([payload])
       .select()
 
-    if (error) {
-      console.error("❌ Supabase insert error:", error)
-      return reply.status(500).send({ ok: false, error: error.message })
-    }
-
+    if (error) throw error
     reply.send({ ok: true, item: data?.[0] })
   } catch (err) {
     console.error("❌ Mood save error:", err)
@@ -140,26 +127,17 @@ app.post("/api/mood", async (req, reply) => {
   }
 })
 
-// recupera mood per utente
+// --- GET MOOD HISTORY ---
 app.get("/api/mood", async (req, reply) => {
   try {
     const { user_id } = req.query
-
     let query = supabase.from("mood_entries").select("*")
 
-    if (user_id) {
-      query = query.eq("user_id", user_id)
-    }
-
-    // ordina prima per at (che ora hai aggiunto), poi per created_at
+    if (user_id) query = query.eq("user_id", user_id)
     query = query.order("at", { ascending: false })
 
     const { data, error } = await query
-
-    if (error) {
-      console.error("❌ Supabase select error:", error)
-      return reply.status(500).send({ ok: false, items: [] })
-    }
+    if (error) throw error
 
     reply.send({ ok: true, items: data })
   } catch (err) {
@@ -168,7 +146,69 @@ app.get("/api/mood", async (req, reply) => {
   }
 })
 
-// start
+// --- WEEKLY INSIGHT / SUMMARY ---
+app.get("/api/summary", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    if (!user_id)
+      return reply.status(400).send({ error: "Missing user_id" })
+
+    const { data, error } = await supabase
+      .from("mood_entries")
+      .select("mood, note, reflection, tags, at")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+      .limit(10)
+
+    if (error) throw error
+    if (!data || data.length === 0)
+      return reply.send({
+        summary:
+          "Non ci sono ancora abbastanza riflessioni per creare un riepilogo.",
+      })
+
+    const inputText = data
+      .map(
+        (d) =>
+          `Mood: ${d.mood}\nNote: ${d.note}\nReflection: ${d.reflection}\nTags: ${
+            (d.tags || []).join(", ")
+          }`
+      )
+      .join("\n---\n")
+
+    const prompt = `
+You are MyndSelf.ai, an AI for emotional self-reflection.
+Analyze the following reflections from the same user.
+Summarize the emotional trends of the last few days in 4–6 lines,
+mentioning progress and gentle suggestions for balance.
+Respond in the same language detected in the reflections.
+
+Reflections:
+${inputText}
+
+Respond ONLY with plain text.
+    `
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.7,
+    })
+
+    const summary =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "Non è stato possibile generare un riepilogo."
+
+    reply.send({ summary })
+  } catch (err) {
+    console.error("❌ Summary error:", err)
+    reply
+      .status(500)
+      .send({ summary: "Errore nel generare il riepilogo settimanale." })
+  }
+})
+
+// --- START ---
 app.listen({ port: PORT, host: "0.0.0.0" }, () => {
   console.log(`🚀 MyndSelf backend running on http://0.0.0.0:${PORT}`)
 })

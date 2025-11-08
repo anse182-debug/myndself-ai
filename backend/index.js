@@ -299,7 +299,24 @@ ${moodContext || "No previous context."}
     })
 
     const answer = completion.choices?.[0]?.message?.content?.trim() || ""
-    reply.send({ reply: answer })
+
+// --- salva la conversazione ---
+try {
+  await supabase.from("mood_chats").insert([
+    {
+      user_id,
+      messages: [
+        ...messages,
+        { role: "assistant", content: answer },
+      ],
+    },
+  ])
+} catch (dbErr) {
+  console.warn("⚠️ Chat save failed:", dbErr.message)
+}
+
+reply.send({ reply: answer })
+
   } catch (err) {
     console.error("❌ Chat error:", err)
     reply.status(500).send({ reply: "Qualcosa è andato storto, riprova." })

@@ -22,7 +22,7 @@ await app.register(cors, {
   methods: ["GET", "POST", "OPTIONS"],
 })
 
-// Health
+// Health check
 app.get("/", async () => {
   return { ok: true, service: "MyndSelf backend is running" }
 })
@@ -146,14 +146,13 @@ app.get("/api/mood", async (req, reply) => {
   }
 })
 
-// --- WEEKLY INSIGHT (with optional save) ---
+// --- WEEKLY INSIGHT ---
 app.get("/api/summary", async (req, reply) => {
   try {
     const { user_id, save } = req.query
     if (!user_id)
       return reply.status(400).send({ error: "Missing user_id" })
 
-    // ultime 10 riflessioni
     const { data, error } = await supabase
       .from("mood_entries")
       .select("mood, note, reflection, tags, at")
@@ -200,7 +199,6 @@ Respond ONLY with plain text.
       completion.choices?.[0]?.message?.content?.trim() ||
       "Non è stato possibile generare un riepilogo."
 
-    // se ?save=true lo salviamo
     if (save === "true") {
       await supabase.from("mood_summaries").insert([
         {
@@ -241,7 +239,74 @@ app.get("/api/summary/history", async (req, reply) => {
   }
 })
 
-// START
+// --- CONVERSATIONAL REFLECT (short chat) ---
+app.post("/api/chat", async (req, reply) => {
+  try {
+    const { user_id, messages } = req.body || {}
+
+    if (!messages || !Array.isArray(messages) || messages.length === 0) {
+      return reply.status(400).send({ error: "Messages array required" })
+    }
+
+    // Aggiunge un minimo di contesto dai mood recenti
+    let moodContext = ""
+    if (user_id) {
+      const { data } = await supabase
+        .from("mood_entries")
+        .select("mood, note, reflection, tags")
+        .eq("user_id", user_id)
+        .order("at", { ascending: false })
+        .limit(5)
+      if (data && data.length > 0) {
+        moodContext = data
+          .map(
+            (d) =>
+              `Mood: ${d.mood} | Note: ${d.note} | Tags: ${(d.tags || []).join(
+                ", "
+              )}`
+          )
+          .join("\n")
+      }
+    }
+
+    const systemPrompt = `
+You are MyndSelf.ai, an AI reflection companion.
+Style:
+- short, warm, non-judgmental
+- CBT / ACT inspired
+- ask 1 follow-up at a time
+- never give medical/clinical advice
+- if the user writes in Italian, reply in Italian
+- keep answers within 2-4 sentences
+
+User recent emotional context:
+${moodContext || "No previous context."}
+`
+
+    const openaiMessages = [
+      { role: "system", content: systemPrompt },
+      ...messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    ]
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: openaiMessages,
+      temperature: 0.7,
+      max_tokens: 200,
+    })
+
+    const answer = completion.choices?.[0]?.message?.content?.trim() || ""
+    reply.send({ reply: answer })
+  } catch (err) {
+    console.error("❌ Chat error:", err)
+    reply.status(500).send({ reply: "Qualcosa è andato storto, riprova." })
+  }
+})
+
+// --- START SERVER ---
 app.listen({ port: PORT, host: "0.0.0.0" }, () => {
   console.log(`🚀 MyndSelf backend running on http://0.0.0.0:${PORT}`)
 })

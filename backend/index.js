@@ -268,27 +268,6 @@ app.post("/api/chat", async (req, reply) => {
           .join("\n")
       }
     }
-// --- GET CHAT HISTORY ---
-app.get("/api/chat/history", async (req, reply) => {
-  try {
-    const { user_id } = req.query
-    if (!user_id)
-      return reply.status(400).send({ error: "Missing user_id" })
-
-    const { data, error } = await supabase
-      .from("mood_chats")
-      .select("id, messages, created_at")
-      .eq("user_id", user_id)
-      .order("created_at", { ascending: false })
-      .limit(20)
-
-    if (error) throw error
-    reply.send({ ok: true, items: data })
-  } catch (err) {
-    console.error("❌ Chat history error:", err)
-    reply.status(500).send({ ok: false, items: [] })
-  }
-})
 
     const systemPrompt = `
 You are MyndSelf.ai, an AI reflection companion.
@@ -341,6 +320,27 @@ reply.send({ reply: answer })
   } catch (err) {
     console.error("❌ Chat error:", err)
     reply.status(500).send({ reply: "Qualcosa è andato storto, riprova." })
+  }
+})
+// --- GET CHAT HISTORY ---
+app.get("/api/chat/history", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    if (!user_id)
+      return reply.status(400).send({ error: "Missing user_id" })
+
+    const { data, error } = await supabase
+      .from("mood_chats")
+      .select("id, messages, created_at")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+
+    if (error) throw error
+    reply.send({ ok: true, items: data })
+  } catch (err) {
+    console.error("❌ Chat history error:", err)
+    reply.status(500).send({ ok: false, items: [] })
   }
 })
 

@@ -20,6 +20,12 @@ type ReflectionEntry = {
   created_at?: string
 }
 
+type SummaryItem = {
+  id: string
+  summary: string
+  created_at: string
+}
+
 export default function App() {
   // newsletter / beta
   const [email, setEmail] = useState("")
@@ -39,7 +45,10 @@ export default function App() {
   // data
   const [history, setHistory] = useState<ReflectionEntry[]>([])
   const [userId, setUserId] = useState<string>("")
+
+  // insights
   const [weeklyInsight, setWeeklyInsight] = useState<string>("")
+  const [insightHistory, setInsightHistory] = useState<SummaryItem[]>([])
 
   // init auth
   useEffect(() => {
@@ -66,7 +75,7 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // fetch history
+  // fetch history (mood)
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
@@ -86,6 +95,28 @@ export default function App() {
     }
 
     fetchHistory()
+  }, [user, userId])
+
+  // fetch summary history
+  useEffect(() => {
+    const activeUserId = user?.id || userId
+    if (!activeUserId) return
+
+    async function fetchInsightHistory() {
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_BASE}/api/summary/history?user_id=${activeUserId}`
+        )
+        const data = await res.json()
+        if (data?.ok && Array.isArray(data.items)) {
+          setInsightHistory(data.items)
+        }
+      } catch (err) {
+        console.error("Failed to fetch summary history:", err)
+      }
+    }
+
+    fetchInsightHistory()
   }, [user, userId])
 
   // login
@@ -110,7 +141,7 @@ export default function App() {
     await supabase.auth.signOut()
   }
 
-  // newsletter
+  // subscribe
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -125,13 +156,12 @@ export default function App() {
     }
   }
 
-  // reflection
+  // reflect
   const handleReflect = async () => {
     if (!mood && !note) return
     setLoading(true)
     setReflection("")
     try {
-      // 1) chiamiamo AI
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -149,11 +179,9 @@ export default function App() {
         at: now,
       }
 
-      // 2) aggiorna UI
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
 
-      // 3) salva su backend
       await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,27 +201,44 @@ export default function App() {
     }
   }
 
-  // weekly insight
-  const handleWeeklySummary = async () => {
+  // weekly insight (with save)
+  const handleWeeklySummary = async (save = false) => {
     try {
       const res = await fetch(
-        `${import.meta.env.VITE_API_BASE}/api/summary?user_id=${user?.id || userId}`
+        `${import.meta.env.VITE_API_BASE}/api/summary?user_id=${user?.id || userId}${
+          save ? "&save=true" : ""
+        }`
       )
       const data = await res.json()
       setWeeklyInsight(data.summary || "Nessun riepilogo disponibile.")
+
+      // se abbiamo salvato, ricarichiamo la history
+      if (save) {
+        const res2 = await fetch(
+          `${import.meta.env.VITE_API_BASE}/api/summary/history?user_id=${
+            user?.id || userId
+          }`
+        )
+        const data2 = await res2.json()
+        if (data2?.ok && Array.isArray(data2.items)) {
+          setInsightHistory(data2.items)
+        }
+      }
     } catch (err) {
       console.error("Errore nel riepilogo:", err)
       setWeeklyInsight("Errore nel generare il riepilogo settimanale.")
     }
   }
 
-  // chart data
   const chartData = useMemo(() => {
     const moodToScore = (m: string) => {
       const val = m?.toLowerCase?.() || ""
-      if (val.includes("calm") || val.includes("seren") || val.includes("tran")) return 4
-      if (val.includes("felic") || val.includes("happy") || val.includes("hope")) return 5
-      if (val.includes("stress") || val.includes("ansia") || val.includes("tired")) return 2
+      if (val.includes("calm") || val.includes("seren") || val.includes("tran"))
+        return 4
+      if (val.includes("felic") || val.includes("happy") || val.includes("hope"))
+        return 5
+      if (val.includes("stress") || val.includes("ansia") || val.includes("tired"))
+        return 2
       if (val.includes("trist") || val.includes("sad")) return 1
       return 3
     }
@@ -236,7 +281,7 @@ export default function App() {
         </div>
       </section>
 
-      {/* AUTH BLOCK */}
+      {/* AUTH */}
       <section className="max-w-3xl mx-auto px-6 py-8 text-center">
         {!user ? (
           <div className="bg-white/10 p-6 rounded-lg border border-white/10">
@@ -320,24 +365,59 @@ export default function App() {
       </section>
 
       {/* WEEKLY INSIGHT */}
-      <section className="max-w-4xl mx-auto px-6 pb-10">
+      <section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
         <div className="bg-white/5 rounded-lg p-5 border border-white/5">
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-2xl font-semibold text-emerald-200">
               Weekly Insight
             </h2>
-            <button
-              onClick={handleWeeklySummary}
-              className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition"
-            >
-              Generate Summary
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => handleWeeklySummary(false)}
+                className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition"
+              >
+                Preview
+              </button>
+              <button
+                onClick={() => handleWeeklySummary(true)}
+                className="bg-emerald-500 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-400 transition"
+              >
+                Generate & Save
+              </button>
+            </div>
           </div>
           <p className="text-white/70 text-sm leading-relaxed">
             {weeklyInsight
               ? weeklyInsight
-              : "Ask MyndSelf to analyze your recent reflections and give you a gentle summary."}
+              : "Ask MyndSelf to analyze your recent reflections and get a gentle summary of your emotional trend."}
           </p>
+        </div>
+
+        {/* SUMMARY HISTORY */}
+        <div className="bg-white/5 rounded-lg p-5 border border-white/5">
+          <h3 className="text-lg font-semibold mb-3 text-emerald-200">
+            Previous insights
+          </h3>
+          {insightHistory.length === 0 ? (
+            <p className="text-white/40 text-sm">
+              Nessun insight salvato ancora. Generane uno con “Generate & Save”.
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {insightHistory.map((item) => (
+                <li key={item.id} className="bg-white/5 rounded p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-white/40">
+                      {new Date(item.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white/80 leading-relaxed">
+                    {item.summary}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 

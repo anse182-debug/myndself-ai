@@ -22,7 +22,7 @@ await app.register(cors, {
   methods: ["GET", "POST", "OPTIONS"],
 })
 
-// Health check
+// Health
 app.get("/", async () => {
   return { ok: true, service: "MyndSelf backend is running" }
 })
@@ -146,13 +146,14 @@ app.get("/api/mood", async (req, reply) => {
   }
 })
 
-// --- WEEKLY INSIGHT / SUMMARY ---
+// --- WEEKLY INSIGHT (with optional save) ---
 app.get("/api/summary", async (req, reply) => {
   try {
-    const { user_id } = req.query
+    const { user_id, save } = req.query
     if (!user_id)
       return reply.status(400).send({ error: "Missing user_id" })
 
+    // ultime 10 riflessioni
     const { data, error } = await supabase
       .from("mood_entries")
       .select("mood, note, reflection, tags, at")
@@ -199,6 +200,16 @@ Respond ONLY with plain text.
       completion.choices?.[0]?.message?.content?.trim() ||
       "Non è stato possibile generare un riepilogo."
 
+    // se ?save=true lo salviamo
+    if (save === "true") {
+      await supabase.from("mood_summaries").insert([
+        {
+          user_id,
+          summary,
+        },
+      ])
+    }
+
     reply.send({ summary })
   } catch (err) {
     console.error("❌ Summary error:", err)
@@ -208,7 +219,29 @@ Respond ONLY with plain text.
   }
 })
 
-// --- START ---
+// --- SUMMARY HISTORY ---
+app.get("/api/summary/history", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    if (!user_id)
+      return reply.status(400).send({ error: "Missing user_id" })
+
+    const { data, error } = await supabase
+      .from("mood_summaries")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+
+    if (error) throw error
+    reply.send({ ok: true, items: data })
+  } catch (err) {
+    console.error("❌ Summary history error:", err)
+    reply.status(500).send({ ok: false, items: [] })
+  }
+})
+
+// START
 app.listen({ port: PORT, host: "0.0.0.0" }, () => {
   console.log(`🚀 MyndSelf backend running on http://0.0.0.0:${PORT}`)
 })

@@ -26,8 +26,23 @@ type SummaryItem = {
   created_at: string
 }
 
+type DailyActivity = {
+  day: string
+  entries: number
+}
+
+type TopTag = {
+  tag: string
+  tag_count: number
+}
+
+type ChatMessage = {
+  role: "user" | "assistant"
+  content: string
+}
+
 export default function App() {
-  // newsletter / beta
+  // newsletter / beta (se vuoi usarla)
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
@@ -36,7 +51,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false)
   const [emailForLogin, setEmailForLogin] = useState("")
 
-  // check-in
+  // daily check-in
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
@@ -50,21 +65,16 @@ export default function App() {
   const [weeklyInsight, setWeeklyInsight] = useState<string>("")
   const [insightHistory, setInsightHistory] = useState<SummaryItem[]>([])
 
-  // Reflect Chat
-  const [chatMessages, setChatMessages] = useState<
-  { role: "user" | "assistant"; content: string }[]
-  >([])
+  // analytics
+  const [dailyActivity, setDailyActivity] = useState<DailyActivity[]>([])
+  const [topTags, setTopTags] = useState<TopTag[]>([])
+
+  // chat
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState("")
-  const [chatLoading, setChatLoading] = useState(false)
-const [dailyActivity, setDailyActivity] = useState<
-  { day: string; entries: number }[]
->([])
-const [topTags, setTopTags] = useState<
-  { tag: string; tag_count: number }[]
->([])
+  const [isChatLoading, setIsChatLoading] = useState(false)
 
-
-  // init auth
+  // ---- AUTH INIT ----
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user)
@@ -79,7 +89,7 @@ const [topTags, setTopTags] = useState<
     return () => subscription.unsubscribe()
   }, [])
 
-  // anon id fallback
+  // ---- ANON USER ID ----
   useEffect(() => {
     let stored = localStorage.getItem("myndself-user-id")
     if (!stored) {
@@ -89,88 +99,78 @@ const [topTags, setTopTags] = useState<
     setUserId(stored)
   }, [])
 
-  // fetch history (mood)
+  // ---- FETCH MOOD HISTORY, SUMMARY HISTORY, ANALYTICS, CHAT HISTORY ----
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
 
-    async function fetchHistory() {
+    async function fetchAll() {
       try {
-        const res = await fetch(
+        // mood history
+        const moodRes = await fetch(
           `${import.meta.env.VITE_API_BASE}/api/mood?user_id=${activeUserId}`
         )
-        const data = await res.json()
-        if (data?.ok && Array.isArray(data.items)) {
-          setHistory(data.items)
+        const moodJson = await moodRes.json()
+        if (moodJson?.ok && Array.isArray(moodJson.items)) {
+          setHistory(moodJson.items)
         }
-      } catch (err) {
-        console.error("Failed to fetch mood data:", err)
-      }
-    }
 
-    fetchHistory()
-  }, [user, userId])
-
-  // fetch summary history
-  useEffect(() => {
-    const activeUserId = user?.id || userId
-    if (!activeUserId) return
-
-    async function fetchInsightHistory() {
-      try {
-        const res = await fetch(
+        // summary history
+        const sumRes = await fetch(
           `${import.meta.env.VITE_API_BASE}/api/summary/history?user_id=${activeUserId}`
         )
-        const data = await res.json()
-        if (data?.ok && Array.isArray(data.items)) {
-          setInsightHistory(data.items)
+        const sumJson = await sumRes.json()
+        if (sumJson?.ok && Array.isArray(sumJson.items)) {
+          setInsightHistory(sumJson.items)
+        }
+
+        // analytics daily
+        const [dailyRes, tagsRes] = await Promise.all([
+          fetch(
+            `${import.meta.env.VITE_API_BASE}/api/analytics/daily?user_id=${activeUserId}`
+          ),
+          fetch(
+            `${import.meta.env.VITE_API_BASE}/api/analytics/tags?user_id=${activeUserId}`
+          ),
+        ])
+
+        const dailyJson = await dailyRes.json()
+        if (dailyJson?.ok && Array.isArray(dailyJson.items)) {
+          setDailyActivity(
+            dailyJson.items.map((d: any) => ({
+              day: d.day,
+              entries: d.entries,
+            }))
+          )
+        }
+
+        const tagsJson = await tagsRes.json()
+        if (tagsJson?.ok && Array.isArray(tagsJson.items)) {
+          setTopTags(
+            tagsJson.items.map((t: any) => ({
+              tag: t.tag,
+              tag_count: t.tag_count,
+            }))
+          )
+        }
+
+        // chat history (ultima sessione)
+        const chatRes = await fetch(
+          `${import.meta.env.VITE_API_BASE}/api/chat/history?user_id=${activeUserId}`
+        )
+        const chatJson = await chatRes.json()
+        if (chatJson?.ok && Array.isArray(chatJson.items) && chatJson.items[0]) {
+          setChatMessages(chatJson.items[0].messages || [])
         }
       } catch (err) {
-        console.error("Failed to fetch summary history:", err)
+        console.error("Failed to fetch initial data:", err)
       }
     }
 
-    fetchInsightHistory()
+    fetchAll()
   }, [user, userId])
-useEffect(() => {
-  const activeUserId = user?.id || userId
-  if (!activeUserId) return
 
-  async function fetchAnalytics() {
-    try {
-      const [dailyRes, tagsRes] = await Promise.all([
-        fetch(`${import.meta.env.VITE_API_BASE}/api/analytics/daily?user_id=${activeUserId}`),
-        fetch(`${import.meta.env.VITE_API_BASE}/api/analytics/tags?user_id=${activeUserId}`)
-      ])
-      const dailyJson = await dailyRes.json()
-      const tagsJson = await tagsRes.json()
-
-      if (dailyJson?.ok && Array.isArray(dailyJson.items)) {
-        // normalizzo per safety
-        setDailyActivity(
-          dailyJson.items.map((d: any) => ({
-            day: d.day,
-            entries: d.entries,
-          }))
-        )
-      }
-      if (tagsJson?.ok && Array.isArray(tagsJson.items)) {
-        setTopTags(
-          tagsJson.items.map((t: any) => ({
-            tag: t.tag,
-            tag_count: t.tag_count,
-          }))
-        )
-      }
-    } catch (err) {
-      console.error("Failed to fetch analytics:", err)
-    }
-  }
-
-  fetchAnalytics()
-}, [user, userId])
-
-  // login
+  // ---- LOGIN ----
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -192,7 +192,7 @@ useEffect(() => {
     await supabase.auth.signOut()
   }
 
-  // subscribe
+  // ---- SUBSCRIBE (opzionale) ----
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
@@ -207,16 +207,21 @@ useEffect(() => {
     }
   }
 
-  // reflect
+  // ---- REFLECTION ----
   const handleReflect = async () => {
     if (!mood && !note) return
     setLoading(true)
     setReflection("")
+
     try {
       const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, note }),
+        body: JSON.stringify({
+          mood,
+          note,
+          user_id: user?.id || userId,
+        }),
       })
       const data = await res.json()
 
@@ -230,9 +235,11 @@ useEffect(() => {
         at: now,
       }
 
+      // UI
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
 
+      // save
       await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -252,7 +259,7 @@ useEffect(() => {
     }
   }
 
-  // weekly insight (with save)
+  // ---- WEEKLY SUMMARY ----
   const handleWeeklySummary = async (save = false) => {
     try {
       const res = await fetch(
@@ -263,24 +270,66 @@ useEffect(() => {
       const data = await res.json()
       setWeeklyInsight(data.summary || "Nessun riepilogo disponibile.")
 
-      // se abbiamo salvato, ricarichiamo la history
+      // se ho salvato, ricarico lo storico
       if (save) {
-        const res2 = await fetch(
+        const sh = await fetch(
           `${import.meta.env.VITE_API_BASE}/api/summary/history?user_id=${
             user?.id || userId
           }`
         )
-        const data2 = await res2.json()
-        if (data2?.ok && Array.isArray(data2.items)) {
-          setInsightHistory(data2.items)
+        const shJson = await sh.json()
+        if (shJson?.ok && Array.isArray(shJson.items)) {
+          setInsightHistory(shJson.items)
         }
       }
     } catch (err) {
       console.error("Errore nel riepilogo:", err)
-      setWeeklyInsight("Errore nel generare il riepilogo settimanale.")
+      setWeeklyInsight("Errore nel generare il riepilogo.")
     }
   }
 
+  // ---- CHAT SEND ----
+  async function handleChatSend() {
+    if (!chatInput.trim()) return
+    const userMessage: ChatMessage = {
+      role: "user",
+      content: chatInput.trim(),
+    }
+
+    setChatMessages((prev) => [...prev, userMessage])
+    setChatInput("")
+    setIsChatLoading(true)
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: user?.id || userId,
+          messages: [...chatMessages, userMessage],
+        }),
+      })
+      const data = await res.json()
+      const aiMessage: ChatMessage = {
+        role: "assistant",
+        content: data.reply || "...",
+      }
+      setChatMessages((prev) => [...prev, aiMessage])
+    } catch (err) {
+      console.error("Chat error:", err)
+      setChatMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Non riesco a rispondere ora, riprova tra poco.",
+        },
+      ])
+    } finally {
+      setIsChatLoading(false)
+    }
+  }
+
+  // ---- CHART DATA ----
   const chartData = useMemo(() => {
     const moodToScore = (m: string) => {
       const val = m?.toLowerCase?.() || ""
@@ -415,7 +464,7 @@ useEffect(() => {
         )}
       </section>
 
-      {/* WEEKLY INSIGHT */}
+      {/* WEEKLY INSIGHT + HISTORY */}
       <section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
         <div className="bg-white/5 rounded-lg p-5 border border-white/5">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
@@ -444,7 +493,6 @@ useEffect(() => {
           </p>
         </div>
 
-        {/* SUMMARY HISTORY */}
         <div className="bg-white/5 rounded-lg p-5 border border-white/5">
           <h3 className="text-lg font-semibold mb-3 text-emerald-200">
             Previous insights
@@ -471,172 +519,131 @@ useEffect(() => {
           )}
         </div>
       </section>
-{/* EMOTIONAL JOURNEY */}
-<section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
-  <h2 className="text-2xl font-semibold text-emerald-200">
-    Your Emotional Journey
-  </h2>
 
-  {/* Daily activity */}
-  <div className="bg-white/5 rounded-lg p-4 border border-white/5">
-    <h3 className="text-sm font-semibold text-white/80 mb-3">
-      Check-ins (last 14 days)
-    </h3>
-    {dailyActivity.length === 0 ? (
-      <p className="text-white/30 text-sm">
-        Do a few daily check-ins to see your activity here.
-      </p>
-    ) : (
-      <div className="flex gap-2 overflow-x-auto">
-        {dailyActivity
-          .slice()
-          .reverse()
-          .map((d) => (
-            <div
-              key={d.day}
-              className="flex flex-col items-center gap-1 min-w-[48px]"
-            >
-              <div
-                className="w-8 rounded bg-emerald-400/30 border border-emerald-400/30"
-                style={{ height: 20 + d.entries * 14 }}
-                title={`${d.entries} entries`}
-              />
-              <span className="text-[10px] text-white/40">
-                {new Date(d.day).toLocaleDateString()}
-              </span>
+      {/* EMOTIONAL JOURNEY */}
+      <section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
+        <h2 className="text-2xl font-semibold text-emerald-200">
+          Your Emotional Journey
+        </h2>
+
+        {/* Daily activity */}
+        <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+          <h3 className="text-sm font-semibold text-white/80 mb-3">
+            Check-ins (last 14 days)
+          </h3>
+          {dailyActivity.length === 0 ? (
+            <p className="text-white/30 text-sm">
+              Do a few daily check-ins to see your activity here.
+            </p>
+          ) : (
+            <div className="flex gap-2 overflow-x-auto">
+              {dailyActivity
+                .slice()
+                .reverse()
+                .map((d) => (
+                  <div
+                    key={d.day}
+                    className="flex flex-col items-center gap-1 min-w-[48px]"
+                  >
+                    <div
+                      className="w-8 rounded bg-emerald-400/30 border border-emerald-400/30"
+                      style={{ height: 20 + d.entries * 14 }}
+                      title={`${d.entries} entries`}
+                    />
+                    <span className="text-[10px] text-white/40">
+                      {new Date(d.day).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
             </div>
-          ))}
-      </div>
-    )}
-  </div>
+          )}
+        </div>
 
-  {/* Top emotion tags */}
-  <div className="bg-white/5 rounded-lg p-4 border border-white/5">
-    <h3 className="text-sm font-semibold text-white/80 mb-3">
-      Most frequent emotions
-    </h3>
-    {topTags.length === 0 ? (
-      <p className="text-white/30 text-sm">
-        When you add moods, MyndSelf will extract emotional tags and show them here.
-      </p>
-    ) : (
-      <div className="flex flex-wrap gap-2">
-        {topTags.map((t) => (
-          <span
-            key={t.tag}
-            className="text-xs bg-emerald-500/15 text-emerald-100 px-3 py-1 rounded-full border border-emerald-500/20"
-          >
-            {t.tag} · {t.tag_count}
-          </span>
-        ))}
-      </div>
-    )}
-  </div>
-</section>
+        {/* Top tags */}
+        <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+          <h3 className="text-sm font-semibold text-white/80 mb-3">
+            Most frequent emotions
+          </h3>
+          {topTags.length === 0 ? (
+            <p className="text-white/30 text-sm">
+              When you add moods, MyndSelf will extract emotional tags and show them here.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {topTags.map((t) => (
+                <span
+                  key={t.tag}
+                  className="text-xs bg-emerald-500/15 text-emerald-100 px-3 py-1 rounded-full border border-emerald-500/20"
+                >
+                  {t.tag} · {t.tag_count}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
-{/* REFLECT CHAT */}
-<section className="max-w-4xl mx-auto px-6 pb-10">
-  <div className="bg-white/5 rounded-lg p-5 border border-white/5">
-    <div className="flex items-center justify-between mb-4">
-      <h2 className="text-2xl font-semibold text-emerald-200">
-        Reflect with MyndSelf
-      </h2>
-      {chatMessages.length > 0 && (
-        <button
-          onClick={() => setChatMessages([])}
-          className="text-xs text-white/40 hover:text-white/70"
-        >
-          Clear
-        </button>
-      )}
-    </div>
-    <p className="text-white/50 text-sm mb-4">
-      Start a short reflective conversation. MyndSelf will ask you gentle, CBT/ACT-style questions.
-    </p>
-
-    {/* Chat window */}
-    <div className="bg-gray-950/30 rounded-lg mb-4 max-h-64 overflow-y-auto space-y-3 p-3 border border-white/5">
-      {chatMessages.length === 0 ? (
-        <p className="text-white/30 text-sm">
-          Tell me what's on your mind today 💬
-        </p>
-      ) : (
-        chatMessages.map((m, idx) => (
-          <div
-            key={idx}
-            className={`text-sm p-2 rounded ${
-              m.role === "user"
-                ? "bg-emerald-500/10 text-white ml-auto max-w-[80%] border border-emerald-500/20"
-                : "bg-white/5 text-white max-w-[85%]"
-            }`}
-          >
-            {m.content}
+      {/* REFLECTIVE CHAT */}
+      <section className="max-w-3xl mx-auto px-6 pb-16 space-y-4">
+        <h2 className="text-2xl font-semibold text-emerald-200">
+          Reflective Chat
+        </h2>
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10 min-h-[320px] flex flex-col justify-between">
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+            {chatMessages.length === 0 && (
+              <p className="text-white/30 text-sm text-center mt-6">
+                Start a conversation with your inner reflection companion.
+              </p>
+            )}
+            {chatMessages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`flex ${
+                  m.role === "user" ? "justify-end" : "justify-start"
+                }`}
+              >
+                <div
+                  className={`max-w-[75%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
+                    m.role === "user"
+                      ? "bg-emerald-500/20 text-emerald-100"
+                      : "bg-white/10 text-white/90"
+                  }`}
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {isChatLoading && (
+              <div className="flex justify-start">
+                <div className="text-white/40 text-sm italic animate-pulse">
+                  Thinking...
+                </div>
+              </div>
+            )}
           </div>
-        ))
-      )}
-    </div>
 
-    {/* Input + send */}
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault()
-        if (!chatInput.trim()) return
+          {/* Input */}
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Type your thought..."
+              className="flex-1 bg-white/10 text-white/90 text-sm px-3 py-2 rounded-xl border border-white/10 focus:outline-none focus:ring-1 focus:ring-emerald-400/50"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
+            />
+            <button
+              onClick={handleChatSend}
+              disabled={isChatLoading}
+              className="bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-100 px-4 py-2 rounded-xl border border-emerald-500/20 text-sm transition disabled:opacity-50"
+            >
+              {isChatLoading ? "..." : "Send"}
+            </button>
+          </div>
+        </div>
+      </section>
 
-        const newMessages = [
-          ...chatMessages,
-          { role: "user" as const, content: chatInput.trim() },
-        ]
-        setChatMessages(newMessages)
-        setChatInput("")
-        setChatLoading(true)
-
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_BASE}/api/chat`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              user_id: user?.id || userId,
-              messages: newMessages,
-            }),
-          })
-          const data = await res.json()
-          setChatMessages((prev) => [
-            ...prev,
-            { role: "assistant", content: data.reply || "..." },
-          ])
-        } catch (err) {
-          setChatMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              content: "Non riesco a rispondere ora, riprova tra poco.",
-            },
-          ])
-        } finally {
-          setChatLoading(false)
-        }
-      }}
-      className="flex gap-3"
-    >
-      <input
-        type="text"
-        value={chatInput}
-        onChange={(e) => setChatInput(e.target.value)}
-        placeholder="Scrivi qui il tuo pensiero..."
-        className="flex-1 px-3 py-2 rounded bg-white/10 text-white border border-white/10"
-      />
-      <button
-        type="submit"
-        disabled={chatLoading}
-        className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition disabled:opacity-50"
-      >
-        {chatLoading ? "..." : "Send"}
-      </button>
-    </form>
-  </div>
-</section>
-
-      
       {/* MOOD TREND */}
       <section className="max-w-4xl mx-auto px-6 pb-16">
         <h2 className="text-2xl font-semibold mb-4 text-emerald-200">

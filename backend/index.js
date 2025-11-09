@@ -31,6 +31,19 @@ app.get("/", async () => {
 app.post("/api/reflection", async (req, reply) => {
   try {
     const { mood, note } = req.body || {}
+// recupera profilo emozionale
+let emotionProfile = {}
+try {
+  const { data } = await supabase
+    .from("emotion_profile")
+    .select("*")
+    .eq("user_id", req.body.user_id)
+    .maybeSingle()
+  emotionProfile = data || {}
+} catch {
+  emotionProfile = {}
+}
+    
     if (!mood && !note)
       return reply.status(400).send({ error: "Missing mood or note" })
 
@@ -42,7 +55,9 @@ Your task:
 2. Answer in the SAME language.
 3. Give a short, compassionate reflection (max 3 sentences, CBT/ACT tone).
 4. Extract up to 3 emotional tags (short words, e.g. "Calm", "Hope").
-
+Current emotional context:
+Dominant emotions: ${(emotionProfile?.dominant_tags || []).join(", ") || "N/A"}
+Most recent mood: ${emotionProfile?.last_mood || "unknown"}
 User input:
 Mood: ${mood}
 Note: ${note}
@@ -120,6 +135,45 @@ app.post("/api/mood", async (req, reply) => {
       .select()
 
     if (error) throw error
+    // --- aggiorna profilo emozionale ---
+try {
+  // calcola tag più ricorrenti nelle ultime 10 entry
+  const { data: recentEntries } = await supabase
+    .from("mood_entries")
+    .select("tags, mood")
+    .eq("user_id", user_id)
+    .order("at", { ascending: false })
+    .limit(10)
+
+  if (recentEntries && recentEntries.length > 0) {
+    const tagCounts = {}
+    recentEntries.forEach((r) => {
+      (r.tags || []).forEach((t) => {
+        tagCounts[t] = (tagCounts[t] || 0) + 1
+      })
+    })
+    const sortedTags = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag)
+
+    const dominant = sortedTags.slice(0, 3)
+    const lastMood = recentEntries[0].mood || null
+
+    await supabase
+      .from("emotion_profile")
+      .upsert(
+        {
+          user_id,
+          dominant_tags: dominant,
+          last_mood: lastMood,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
+      )
+  }
+} catch (profileErr) {
+  console.warn("⚠️ Profile update failed:", profileErr.message)
+}
     reply.send({ ok: true, item: data?.[0] })
   } catch (err) {
     console.error("❌ Mood save error:", err)

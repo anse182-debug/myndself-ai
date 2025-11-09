@@ -56,6 +56,12 @@ export default function App() {
   >([])
   const [chatInput, setChatInput] = useState("")
   const [chatLoading, setChatLoading] = useState(false)
+const [dailyActivity, setDailyActivity] = useState<
+  { day: string; entries: number }[]
+>([])
+const [topTags, setTopTags] = useState<
+  { tag: string; tag_count: number }[]
+>([])
 
 
   // init auth

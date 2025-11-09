@@ -132,6 +132,43 @@ const [topTags, setTopTags] = useState<
 
     fetchInsightHistory()
   }, [user, userId])
+useEffect(() => {
+  const activeUserId = user?.id || userId
+  if (!activeUserId) return
+
+  async function fetchAnalytics() {
+    try {
+      const [dailyRes, tagsRes] = await Promise.all([
+        fetch(`${import.meta.env.VITE_API_BASE}/api/analytics/daily?user_id=${activeUserId}`),
+        fetch(`${import.meta.env.VITE_API_BASE}/api/analytics/tags?user_id=${activeUserId}`)
+      ])
+      const dailyJson = await dailyRes.json()
+      const tagsJson = await tagsRes.json()
+
+      if (dailyJson?.ok && Array.isArray(dailyJson.items)) {
+        // normalizzo per safety
+        setDailyActivity(
+          dailyJson.items.map((d: any) => ({
+            day: d.day,
+            entries: d.entries,
+          }))
+        )
+      }
+      if (tagsJson?.ok && Array.isArray(tagsJson.items)) {
+        setTopTags(
+          tagsJson.items.map((t: any) => ({
+            tag: t.tag,
+            tag_count: t.tag_count,
+          }))
+        )
+      }
+    } catch (err) {
+      console.error("Failed to fetch analytics:", err)
+    }
+  }
+
+  fetchAnalytics()
+}, [user, userId])
 
   // login
   const handleLogin = async (e: React.FormEvent) => {
@@ -434,6 +471,68 @@ const [topTags, setTopTags] = useState<
           )}
         </div>
       </section>
+{/* EMOTIONAL JOURNEY */}
+<section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
+  <h2 className="text-2xl font-semibold text-emerald-200">
+    Your Emotional Journey
+  </h2>
+
+  {/* Daily activity */}
+  <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+    <h3 className="text-sm font-semibold text-white/80 mb-3">
+      Check-ins (last 14 days)
+    </h3>
+    {dailyActivity.length === 0 ? (
+      <p className="text-white/30 text-sm">
+        Do a few daily check-ins to see your activity here.
+      </p>
+    ) : (
+      <div className="flex gap-2 overflow-x-auto">
+        {dailyActivity
+          .slice()
+          .reverse()
+          .map((d) => (
+            <div
+              key={d.day}
+              className="flex flex-col items-center gap-1 min-w-[48px]"
+            >
+              <div
+                className="w-8 rounded bg-emerald-400/30 border border-emerald-400/30"
+                style={{ height: 20 + d.entries * 14 }}
+                title={`${d.entries} entries`}
+              />
+              <span className="text-[10px] text-white/40">
+                {new Date(d.day).toLocaleDateString()}
+              </span>
+            </div>
+          ))}
+      </div>
+    )}
+  </div>
+
+  {/* Top emotion tags */}
+  <div className="bg-white/5 rounded-lg p-4 border border-white/5">
+    <h3 className="text-sm font-semibold text-white/80 mb-3">
+      Most frequent emotions
+    </h3>
+    {topTags.length === 0 ? (
+      <p className="text-white/30 text-sm">
+        When you add moods, MyndSelf will extract emotional tags and show them here.
+      </p>
+    ) : (
+      <div className="flex flex-wrap gap-2">
+        {topTags.map((t) => (
+          <span
+            key={t.tag}
+            className="text-xs bg-emerald-500/15 text-emerald-100 px-3 py-1 rounded-full border border-emerald-500/20"
+          >
+            {t.tag} · {t.tag_count}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+</section>
 
 {/* REFLECT CHAT */}
 <section className="max-w-4xl mx-auto px-6 pb-10">

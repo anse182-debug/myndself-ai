@@ -344,6 +344,49 @@ app.get("/api/chat/history", async (req, reply) => {
   }
 })
 
+// --- EMOTIONAL JOURNEY: daily activity ---
+app.get("/api/analytics/daily", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    if (!user_id) return reply.status(400).send({ error: "Missing user_id" })
+
+    const { data, error } = await supabase
+      .from("v_mood_daily")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("day", { ascending: false })
+      .limit(14) // ultime 2 settimane
+
+    if (error) throw error
+    reply.send({ ok: true, items: data })
+  } catch (err) {
+    console.error("❌ daily analytics error:", err)
+    reply.status(500).send({ ok: false, items: [] })
+  }
+})
+
+// --- EMOTIONAL JOURNEY: top tags ---
+app.get("/api/analytics/tags", async (req, reply) => {
+  try {
+    const { user_id } = req.query
+    if (!user_id) return reply.status(400).send({ error: "Missing user_id" })
+
+    const { data, error } = await supabase
+      .from("v_emotion_tags")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("tag_count", { ascending: false })
+      .limit(10)
+
+    if (error) throw error
+    reply.send({ ok: true, items: data })
+  } catch (err) {
+    console.error("❌ tag analytics error:", err)
+    reply.status(500).send({ ok: false, items: [] })
+  }
+})
+
+
 // --- START SERVER ---
 app.listen({ port: PORT, host: "0.0.0.0" }, () => {
   console.log(`🚀 MyndSelf backend running on http://0.0.0.0:${PORT}`)

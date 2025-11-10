@@ -22,6 +22,64 @@ await app.register(cors, { origin: "*", methods: ["GET", "POST", "OPTIONS"] })
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
 
+async function saveToMemory({ user_id, content, source = "chat" }) {
+  try {
+    if (!content || !user_id) return
+
+    // 1. crea embedding
+    const embRes = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: content,
+    })
+
+    const embedding = embRes.data[0]?.embedding
+    if (!embedding) return
+
+    // 2. salva in supabase
+    await supabase.from("ai_memory").insert({
+      user_id,
+      content,
+      source,
+      embedding,
+    })
+  } catch (err) {
+    console.warn("⚠️ saveToMemory failed:", err.message)
+  }
+}
+
+async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
+  try {
+    if (!content || !user_id) return []
+
+    // 1. embedding del messaggio corrente
+    const embRes = await openai.embeddings.create({
+      model: "text-embedding-3-small",
+      input: content,
+    })
+    const embedding = embRes.data[0]?.embedding
+    if (!embedding) return []
+
+    // 2. chiamiamo la RPC o la match table di Supabase
+    // se usi la funzione nativa di Supabase per pgvector:
+    const { data, error } = await supabase.rpc("match_ai_memory", {
+      query_embedding: embedding,
+      match_count: matchCount,
+      match_user_id: user_id,
+    })
+
+    if (error) {
+      console.warn("⚠️ getSimilarMemory error:", error.message)
+      return []
+    }
+
+    return data || []
+  } catch (err) {
+    console.warn("⚠️ getSimilarMemory failed:", err.message)
+    return []
+  }
+}
+
+
 // === REFLECTION ===
 app.post("/api/reflection", async (req, reply) => {
   const { mood, note, user_id } = req.body || {}
@@ -241,6 +299,10 @@ app.post("/api/chat", async (req, reply) => {
     return reply.code(400).send({ error: "Missing fields" })
 
   try {
+    // ultimo messaggio dell’utente
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")
+    const userText = lastUserMessage?.content || ""
+
     // profilo emozionale
     const { data: profile } = await supabase
       .from("emotion_profile")
@@ -259,8 +321,21 @@ app.post("/api/chat", async (req, reply) => {
     const recentText = (recentMoods || [])
       .map((r) => `• ${r.mood || ""}${r.note ? " – " + r.note : ""}`)
       .join("\n")
-
     const dominant = profile?.dominant_tags?.join(", ") || "none"
+
+    // 👇 qui entra in gioco la memoria semantica
+    const similarMemories = userText
+      ? await getSimilarMemory({
+          user_id,
+          content: userText,
+          matchCount: 3,
+        })
+      : []
+
+    const memoryText =
+      similarMemories && similarMemories.length > 0
+        ? similarMemories.map((m) => `• ${m.content}`).join("\n")
+        : "No similar past reflections."
 
     const systemPrompt = `
 You are MyndSelf, an AI reflection companion.
@@ -269,13 +344,15 @@ Context available:
 - Dominant emotional tags: ${dominant}
 - Recent moods/notes:
 ${recentText || "No recent data."}
+- Related past reflections from this user (VERY IMPORTANT, weave these in naturally):
+${memoryText}
 
 Instructions:
-1. If there is relevant recent context (same emotion, stress, tiredness...), REFER TO IT explicitly ("you mentioned feeling stressed recently...").
-2. Keep the tone warm, CBT/ACT inspired.
+1. If past reflections talk about the SAME issue, acknowledge the continuity ("we talked about this before...").
+2. Keep it warm, CBT/ACT inspired.
 3. Ask ONE gentle follow-up question.
-4. If user writes in Italian, reply in Italian.
-5. Keep it within 3–5 sentences.
+4. Mirror user's language (Italian → Italian).
+5. 3–5 sentences max.
 `
 
     const completion = await openai.chat.completions.create({
@@ -287,7 +364,19 @@ Instructions:
 
     const replyText = completion.choices[0]?.message?.content?.trim() || "..."
 
-    // salva la sessione (non blocca)
+    // salviamo anche questo scambio nella memoria
+    await saveToMemory({
+      user_id,
+      content: userText,
+      source: "chat",
+    })
+    await saveToMemory({
+      user_id,
+      content: replyText,
+      source: "chat_reply",
+    })
+
+    // opzionale: salva nella tabella chat_sessions che avevi già
     try {
       await supabase.from("chat_sessions").insert({
         user_id,

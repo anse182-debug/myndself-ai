@@ -1,19 +1,40 @@
+/** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
   theme: {
     extend: {
       colors: {
-        dark: '#0A1E23',
-        aqua: '#00D2BE',
-        mist: '#E6F0EE'
+        // palette "dark zen"
+        "ms-bg": "#0d1117",
+        "ms-surface": "rgba(255,255,255,0.03)",
+        "ms-border": "rgba(255,255,255,0.08)",
+        "ms-mint": "#10b981",
+        "ms-mint-soft": "rgba(16,185,129,0.15)",
+        "ms-teal": "#14b8a6",
       },
       backgroundImage: {
-        'dark-zen': 'radial-gradient(1200px 600px at 70% 20%, rgba(0,210,190,0.15), transparent), radial-gradient(900px 500px at 20% 80%, rgba(0,210,190,0.10), transparent)'
+        "ms-gradient":
+          "radial-gradient(circle at top, rgba(20,184,166,0.35), rgba(13,17,23,1) 55%)",
+      },
+      borderRadius: {
+        "2.5xl": "1.35rem",
       },
       boxShadow: {
-        glow: '0 0 40px rgba(0,210,190,0.25)'
-      }
-    }
+        "ms-glow": "0 20px 45px rgba(20,184,166,0.25)",
+      },
+      animation: {
+        "pulse-soft": "pulse-soft 3s ease-in-out infinite",
+      },
+      keyframes: {
+        "pulse-soft": {
+          "0%, 100%": { opacity: 1 },
+          "50%": { opacity: 0.4 },
+        },
+      },
+    },
   },
-  plugins: []
+  plugins: [],
 }

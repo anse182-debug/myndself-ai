@@ -43,7 +43,12 @@ type ChatMessage = {
   content: string
 }
 
-// mood preset
+type Toast = {
+  id: string
+  message: string
+  type?: "success" | "error" | "info"
+}
+
 const MOOD_PRESETS = [
   { label: "Calm", value: "Calmo / centrato" },
   { label: "Grateful", value: "Grato" },
@@ -53,57 +58,40 @@ const MOOD_PRESETS = [
   { label: "Overwhelmed", value: "Sovraccarico" },
 ]
 
-// spinner
 function Spinner() {
   return (
     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
   )
 }
 
-// toast type
-type Toast = {
-  id: string
-  message: string
-  type?: "success" | "error" | "info"
-}
-
 export default function App() {
-  // auth
   const [user, setUser] = useState<User | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
   const [emailForLogin, setEmailForLogin] = useState("")
 
-  // anon user id
   const [userId, setUserId] = useState("")
 
-  // daily
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
   const [reflectLoading, setReflectLoading] = useState(false)
 
-  // data
   const [history, setHistory] = useState<ReflectionEntry[]>([])
   const [weeklyInsight, setWeeklyInsight] = useState("")
   const [insightHistory, setInsightHistory] = useState<SummaryItem[]>([])
 
-  // analytics
   const [dailyActivity, setDailyActivity] = useState<DailyActivity[]>([])
   const [topTags, setTopTags] = useState<TopTag[]>([])
 
-  // chat
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState("")
   const [isChatLoading, setIsChatLoading] = useState(false)
 
-  // subscribe
   const [betaEmail, setBetaEmail] = useState("")
   const [betaDone, setBetaDone] = useState(false)
 
-  // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
 
-  // helper toast
   const showToast = (message: string, type: Toast["type"] = "info") => {
     const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
     setToasts((prev) => [...prev, { id, message, type }])
@@ -112,7 +100,7 @@ export default function App() {
     }, 3500)
   }
 
-  // ==== auth init ====
+  // auth init
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user)
@@ -127,7 +115,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ==== anon id ====
+  // anon id
   useEffect(() => {
     let stored = localStorage.getItem("myndself-user-id")
     if (!stored) {
@@ -137,7 +125,7 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // ==== initial data ====
+  // initial data
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
@@ -183,7 +171,6 @@ export default function App() {
           )
         }
 
-        // chat history
         const chatRes = await fetch(
           `${API_BASE}/api/chat/history?user_id=${activeUserId}`
         )
@@ -199,7 +186,6 @@ export default function App() {
     fetchAll()
   }, [user, userId])
 
-  // ==== login ====
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -224,7 +210,6 @@ export default function App() {
     showToast("Signed out", "info")
   }
 
-  // ==== reflection ====
   const handleReflect = async () => {
     if (!mood && !note) {
       showToast("Add a mood or note first", "error")
@@ -278,7 +263,6 @@ export default function App() {
     }
   }
 
-  // ==== weekly summary ====
   const handleWeeklySummary = async (save = false) => {
     try {
       const res = await fetch(
@@ -306,7 +290,6 @@ export default function App() {
     }
   }
 
-  // ==== chat ====
   async function handleChatSend() {
     if (!chatInput.trim()) return
     const userMessage: ChatMessage = {
@@ -348,7 +331,6 @@ export default function App() {
     }
   }
 
-  // ==== subscribe ====
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!betaEmail) return
@@ -366,7 +348,6 @@ export default function App() {
     }
   }
 
-  // ==== chart data ====
   const chartData = useMemo(() => {
     const moodToScore = (m: string) => {
       const val = m?.toLowerCase?.() || ""
@@ -394,11 +375,11 @@ export default function App() {
   return (
     <main className="min-h-screen bg-ms-bg text-white">
       {/* TOASTS */}
-      <div className="fixed top-5 right-5 z-50 space-y-3">
+      <div className="fixed top-4 right-4 z-50 space-y-3 w-[calc(100%-2rem)] sm:w-80">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 border ${
+            className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 border text-sm ${
               t.type === "error"
                 ? "bg-red-500/10 border-red-400/40 text-red-100"
                 : t.type === "success"
@@ -406,13 +387,13 @@ export default function App() {
                 : "bg-white/10 border-white/20 text-white"
             }`}
           >
-            <span className="text-sm">{t.message}</span>
+            <span>{t.message}</span>
           </div>
         ))}
       </div>
 
       {/* HERO */}
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-32 grid md:grid-cols-2 gap-10 items-center">
+      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-20 pb-16 sm:pb-32 grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
         <div>
           <div className="flex items-center gap-3 mb-4">
             <img src="/logo.svg" alt="MyndSelf.ai" className="h-10" />
@@ -420,10 +401,10 @@ export default function App() {
               AI for Emotional Intelligence
             </span>
           </div>
-          <h1 className="text-5xl font-semibold leading-tight mb-6 text-emerald-300">
+          <h1 className="text-4xl sm:text-5xl font-semibold leading-tight mb-6 text-emerald-300">
             MyndSelf.ai
           </h1>
-          <p className="text-xl text-white/80 mb-8">
+          <p className="text-base sm:text-xl text-white/80 mb-8">
             Reflect, rebalance, and grow every day with an AI that actually
             remembers you.
           </p>
@@ -434,7 +415,7 @@ export default function App() {
             Join the Beta
           </a>
         </div>
-        <div>
+        <div className="order-first md:order-none">
           <img
             src="/images/cover_glow.webp"
             alt="MyndSelf AI visual"
@@ -444,7 +425,7 @@ export default function App() {
       </section>
 
       {/* AUTH */}
-      <section className="max-w-3xl mx-auto px-6 py-8 text-center">
+      <section className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-8 text-center">
         {!user ? (
           <div className="bg-white/10 p-6 rounded-lg border border-white/10">
             <h2 className="text-2xl font-semibold mb-3 text-emerald-300">
@@ -487,11 +468,11 @@ export default function App() {
       </section>
 
       {/* DAILY CHECK-IN */}
-      <section className="max-w-3xl mx-auto px-6 py-16">
+      <section className="w-full max-w-3xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         <h2 className="text-3xl font-semibold mb-4 text-emerald-300 text-center">
           Daily Check-In
         </h2>
-        <p className="text-white/60 mb-6 text-center">
+        <p className="text-white/60 mb-6 text-center text-sm sm:text-base">
           Tell MyndSelf how you feel right now — it will reflect in your
           language.
         </p>
@@ -530,7 +511,7 @@ export default function App() {
           <button
             onClick={handleReflect}
             disabled={reflectLoading}
-            className="bg-emerald-400 text-gray-900 font-semibold px-5 py-2 rounded-lg hover:bg-emerald-300 transition disabled:opacity-50 flex items-center gap-2 justify-center"
+            className="w-full sm:w-auto bg-emerald-400 text-gray-900 font-semibold px-5 py-2 rounded-lg hover:bg-emerald-300 transition disabled:opacity-50 flex items-center gap-2 justify-center"
           >
             {reflectLoading ? <Spinner /> : "Ottieni la riflessione"}
           </button>
@@ -547,22 +528,22 @@ export default function App() {
       </section>
 
       {/* WEEKLY INSIGHT + HISTORY */}
-      <section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
+      <section className="w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 space-y-6">
         <div className="bg-white/5 rounded-lg p-5 border border-white/5">
-          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 className="text-2xl font-semibold text-emerald-200">
               Weekly Insight
             </h2>
             <div className="flex gap-3">
               <button
                 onClick={() => handleWeeklySummary(false)}
-                className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition"
+                className="bg-emerald-400 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-300 transition text-sm"
               >
                 Preview
               </button>
               <button
                 onClick={() => handleWeeklySummary(true)}
-                className="bg-emerald-500 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-400 transition"
+                className="bg-emerald-500 text-gray-900 font-semibold px-4 py-2 rounded-lg hover:bg-emerald-400 transition text-sm"
               >
                 Generate & Save
               </button>
@@ -587,7 +568,7 @@ export default function App() {
             <ul className="space-y-3">
               {insightHistory.map((item) => (
                 <li key={item.id} className="bg-white/5 rounded p-3">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-2 gap-2">
                     <span className="text-xs text-white/40">
                       {new Date(item.created_at).toLocaleString()}
                     </span>
@@ -603,7 +584,7 @@ export default function App() {
       </section>
 
       {/* EMOTIONAL JOURNEY */}
-      <section className="max-w-4xl mx-auto px-6 pb-10 space-y-6">
+      <section className="w-full max-w-4xl mx-auto px-4 sm:px-6 pb-10 space-y-6">
         <h2 className="text-2xl font-semibold text-emerald-200">
           Your Emotional Journey
         </h2>
@@ -617,21 +598,21 @@ export default function App() {
               Do a few daily check-ins to see your activity here.
             </p>
           ) : (
-            <div className="flex gap-2 overflow-x-auto">
+            <div className="flex gap-2 overflow-x-auto pb-1">
               {dailyActivity
                 .slice()
                 .reverse()
                 .map((d) => (
                   <div
                     key={d.day}
-                    className="flex flex-col items-center gap-1 min-w-[48px]"
+                    className="flex flex-col items-center gap-1 min-w-[42px] sm:min-w-[48px]"
                   >
                     <div
-                      className="w-8 rounded bg-emerald-400/30 border border-emerald-400/30"
+                      className="w-7 sm:w-8 rounded bg-emerald-400/30 border border-emerald-400/30"
                       style={{ height: 20 + d.entries * 14 }}
                       title={`${d.entries} entries`}
                     />
-                    <span className="text-[10px] text-white/40">
+                    <span className="text-[10px] text-white/40 text-center">
                       {new Date(d.day).toLocaleDateString()}
                     </span>
                   </div>
@@ -653,8 +634,8 @@ export default function App() {
             <div className="flex flex-wrap gap-2">
               {topTags.map((t) => (
                 <span
-                  key={t.tag}
-                  className="text-xs bg-emerald-500/15 text-emerald-100 px-3 py-1 rounded-full border border-emerald-500/20"
+                    key={t.tag}
+                    className="text-xs bg-emerald-500/15 text-emerald-100 px-3 py-1 rounded-full border border-emerald-500/20"
                 >
                   {t.tag} · {t.tag_count}
                 </span>
@@ -664,15 +645,15 @@ export default function App() {
         </div>
       </section>
 
-      {/* REFLECTIVE CHAT */}
-      <section className="max-w-3xl mx-auto px-6 pb-16 space-y-4">
+      {/* CHAT */}
+      <section className="w-full max-w-3xl mx-auto px-4 sm:px-6 pb-16 space-y-4">
         <h2 className="text-2xl font-semibold text-emerald-200">
           Reflective Chat
         </h2>
-        <div className="bg-white/5 rounded-xl p-4 border border-white/10 min-h-[320px] flex flex-col justify-between">
-          <div className="flex-1 overflow-y-auto space-y-3 mb-4">
+        <div className="bg-white/5 rounded-xl p-4 border border-white/10 min-h-[320px] flex flex-col justify-between gap-4">
+          <div className="flex-1 overflow-y-auto space-y-3">
             {chatMessages.length === 0 && (
-              <p className="text-white/30 text-sm text-center mt-6">
+              <p className="text-white/30 text-sm text-center mt-2">
                 Start a conversation with your inner reflection companion.
               </p>
             )}
@@ -684,7 +665,7 @@ export default function App() {
                 }`}
               >
                 <div
-                  className={`max-w-[75%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
+                  className={`max-w-[90%] sm:max-w-[75%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
                     m.role === "user"
                       ? "bg-emerald-500/20 text-emerald-100"
                       : "bg-white/10 text-white/90"
@@ -703,7 +684,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-col sm:flex-row">
             <input
               type="text"
               placeholder="Type your thought..."
@@ -724,7 +705,7 @@ export default function App() {
       </section>
 
       {/* MOOD TREND */}
-      <section className="max-w-4xl mx-auto px-6 pb-16">
+      <section className="w-full max-w-4xl mx-auto px-4 sm:px-6 pb-16">
         <h2 className="text-2xl font-semibold mb-4 text-emerald-200">
           Mood trend
         </h2>
@@ -733,7 +714,7 @@ export default function App() {
             Nessun dato ancora. Aggiungi un check-in sopra.
           </p>
         ) : (
-          <div className="bg-white/5 rounded-lg p-4 border border-white/5 h-64">
+          <div className="bg-white/5 rounded-lg p-3 sm:p-4 border border-white/5 h-64">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis dataKey="date" stroke="#d1fae5" />
@@ -762,20 +743,21 @@ export default function App() {
       {/* JOIN BETA */}
       <section
         id="join"
-        className="max-w-4xl mx-auto px-6 pb-16 bg-white/5 rounded-2xl border border-white/10"
+        className="w-full max-w-4xl mx-auto px-4 sm:px-6 pb-16 bg-white/5 rounded-2xl border border-white/10"
       >
         <h2 className="text-2xl font-semibold text-emerald-200 mb-2">
           Join the Beta
         </h2>
-        <p className="text-white/50 mb-4">
+        <p className="text-white/50 mb-4 text-sm sm:text-base">
           Get early access and help us shape an AI that truly cares.
         </p>
         {betaDone ? (
-          <p className="text-emerald-200 text-sm">
-            Thanks! You are in the list.
-          </p>
+          <p className="text-emerald-200 text-sm">Thanks! You are in the list.</p>
         ) : (
-          <form onSubmit={handleSubscribe} className="flex gap-3 flex-wrap">
+          <form
+            onSubmit={handleSubscribe}
+            className="flex flex-col sm:flex-row gap-3 flex-wrap"
+          >
             <input
               type="email"
               required
@@ -795,7 +777,7 @@ export default function App() {
       </section>
 
       {/* FOOTER */}
-      <footer className="max-w-6xl mx-auto px-6 pb-10 text-sm text-white/60 text-center">
+      <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-sm text-white/60 text-center">
         © {new Date().getFullYear()} MyndSelf.ai — All rights reserved.
       </footer>
     </main>

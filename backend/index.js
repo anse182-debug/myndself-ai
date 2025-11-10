@@ -1,500 +1,314 @@
+// === MyndSelf.ai Backend - vG2 ===
+// Purpose: Emotional Intelligence API for journaling, reflection and contextual chat
+
 import Fastify from "fastify"
 import cors from "@fastify/cors"
-import { createClient } from "@supabase/supabase-js"
 import OpenAI from "openai"
+import pkg from "@supabase/supabase-js"
+const { createClient } = pkg
 
-const app = Fastify({ logger: true })
-
-// ENV
+// --- ENV ---
 const PORT = process.env.PORT || 8080
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY
-const OPENAI_KEY = process.env.OPENAI_API_KEY
+const SUPABASE_KEY = process.env.SUPABASE_KEY
 
-// Clients
+if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY")
+if (!SUPABASE_URL || !SUPABASE_KEY) throw new Error("Missing Supabase env vars")
+
+// --- INIT ---
+const app = Fastify({ logger: false })
+await app.register(cors, { origin: "*", methods: ["GET", "POST", "OPTIONS"] })
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
-const openai = new OpenAI({ apiKey: OPENAI_KEY })
 
-// CORS
-await app.register(cors, {
-  origin: process.env.CORS_ORIGIN || "*",
-  methods: ["GET", "POST", "OPTIONS"],
-})
-
-// HEALTH
-app.get("/", async () => {
-  return { ok: true, service: "MyndSelf backend is running" }
-})
-
-/**
- * AI REFLECTION (multilingua + tags + contesto emozionale)
- */
+// === REFLECTION ===
 app.post("/api/reflection", async (req, reply) => {
+  const { mood, note, user_id } = req.body || {}
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
   try {
-    const { mood, note, user_id } = req.body || {}
-    if (!mood && !note) {
-      return reply.status(400).send({ error: "Missing mood or note" })
-    }
-
-    // recupero (facoltativo) del profilo emozionale per personalizzare la risposta
-    let emotionProfile = null
-    if (user_id) {
-      try {
-        const { data } = await supabase
-          .from("emotion_profile")
-          .select("*")
-          .eq("user_id", user_id)
-          .maybeSingle()
-        emotionProfile = data
-      } catch {
-        emotionProfile = null
-      }
-    }
-
-    const prompt = `
-You are MyndSelf.ai — an AI emotional reflection coach.
-The user may write in ITALIAN, ENGLISH or another language.
-Your task:
-1. Detect the user's language.
-2. Answer in the SAME language.
-3. Give a short, compassionate reflection (max 3 sentences, CBT/ACT tone).
-4. Extract up to 3 emotional tags (short words).
-
-Current emotional context (if available):
-Dominant emotions: ${
-      emotionProfile?.dominant_tags?.join(", ") || "N/A"
-    }
-Most recent mood: ${emotionProfile?.last_mood || "unknown"}
-
-User input:
-Mood: ${mood}
-Note: ${note}
-
-Respond ONLY in valid JSON, like:
-{
-  "reflection": "....",
-  "tags": ["...", "..."]
-}
-    `
-
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are MyndSelf, an AI coach specialized in emotional reflection. Respond in a warm, supportive, ACT/CBT-inspired tone, and if the input is Italian, reply in Italian.",
+        },
+        {
+          role: "user",
+          content: `Mood: ${mood || "N/A"}\nNote: ${note || "N/A"}\nReflect briefly.`,
+        },
+      ],
       temperature: 0.8,
+      max_tokens: 200,
     })
 
-    const raw = completion.choices?.[0]?.message?.content || "{}"
-    let parsed = {}
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      parsed = {}
-    }
+    const reflection = completion.choices[0]?.message?.content?.trim() || ""
+    const tags = extractTags(reflection)
 
-    const reflection =
-      parsed.reflection ||
-      "Rifletti gentilmente su ciò che provi. Ogni emozione è valida."
-    const tags = Array.isArray(parsed.tags) ? parsed.tags : []
-
-    reply.send({ reflection, tags })
-  } catch (err) {
-    console.error("❌ Reflection error:", err)
-    reply
-      .status(500)
-      .send({ reflection: "Servizio non disponibile.", tags: [] })
-  }
-})
-
-/**
- * SUBSCRIBE (beta / newsletter)
- */
-app.post("/api/subscribe", async (req, reply) => {
-  const { email } = req.body || {}
-  if (!email || !email.includes("@")) {
-    return reply.status(400).send({ ok: false, error: "invalid_email" })
-  }
-
-  try {
-    await supabase.from("subscribers").insert([{ email }])
-  } catch (e) {
-    console.warn("⚠️ Subscriber insert non blocking:", e.message)
-  }
-
-  reply.send({ ok: true })
-})
-
-/**
- * SAVE MOOD ENTRY + update emotion_profile
- */
-app.post("/api/mood", async (req, reply) => {
-  try {
-    const { id, user_id, mood, note, reflection, at, tags } = req.body || {}
-    if (!mood) {
-      return reply.status(400).send({ ok: false, error: "missing_mood" })
-    }
-
-    const payload = {
-      id,
+    // Save mood entry
+    await supabase.from("mood_entries").insert({
       user_id,
       mood,
       note,
       reflection,
-      at: at || new Date().toISOString(),
-      tags: Array.isArray(tags) ? tags : null,
-    }
+      tags,
+      at: new Date().toISOString(),
+    })
 
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .insert([payload])
-      .select()
+    // Update emotion profile
+    await updateEmotionProfile(user_id)
 
-    if (error) throw error
-
-    // --- aggiorna profilo emozionale (se abbiamo l'utente) ---
-    if (user_id) {
-      try {
-        const { data: recentEntries } = await supabase
-          .from("mood_entries")
-          .select("tags, mood")
-          .eq("user_id", user_id)
-          .order("at", { ascending: false })
-          .limit(10)
-
-        if (recentEntries && recentEntries.length > 0) {
-          const tagCounts = {}
-          recentEntries.forEach((r) => {
-            (r.tags || []).forEach((t) => {
-              tagCounts[t] = (tagCounts[t] || 0) + 1
-            })
-          })
-          const sortedTags = Object.entries(tagCounts)
-            .sort((a, b) => b[1] - a[1])
-            .map(([tag]) => tag)
-
-          const dominant = sortedTags.slice(0, 3)
-          const lastMood = recentEntries[0].mood || null
-
-          await supabase
-            .from("emotion_profile")
-            .upsert(
-              {
-                user_id,
-                dominant_tags: dominant,
-                last_mood: lastMood,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: "user_id" }
-            )
-        }
-      } catch (profileErr) {
-        console.warn("⚠️ Profile update failed:", profileErr.message)
-      }
-    }
-
-    reply.send({ ok: true, item: data?.[0] })
+    reply.send({ reflection, tags })
   } catch (err) {
-    console.error("❌ Mood save error:", err)
-    reply.status(500).send({ ok: false })
+    console.error("❌ Reflection error:", err)
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * GET MOOD HISTORY
- */
-app.get("/api/mood", async (req, reply) => {
+// === HELPER: extract simple emotion keywords ===
+function extractTags(text) {
+  const base = text.toLowerCase()
+  const emotions = [
+    "calm",
+    "peace",
+    "gratitude",
+    "stress",
+    "hope",
+    "sad",
+    "anger",
+    "focus",
+    "fear",
+    "tired",
+  ]
+  return emotions.filter((e) => base.includes(e))
+}
+
+// === HELPER: update profile ===
+async function updateEmotionProfile(user_id) {
   try {
-    const { user_id } = req.query
-    let query = supabase.from("mood_entries").select("*")
-
-    if (user_id) {
-      query = query.eq("user_id", user_id)
-    }
-
-    // ordinamento per at (colonna che hai aggiunto)
-    query = query.order("at", { ascending: false })
-
-    const { data, error } = await query
-    if (error) throw error
-
-    reply.send({ ok: true, items: data })
-  } catch (err) {
-    console.error("❌ Mood fetch error:", err)
-    reply.status(500).send({ ok: false, items: [] })
-  }
-})
-
-/**
- * WEEKLY / ON-DEMAND SUMMARY
- * ?save=true per salvarlo in mood_summaries
- */
-app.get("/api/summary", async (req, reply) => {
-  try {
-    const { user_id, save } = req.query
-    if (!user_id) {
-      return reply.status(400).send({ error: "Missing user_id" })
-    }
-
-    const { data, error } = await supabase
+    const { data: recent } = await supabase
       .from("mood_entries")
-      .select("mood, note, reflection, tags, at")
+      .select("tags, mood")
       .eq("user_id", user_id)
       .order("at", { ascending: false })
       .limit(10)
 
-    if (error) throw error
+    if (!recent || recent.length === 0) return
 
-    if (!data || data.length === 0) {
-      return reply.send({
-        summary:
-          "Non ci sono ancora abbastanza riflessioni per creare un riepilogo.",
+    const tagCounts = {}
+    recent.forEach((r) => {
+      (r.tags || []).forEach((t) => {
+        tagCounts[t] = (tagCounts[t] || 0) + 1
       })
-    }
+    })
+    const sorted = Object.entries(tagCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([t]) => t)
+    const dominant = sorted.slice(0, 3)
+    const lastMood = recent[0].mood || null
 
-    const inputText = data
-      .map(
-        (d) =>
-          `Mood: ${d.mood}\nNote: ${d.note}\nReflection: ${d.reflection}\nTags: ${
-            (d.tags || []).join(", ")
-          }`
+    await supabase
+      .from("emotion_profile")
+      .upsert(
+        {
+          user_id,
+          dominant_tags: dominant,
+          last_mood: lastMood,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" }
       )
-      .join("\n---\n")
+  } catch (e) {
+    console.warn("⚠️ updateEmotionProfile failed:", e.message)
+  }
+}
 
-    const prompt = `
-You are MyndSelf.ai, an AI for emotional self-reflection.
-Analyze the following reflections from the same user.
-Summarize the emotional trends of the last few days in 4–6 lines,
-mentioning progress and gentle suggestions for balance.
-Respond in the same language detected in the reflections.
+// === MOOD HISTORY ===
+app.get("/api/mood", async (req, reply) => {
+  const { user_id } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+  try {
+    const { data } = await supabase
+      .from("mood_entries")
+      .select("*")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+    reply.send({ ok: true, items: data || [] })
+  } catch (err) {
+    reply.code(500).send({ error: err.message })
+  }
+})
 
-Reflections:
-${inputText}
+// === MOOD SAVE ===
+app.post("/api/mood", async (req, reply) => {
+  const entry = req.body
+  if (!entry.user_id) return reply.code(400).send({ error: "Missing user_id" })
+  try {
+    await supabase.from("mood_entries").insert(entry)
+    await updateEmotionProfile(entry.user_id)
+    reply.send({ ok: true })
+  } catch (err) {
+    reply.code(500).send({ error: err.message })
+  }
+})
 
-Respond ONLY with plain text.
-    `
+// === SUMMARY ===
+app.get("/api/summary", async (req, reply) => {
+  const { user_id, save } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+  try {
+    const { data } = await supabase
+      .from("mood_entries")
+      .select("mood,note,reflection")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+      .limit(10)
+    const joined = data
+      .map((e) => `${e.mood}: ${e.note}\n${e.reflection}`)
+      .join("\n")
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.7,
-    })
-
-    const summary =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      "Non è stato possibile generare un riepilogo."
-
-    // salvataggio opzionale
-    if (save === "true") {
-      await supabase.from("mood_summaries").insert([
+      messages: [
         {
-          user_id,
-          summary,
+          role: "system",
+          content:
+            "Summarize recent emotional reflections empathetically. Use a reflective and concise tone.",
         },
-      ])
-    }
+        { role: "user", content: joined },
+      ],
+      max_tokens: 250,
+    })
+    const summary = completion.choices[0]?.message?.content?.trim() || ""
 
+    if (save === "true") {
+      await supabase.from("summary_entries").insert({
+        user_id,
+        summary,
+        created_at: new Date().toISOString(),
+      })
+    }
     reply.send({ summary })
   } catch (err) {
     console.error("❌ Summary error:", err)
-    reply
-      .status(500)
-      .send({ summary: "Errore nel generare il riepilogo settimanale." })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * SUMMARY HISTORY
- */
+// === SUMMARY HISTORY ===
 app.get("/api/summary/history", async (req, reply) => {
+  const { user_id } = req.query
   try {
-    const { user_id } = req.query
-    if (!user_id) {
-      return reply.status(400).send({ error: "Missing user_id" })
-    }
-
-    const { data, error } = await supabase
-      .from("mood_summaries")
+    const { data } = await supabase
+      .from("summary_entries")
       .select("*")
       .eq("user_id", user_id)
       .order("created_at", { ascending: false })
-      .limit(20)
-
-    if (error) throw error
-
-    reply.send({ ok: true, items: data })
+    reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    console.error("❌ Summary history error:", err)
-    reply.status(500).send({ ok: false, items: [] })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * ANALYTICS: daily activity (uses view v_mood_daily)
- */
+// === ANALYTICS ===
 app.get("/api/analytics/daily", async (req, reply) => {
+  const { user_id } = req.query
   try {
-    const { user_id } = req.query
-    if (!user_id) {
-      return reply.status(400).send({ error: "Missing user_id" })
-    }
-
-    const { data, error } = await supabase
-      .from("v_mood_daily")
-      .select("*")
-      .eq("user_id", user_id)
-      .order("day", { ascending: false })
-      .limit(14)
-
-    if (error) throw error
-
-    reply.send({ ok: true, items: data })
+    const { data } = await supabase.rpc("get_daily_activity", { uid: user_id })
+    reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    console.error("❌ daily analytics error:", err)
-    reply.status(500).send({ ok: false, items: [] })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * ANALYTICS: top emotion tags (uses view v_emotion_tags)
- */
 app.get("/api/analytics/tags", async (req, reply) => {
+  const { user_id } = req.query
   try {
-    const { user_id } = req.query
-    if (!user_id) {
-      return reply.status(400).send({ error: "Missing user_id" })
-    }
-
-    const { data, error } = await supabase
-      .from("v_emotion_tags")
-      .select("*")
-      .eq("user_id", user_id)
-      .order("tag_count", { ascending: false })
-      .limit(10)
-
-    if (error) throw error
-
-    reply.send({ ok: true, items: data })
+    const { data } = await supabase.rpc("get_top_tags", { uid: user_id })
+    reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    console.error("❌ tag analytics error:", err)
-    reply.status(500).send({ ok: false, items: [] })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * CONVERSATIONAL MODE (chat)
- */
+// === CHAT (contextual) ===
 app.post("/api/chat", async (req, reply) => {
+  const { user_id, messages } = req.body || {}
+  if (!user_id || !messages)
+    return reply.code(400).send({ error: "Missing fields" })
+
   try {
-    const { user_id, messages } = req.body || {}
+    const { data: profile } = await supabase
+      .from("emotion_profile")
+      .select("*")
+      .eq("user_id", user_id)
+      .maybeSingle()
 
-    if (!messages || !Array.isArray(messages) || messages.length === 0) {
-      return reply.status(400).send({ error: "Messages array required" })
-    }
+    const { data: recentMoods } = await supabase
+      .from("mood_entries")
+      .select("mood,note,tags,at")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+      .limit(3)
 
-    // contesto dai mood recenti
-    let moodContext = ""
-    if (user_id) {
-      const { data } = await supabase
-        .from("mood_entries")
-        .select("mood, note, tags")
-        .eq("user_id", user_id)
-        .order("at", { ascending: false })
-        .limit(5)
-      if (data && data.length > 0) {
-        moodContext = data
-          .map(
-            (d) =>
-              `Mood: ${d.mood} | Note: ${d.note} | Tags: ${(d.tags || []).join(
-                ", "
-              )}`
-          )
-          .join("\n")
-      }
-    }
+    const recentText = (recentMoods || [])
+      .map((r) => `${r.mood || ""}: ${r.note || ""}`)
+      .join("\n")
+    const dominant = profile?.dominant_tags?.join(", ") || "none"
 
     const systemPrompt = `
-You are MyndSelf.ai, an AI reflection companion.
-Style:
-- short, warm, non-judgmental
-- CBT / ACT inspired
-- ask 1 follow-up at a time
-- never give medical/clinical advice
-- if the user writes in Italian, reply in Italian
-- keep answers within 2-4 sentences
+You are MyndSelf, an AI coach specialized in emotional intelligence.
+You provide short, compassionate, reflective answers (CBT/ACT tone).
+If the user's previous notes are in Italian, respond in Italian.
 
-User recent emotional context:
-${moodContext || "No previous context."}
+Recent emotional tags: ${dominant}
+Recent moods and notes:
+${recentText || "No recent data."}
 `
-
-    const openaiMessages = [
-      { role: "system", content: systemPrompt },
-      ...messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
-    ]
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: openaiMessages,
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature: 0.7,
-      max_tokens: 200,
+      max_tokens: 300,
     })
 
-    const answer = completion.choices?.[0]?.message?.content?.trim() || "..."
+    const replyText = completion.choices[0]?.message?.content?.trim() || "..."
+    await supabase.from("chat_sessions").insert({
+      user_id,
+      messages,
+      reply: replyText,
+      created_at: new Date().toISOString(),
+    })
 
-    // salvataggio della conversazione
-    try {
-      await supabase.from("mood_chats").insert([
-        {
-          user_id,
-          messages: [
-            ...messages,
-            { role: "assistant", content: answer },
-          ],
-        },
-      ])
-    } catch (dbErr) {
-      console.warn("⚠️ Chat save failed:", dbErr.message)
-    }
-
-    reply.send({ reply: answer })
+    reply.send({ reply: replyText })
   } catch (err) {
     console.error("❌ Chat error:", err)
-    reply.status(500).send({ reply: "Qualcosa è andato storto, riprova." })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * CHAT HISTORY
- */
+// === CHAT HISTORY ===
 app.get("/api/chat/history", async (req, reply) => {
+  const { user_id } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
   try {
-    const { user_id } = req.query
-    if (!user_id) {
-      return reply.status(400).send({ error: "Missing user_id" })
-    }
-
-    const { data, error } = await supabase
-      .from("mood_chats")
-      .select("id, messages, created_at")
+    const { data } = await supabase
+      .from("chat_sessions")
+      .select("messages,reply,created_at")
       .eq("user_id", user_id)
       .order("created_at", { ascending: false })
-      .limit(20)
-
-    if (error) throw error
-
-    reply.send({ ok: true, items: data })
+      .limit(5)
+    reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    console.error("❌ Chat history error:", err)
-    reply.status(500).send({ ok: false, items: [] })
+    reply.code(500).send({ error: err.message })
   }
 })
 
-/**
- * START SERVER
- */
-app.listen({ port: PORT, host: "0.0.0.0" }, () => {
+// === START SERVER ===
+app.listen({ port: PORT, host: "0.0.0.0" }, () =>
   console.log(`🚀 MyndSelf backend running on http://0.0.0.0:${PORT}`)
-})
+)

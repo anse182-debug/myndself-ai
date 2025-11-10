@@ -41,8 +41,18 @@ type ChatMessage = {
   content: string
 }
 
+// 👇 preset per G1: mood picker
+const MOOD_PRESETS = [
+  { label: "Calm", value: "Calmo / centrato" },
+  { label: "Grateful", value: "Grato" },
+  { label: "Stressed", value: "Stressato" },
+  { label: "Tired", value: "Stanco" },
+  { label: "Hopeful", value: "Speranzoso" },
+  { label: "Overwhelmed", value: "Sovraccarico" },
+]
+
 export default function App() {
-  // newsletter / beta (se vuoi usarla)
+  // newsletter / beta
   const [email, setEmail] = useState("")
   const [submitted, setSubmitted] = useState(false)
 
@@ -99,7 +109,7 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // ---- FETCH MOOD HISTORY, SUMMARY HISTORY, ANALYTICS, CHAT HISTORY ----
+  // ---- FETCH INITIAL DATA ----
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
@@ -124,7 +134,7 @@ export default function App() {
           setInsightHistory(sumJson.items)
         }
 
-        // analytics daily
+        // analytics
         const [dailyRes, tagsRes] = await Promise.all([
           fetch(
             `${import.meta.env.VITE_API_BASE}/api/analytics/daily?user_id=${activeUserId}`
@@ -154,7 +164,7 @@ export default function App() {
           )
         }
 
-        // chat history (ultima sessione)
+        // chat history (ultima)
         const chatRes = await fetch(
           `${import.meta.env.VITE_API_BASE}/api/chat/history?user_id=${activeUserId}`
         )
@@ -235,11 +245,9 @@ export default function App() {
         at: now,
       }
 
-      // UI
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
 
-      // save
       await fetch(`${import.meta.env.VITE_API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -270,7 +278,6 @@ export default function App() {
       const data = await res.json()
       setWeeklyInsight(data.summary || "Nessun riepilogo disponibile.")
 
-      // se ho salvato, ricarico lo storico
       if (save) {
         const sh = await fetch(
           `${import.meta.env.VITE_API_BASE}/api/summary/history?user_id=${
@@ -433,6 +440,24 @@ export default function App() {
           Tell MyndSelf how you feel right now — it will reflect in your language.
         </p>
 
+        {/* Mood picker G1 */}
+        <div className="flex flex-wrap gap-2 justify-center mb-5">
+          {MOOD_PRESETS.map((preset) => (
+            <button
+              key={preset.label}
+              onClick={() => setMood(preset.value)}
+              className={`px-3 py-1.5 rounded-full text-sm border transition ${
+                mood === preset.value
+                  ? "bg-emerald-400 text-gray-900 border-emerald-400"
+                  : "bg-white/5 text-white/80 border-white/10 hover:bg-white/10"
+              }`}
+              type="button"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-3">
           <input
             type="text"
@@ -526,7 +551,6 @@ export default function App() {
           Your Emotional Journey
         </h2>
 
-        {/* Daily activity */}
         <div className="bg-white/5 rounded-lg p-4 border border-white/5">
           <h3 className="text-sm font-semibold text-white/80 mb-3">
             Check-ins (last 14 days)
@@ -559,7 +583,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Top tags */}
         <div className="bg-white/5 rounded-lg p-4 border border-white/5">
           <h3 className="text-sm font-semibold text-white/80 mb-3">
             Most frequent emotions
@@ -589,7 +612,6 @@ export default function App() {
           Reflective Chat
         </h2>
         <div className="bg-white/5 rounded-xl p-4 border border-white/10 min-h-[320px] flex flex-col justify-between">
-          {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-3 mb-4">
             {chatMessages.length === 0 && (
               <p className="text-white/30 text-sm text-center mt-6">
@@ -623,7 +645,6 @@ export default function App() {
             )}
           </div>
 
-          {/* Input */}
           <div className="flex gap-2">
             <input
               type="text"

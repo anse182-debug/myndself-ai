@@ -346,6 +346,19 @@ Instructions:
   }
 })
 
+app.post("/api/subscribe", async (req, reply) => {
+  const { email } = req.body || {}
+  if (!email) return reply.code(400).send({ error: "Missing email" })
+
+  try {
+    await supabase.from("subscribers").insert({ email })
+    reply.send({ ok: true, message: "Subscribed successfully" })
+  } catch (err) {
+    if (err.message.includes("duplicate key"))
+      reply.code(200).send({ ok: true, message: "Already subscribed" })
+    else reply.code(500).send({ error: err.message })
+  }
+})
 
 // =============================================================
 // 🔹 SERVER START

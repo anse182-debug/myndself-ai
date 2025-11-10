@@ -12,7 +12,6 @@ import {
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 
-// tipi
 type ReflectionEntry = {
   id: string
   mood: string
@@ -44,7 +43,7 @@ type ChatMessage = {
   content: string
 }
 
-// preset per mood picker
+// mood preset
 const MOOD_PRESETS = [
   { label: "Calm", value: "Calmo / centrato" },
   { label: "Grateful", value: "Grato" },
@@ -54,11 +53,18 @@ const MOOD_PRESETS = [
   { label: "Overwhelmed", value: "Sovraccarico" },
 ]
 
-// piccolo spinner tailwind
+// spinner
 function Spinner() {
   return (
     <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
   )
+}
+
+// toast type
+type Toast = {
+  id: string
+  message: string
+  type?: "success" | "error" | "info"
 }
 
 export default function App() {
@@ -67,10 +73,10 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false)
   const [emailForLogin, setEmailForLogin] = useState("")
 
-  // user anon
+  // anon user id
   const [userId, setUserId] = useState("")
 
-  // daily check-in
+  // daily
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
@@ -90,11 +96,23 @@ export default function App() {
   const [chatInput, setChatInput] = useState("")
   const [isChatLoading, setIsChatLoading] = useState(false)
 
-  // subscribe state (facoltativo)
+  // subscribe
   const [betaEmail, setBetaEmail] = useState("")
   const [betaDone, setBetaDone] = useState(false)
 
-  // ==== AUTH INIT ====
+  // toasts
+  const [toasts, setToasts] = useState<Toast[]>([])
+
+  // helper toast
+  const showToast = (message: string, type: Toast["type"] = "info") => {
+    const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
+    setToasts((prev) => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id))
+    }, 3500)
+  }
+
+  // ==== auth init ====
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setUser(data.session.user)
@@ -109,7 +127,7 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  // ==== ANON USER ID ====
+  // ==== anon id ====
   useEffect(() => {
     let stored = localStorage.getItem("myndself-user-id")
     if (!stored) {
@@ -119,21 +137,19 @@ export default function App() {
     setUserId(stored)
   }, [])
 
-  // ==== FETCH INITIAL DATA ====
+  // ==== initial data ====
   useEffect(() => {
     const activeUserId = user?.id || userId
     if (!activeUserId) return
 
     async function fetchAll() {
       try {
-        // mood history
         const moodRes = await fetch(`${API_BASE}/api/mood?user_id=${activeUserId}`)
         const moodJson = await moodRes.json()
         if (moodJson?.ok && Array.isArray(moodJson.items)) {
           setHistory(moodJson.items)
         }
 
-        // summary history
         const sumRes = await fetch(
           `${API_BASE}/api/summary/history?user_id=${activeUserId}`
         )
@@ -142,7 +158,6 @@ export default function App() {
           setInsightHistory(sumJson.items)
         }
 
-        // analytics
         const [dailyRes, tagsRes] = await Promise.all([
           fetch(`${API_BASE}/api/analytics/daily?user_id=${activeUserId}`),
           fetch(`${API_BASE}/api/analytics/tags?user_id=${activeUserId}`),
@@ -184,7 +199,7 @@ export default function App() {
     fetchAll()
   }, [user, userId])
 
-  // ==== AUTH HANDLERS ====
+  // ==== login ====
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthLoading(true)
@@ -197,17 +212,24 @@ export default function App() {
     })
 
     setAuthLoading(false)
-    if (error) alert(error.message)
-    else alert("Check your email for the magic link.")
+    if (error) {
+      showToast(error.message, "error")
+    } else {
+      showToast("Magic link sent. Check your email ✉️", "success")
+    }
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    showToast("Signed out", "info")
   }
 
-  // ==== DAILY REFLECTION ====
+  // ==== reflection ====
   const handleReflect = async () => {
-    if (!mood && !note) return
+    if (!mood && !note) {
+      showToast("Add a mood or note first", "error")
+      return
+    }
     setReflectLoading(true)
     setReflection("")
     try {
@@ -235,7 +257,6 @@ export default function App() {
       setReflection(data.reflection || "")
       setHistory((prev) => [newEntry, ...prev])
 
-      // salviamo
       await fetch(`${API_BASE}/api/mood`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -247,15 +268,17 @@ export default function App() {
 
       setMood("")
       setNote("")
+      showToast("Reflection saved ✅", "success")
     } catch (err) {
       console.error("reflection error:", err)
       setReflection("Errore durante la riflessione.")
+      showToast("Error generating reflection", "error")
     } finally {
       setReflectLoading(false)
     }
   }
 
-  // ==== WEEKLY SUMMARY ====
+  // ==== weekly summary ====
   const handleWeeklySummary = async (save = false) => {
     try {
       const res = await fetch(
@@ -265,6 +288,7 @@ export default function App() {
       )
       const data = await res.json()
       setWeeklyInsight(data.summary || "Nessun riepilogo disponibile.")
+      showToast(save ? "Insight saved ✅" : "Insight generated", "success")
 
       if (save) {
         const sh = await fetch(
@@ -278,10 +302,11 @@ export default function App() {
     } catch (err) {
       console.error("summary error:", err)
       setWeeklyInsight("Errore nel generare il riepilogo.")
+      showToast("Error generating insight", "error")
     }
   }
 
-  // ==== CHAT SEND ====
+  // ==== chat ====
   async function handleChatSend() {
     if (!chatInput.trim()) return
     const userMessage: ChatMessage = {
@@ -317,12 +342,13 @@ export default function App() {
           content: "Non riesco a rispondere ora, riprova più tardi.",
         },
       ])
+      showToast("Chat error", "error")
     } finally {
       setIsChatLoading(false)
     }
   }
 
-  // ==== SUBSCRIBE ====
+  // ==== subscribe ====
   const handleSubscribe = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!betaEmail) return
@@ -333,12 +359,14 @@ export default function App() {
         body: JSON.stringify({ email: betaEmail }),
       })
       setBetaDone(true)
+      showToast("You joined the beta 🙌", "success")
     } catch (err) {
       console.error("subscribe error:", err)
+      showToast("Error subscribing", "error")
     }
   }
 
-  // ==== CHART DATA ====
+  // ==== chart data ====
   const chartData = useMemo(() => {
     const moodToScore = (m: string) => {
       const val = m?.toLowerCase?.() || ""
@@ -365,6 +393,24 @@ export default function App() {
 
   return (
     <main className="min-h-screen bg-ms-bg text-white">
+      {/* TOASTS */}
+      <div className="fixed top-5 right-5 z-50 space-y-3">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 border ${
+              t.type === "error"
+                ? "bg-red-500/10 border-red-400/40 text-red-100"
+                : t.type === "success"
+                ? "bg-emerald-500/10 border-emerald-400/40 text-emerald-50"
+                : "bg-white/10 border-white/20 text-white"
+            }`}
+          >
+            <span className="text-sm">{t.message}</span>
+          </div>
+        ))}
+      </div>
+
       {/* HERO */}
       <section className="max-w-6xl mx-auto px-6 pt-20 pb-32 grid md:grid-cols-2 gap-10 items-center">
         <div>
@@ -450,7 +496,6 @@ export default function App() {
           language.
         </p>
 
-        {/* mood picker */}
         <div className="flex flex-wrap gap-2 justify-center mb-5">
           {MOOD_PRESETS.map((preset) => (
             <button
@@ -523,7 +568,7 @@ export default function App() {
               </button>
             </div>
           </div>
-          <p className="text-white/70 text-sm leading-relaxed">
+          <p className="text-white/70 text-sm leading-relaxed whitespace-pre-wrap">
             {weeklyInsight
               ? weeklyInsight
               : "Ask MyndSelf to analyze your recent reflections and get a gentle summary of your emotional trend."}

@@ -234,19 +234,21 @@ app.get("/api/analytics/tags", async (req, reply) => {
   }
 })
 
-// === CHAT (contextual) ===
+//Contextual Chat
 app.post("/api/chat", async (req, reply) => {
   const { user_id, messages } = req.body || {}
   if (!user_id || !messages)
     return reply.code(400).send({ error: "Missing fields" })
 
   try {
+    // profilo emozionale
     const { data: profile } = await supabase
       .from("emotion_profile")
       .select("*")
       .eq("user_id", user_id)
       .maybeSingle()
 
+    // ultimi 3 mood
     const { data: recentMoods } = await supabase
       .from("mood_entries")
       .select("mood,note,tags,at")
@@ -255,34 +257,47 @@ app.post("/api/chat", async (req, reply) => {
       .limit(3)
 
     const recentText = (recentMoods || [])
-      .map((r) => `${r.mood || ""}: ${r.note || ""}`)
+      .map((r) => `• ${r.mood || ""}${r.note ? " – " + r.note : ""}`)
       .join("\n")
+
     const dominant = profile?.dominant_tags?.join(", ") || "none"
 
     const systemPrompt = `
-You are MyndSelf, an AI coach specialized in emotional intelligence.
-You provide short, compassionate, reflective answers (CBT/ACT tone).
-If the user's previous notes are in Italian, respond in Italian.
+You are MyndSelf, an AI reflection companion.
 
-Recent emotional tags: ${dominant}
-Recent moods and notes:
+Context available:
+- Dominant emotional tags: ${dominant}
+- Recent moods/notes:
 ${recentText || "No recent data."}
+
+Instructions:
+1. If there is relevant recent context (same emotion, stress, tiredness...), REFER TO IT explicitly ("you mentioned feeling stressed recently...").
+2. Keep the tone warm, CBT/ACT inspired.
+3. Ask ONE gentle follow-up question.
+4. If user writes in Italian, reply in Italian.
+5. Keep it within 3–5 sentences.
 `
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "system", content: systemPrompt }, ...messages],
       temperature: 0.7,
-      max_tokens: 300,
+      max_tokens: 280,
     })
 
     const replyText = completion.choices[0]?.message?.content?.trim() || "..."
-    await supabase.from("chat_sessions").insert({
-      user_id,
-      messages,
-      reply: replyText,
-      created_at: new Date().toISOString(),
-    })
+
+    // salva la sessione (non blocca)
+    try {
+      await supabase.from("chat_sessions").insert({
+        user_id,
+        messages,
+        reply: replyText,
+        created_at: new Date().toISOString(),
+      })
+    } catch (e) {
+      console.warn("⚠️ chat session not saved:", e.message)
+    }
 
     reply.send({ reply: replyText })
   } catch (err) {

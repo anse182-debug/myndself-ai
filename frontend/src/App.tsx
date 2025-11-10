@@ -247,12 +247,16 @@ export default function App() {
           <div className="mt-4">
             <h3 className="font-semibold mb-2 text-indigo-200">Previous Insights</h3>
             <ul className="space-y-2 max-h-48 overflow-y-auto text-sm">
-              {summaryHistory.map((s) => (
-                <li key={s.id} className="bg-gray-800 p-2 rounded">
-                  {s.summary}
-                </li>
-              ))}
-            </ul>
+  {summaryHistory.length === 0 ? (
+    <li className="text-gray-500 text-sm">No insights saved yet.</li>
+  ) : (
+    summaryHistory.map((s) => (
+      <li key={s.id || s.created_at} className="bg-gray-800 p-2 rounded">
+        {s.summary}
+      </li>
+    ))
+  )}
+</ul>
           </div>
         </div>
       </section>

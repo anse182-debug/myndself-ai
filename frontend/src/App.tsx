@@ -520,7 +520,7 @@ export default function App() {
               ))
             )}
             {isChatLoading && (
-              <p className="text-xs text-gray-500 italic">Riflettendo…</p>
+              <p className="text-xs text-gray-500 italic">Riflettendo un attimo assieme a te…</p>
             )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">

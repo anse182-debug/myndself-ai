@@ -490,6 +490,76 @@ app.post("/api/subscribe", async (req, reply) => {
     }
   }
 })
+app.get("/api/emotional-profile", async (req, reply) => {
+  const { user_id } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
+  try {
+    // 1️⃣ Prendi ultimi 30 mood entries
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("mood, note, tags, reflection, created_at")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(30)
+
+    if (error) throw error
+    if (!entries || entries.length === 0)
+      return reply.send({ ok: true, profileText: "No emotional data yet." })
+
+    const tags = entries
+      .map((e) => e.tags || [])
+      .flat()
+      .filter(Boolean)
+    const lastReflections = entries
+      .map((e) => `${e.mood || ""}: ${e.reflection || e.note || ""}`)
+      .join("\n")
+
+    // 2️⃣ Prompt a GPT per analisi emotiva
+    const prompt = `
+    Sei un assistente psicologico gentile che analizza journaling emozionale.
+    Questi sono gli ultimi stati e riflessioni dell'utente:
+
+    ${lastReflections.slice(0, 3000)}
+
+    Elabora in 3 brevi paragrafi:
+    1. Emozioni predominanti o ricorrenti.
+    2. Come sembra evolvere il tono emotivo nel tempo (più calmo, più stanco, più sereno...).
+    3. Un suggerimento mindful, basato su compassione e accettazione.
+    Rispondi in italiano, tono empatico e sintetico.
+    `
+
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.8,
+    })
+
+    const profileText =
+      response.choices?.[0]?.message?.content?.trim() ||
+      "Non riesco ancora a valutare l’evoluzione emotiva."
+
+    // 3️⃣ Aggiorna tabella emotion_profile (o crea se non esiste)
+    await supabase.from("emotion_profile").upsert(
+      {
+        user_id,
+        summary: profileText,
+        top_tags: tags.slice(0, 5),
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    )
+
+    reply.send({
+      ok: true,
+      profileText,
+      topTags: tags.slice(0, 5),
+    })
+  } catch (err) {
+    console.error("❌ Emotional profile error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
 
 // =============================================================
 //  START

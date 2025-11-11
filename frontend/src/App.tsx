@@ -499,6 +499,79 @@ export default function App() {
           )}
         </div>
       </section>
+{/* emotional evolution */}
+<section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
+  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+    <h2 className="text-sm font-semibold text-emerald-200 mb-3">
+      Emotional Evolution
+    </h2>
+    <p className="text-xs text-gray-400 mb-3">
+      A reflection of how your emotions have evolved over time.
+    </p>
+
+    {/* Fetch profile data */}
+    {(() => {
+      const [profile, setProfile] = useState<string>("")
+      const [topTags, setTopTags] = useState<string[]>([])
+      const [loading, setLoading] = useState(true)
+
+      useEffect(() => {
+        const activeUserId = session?.user?.id || userId
+        if (!activeUserId) return
+        ;(async () => {
+          try {
+            const res = await fetch(
+              `${API_BASE}/api/emotional-profile?user_id=${activeUserId}`
+            )
+            const data = await res.json()
+            if (data?.ok) {
+              setProfile(data.profileText)
+              setTopTags(data.topTags || [])
+            }
+          } catch (err) {
+            console.error("profile fetch error:", err)
+          } finally {
+            setLoading(false)
+          }
+        })()
+      }, [session, userId])
+
+      if (loading)
+        return (
+          <div className="text-xs text-gray-500 italic animate-pulse">
+            Reflecting on your emotional path...
+          </div>
+        )
+
+      if (!profile)
+        return (
+          <p className="text-xs text-gray-500">
+            Not enough reflections yet to build your emotional evolution.
+          </p>
+        )
+
+      return (
+        <div className="fade-in">
+          <div className="text-sm text-emerald-50 whitespace-pre-wrap mb-3 bg-white/5 rounded-lg p-3">
+            {profile}
+          </div>
+          {topTags.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {topTags.map((tag, i) => (
+                <span
+                  key={i}
+                  className="bg-emerald-500/10 text-emerald-200 text-xs px-2 py-1 rounded-full border border-emerald-400/30"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )
+    })()}
+  </div>
+</section>
 
       {/* chat */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10 pb-16">

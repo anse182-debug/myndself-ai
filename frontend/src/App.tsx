@@ -41,12 +41,12 @@ type Toast = {
 }
 
 const MOOD_PRESETS = [
-  { label: "Calm", value: "Calmo / centrato" },
-  { label: "Grateful", value: "Grato" },
-  { label: "Stressed", value: "Stressato" },
-  { label: "Tired", value: "Stanco" },
-  { label: "Hopeful", value: "Speranzoso" },
-  { label: "Overwhelmed", value: "Sovraccarico" },
+  { label: "Calmo", value: "Calmo / centrato" },
+  { label: "Grato", value: "Grato" },
+  { label: "Stressato", value: "Stressato" },
+  { label: "Stanco", value: "Stanco" },
+  { label: "Speranzoso", value: "Speranzoso" },
+  { label: "Sovraccarico", value: "Sovraccarico" },
 ]
 
 function Spinner() {
@@ -149,28 +149,28 @@ export default function App() {
 
   // ---- login/logout ----
   const handleLogin = async () => {
-    const email = prompt("Enter your email")
+    const email = prompt("Inserisci la tua email")
     if (!email) return
     const { error } = await supabase.auth.signInWithOtp({ email })
     if (error) showToast(error.message, "error")
-    else showToast("Magic link sent. Check your email ✉️", "success")
+    else showToast("Magic link inviato. Controlla la tua email ✉️", "success")
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setSession(null)
-    showToast("Signed out", "info")
+    showToast("Logout effettuato", "info")
   }
 
   // ---- reflection ----
   const handleReflection = async () => {
     const activeUserId = session?.user?.id || userId
     if (!activeUserId) {
-      showToast("Please log in first", "error")
+      showToast("Per favore effettua il login", "error")
       return
     }
     if (!mood && !note) {
-      showToast("Add a mood or note first", "error")
+      showToast("Aggiungi prima uno stato d'animo o una nota", "error")
       return
     }
     setIsReflecting(true)
@@ -187,7 +187,7 @@ export default function App() {
       })
       const data = await res.json()
       setReflection(data.reflection || "")
-      showToast("Reflection saved ✅", "success")
+      showToast("Riflessione Salvata ✅", "success")
 
       // refetch analytics to see the new entry
       const dailyRes = await fetch(
@@ -201,7 +201,7 @@ export default function App() {
       setNote("")
     } catch (err) {
       console.error("reflection error:", err)
-      showToast("Error generating reflection", "error")
+      showToast("Errore nella generazione della riflessione", "error")
     } finally {
       setIsReflecting(false)
     }
@@ -211,7 +211,7 @@ export default function App() {
   const handleSummary = async () => {
     const activeUserId = session?.user?.id || userId
     if (!activeUserId) {
-      showToast("Please log in first", "error")
+      showToast("Per favore effettua il login", "error")
       return
     }
     setIsSummarizing(true)
@@ -221,7 +221,7 @@ export default function App() {
       )
       const data = await res.json()
       setWeeklyInsight(data.summary || "")
-      showToast("Insight saved ✅", "success")
+      showToast("Approfondimento Salvato ✅", "success")
 
       // reload history
       const sumRes = await fetch(
@@ -231,7 +231,7 @@ export default function App() {
       if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
     } catch (err) {
       console.error("summary error:", err)
-      showToast("Error generating insight", "error")
+      showToast("Errore nella generazione dell'approfondimento", "error")
     } finally {
       setIsSummarizing(false)
     }
@@ -241,7 +241,7 @@ export default function App() {
   const handleChatSend = async () => {
     const activeUserId = session?.user?.id || userId
     if (!activeUserId) {
-      showToast("Please log in first", "error")
+      showToast("Per favore effettua il login", "error")
       return
     }
     if (!chatInput.trim()) return
@@ -306,7 +306,7 @@ export default function App() {
           <img src="/logo.svg" alt="MyndSelf.ai" className="h-9" />
           <div>
             <h1 className="text-lg font-semibold text-emerald-200">MyndSelf.ai</h1>
-            <p className="text-xs text-gray-400">AI for Emotional Intelligence</p>
+            <p className="text-xs text-gray-400">AI per Intelligenza Emotiva</p>
           </div>
         </div>
         {session ? (
@@ -331,7 +331,7 @@ export default function App() {
         {/* reflection */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
           <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-            Daily reflection
+            Riflessione Quotidiana
           </h2>
           <div className="flex flex-wrap gap-2 mb-3">
             {MOOD_PRESETS.map((m) => (
@@ -351,13 +351,13 @@ export default function App() {
           <input
             value={mood}
             onChange={(e) => setMood(e.target.value)}
-            placeholder="How do you feel?"
+            placeholder="Come ti senti in questo momento? Prova a descriverlo in poche parole"
             className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
           />
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add a note..."
+            placeholder="Ti va di condividere quello che è successo o quello che hai in mente?"
             className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
           />
           <button
@@ -366,7 +366,7 @@ export default function App() {
             className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
           >
             {isReflecting ? <Spinner /> : null}
-            {isReflecting ? "Saving..." : "Save & reflect"}
+            {isReflecting ? "Salvataggio..." : "Salva e Rifletti"}
           </button>
 
           {reflection && (
@@ -382,7 +382,7 @@ export default function App() {
             Weekly insight
           </h2>
           <p className="text-xs text-gray-400 mb-4">
-            Generate a gentle summary of your latest reflections.
+            Crea un breve riassunto delle tue ultime riflessioni.
           </p>
           <button
             onClick={handleSummary}
@@ -390,7 +390,7 @@ export default function App() {
             className="bg-emerald-500/90 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 mb-4 disabled:opacity-50 w-fit"
           >
             {isSummarizing ? <Spinner /> : null}
-            {isSummarizing ? "Generating..." : "Generate & save"}
+            {isSummarizing ? "Generazione in corso..." : "Genera & Salva"}
           </button>
           {weeklyInsight && (
             <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap">
@@ -399,12 +399,12 @@ export default function App() {
           )}
           <div className="mt-4">
             <h3 className="text-sm font-semibold text-emerald-100 mb-2">
-              Previous insights
+              Approfondimenti Precedenti
             </h3>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {summaryHistory.length === 0 ? (
                 <p className="text-xs text-gray-500">
-                  No insights saved yet. Generate one above.
+                  Non ci sono ancora approfondimenti salvati. Generane uno qui sopra.
                 </p>
               ) : (
                 summaryHistory.map((item) => (
@@ -428,11 +428,11 @@ export default function App() {
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-emerald-200 mb-3">
-            Emotional journey (last days)
+            Viaggio emotivo (utlimi giorni)
           </h2>
           {chartData.length === 0 ? (
             <p className="text-xs text-gray-500">
-              No data yet. Add a reflection to see your journey.
+              Non ci sono ancora dati. Aggiungi una riflessione per vedere il tuo viaggio.
             </p>
           ) : (
             <div className="h-56">
@@ -464,11 +464,11 @@ export default function App() {
 
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-emerald-200 mb-3">
-            Most frequent emotions
+            Le tue emozioni più frequenti
           </h2>
           {tagData.length === 0 ? (
             <p className="text-xs text-gray-500">
-              When you write, MyndSelf extracts emotional tags and shows them here.
+              Quando scrivi, MyndSelf estrae i tag emotivi e li mostra qui.
             </p>
           ) : (
             <div className="h-56">
@@ -498,12 +498,12 @@ export default function App() {
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10 pb-16">
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">
           <h2 className="text-sm font-semibold text-emerald-200">
-            Reflective Chat
+            Chat Riflessiva
           </h2>
           <div className="flex-1 overflow-y-auto space-y-3">
             {chatMessages.length === 0 ? (
               <p className="text-xs text-gray-500">
-                Start a conversation — MyndSelf will remember the context.
+                Inizia una riflessione — MyndSelf ricorderà il contesto.
               </p>
             ) : (
               chatMessages.map((m, idx) => (
@@ -520,7 +520,7 @@ export default function App() {
               ))
             )}
             {isChatLoading && (
-              <p className="text-xs text-gray-500 italic">Thinking…</p>
+              <p className="text-xs text-gray-500 italic">Riflettendo…</p>
             )}
           </div>
           <div className="flex flex-col sm:flex-row gap-2">
@@ -528,7 +528,7 @@ export default function App() {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
-              placeholder="Tell MyndSelf what's on your mind..."
+              placeholder="Dì a MyndSelf cosa ti passa per la testa..."
               className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
             />
             <button
@@ -537,14 +537,14 @@ export default function App() {
               className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
             >
               {isChatLoading ? <Spinner /> : null}
-              Send
+              Invia
             </button>
           </div>
         </div>
       </section>
 
       <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-xs text-gray-500 text-center">
-        © {new Date().getFullYear()} MyndSelf.ai — Empathy through AI
+        © {new Date().getFullYear()} MyndSelf.ai — Empatia attraverso AI
       </footer>
     </main>
   )

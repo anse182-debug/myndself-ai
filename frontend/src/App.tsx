@@ -654,6 +654,96 @@ function resetGuided() {
   </div>
 </section>
 
+      {/* Guided Reflection Mode */}
+<section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
+  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h2 className="text-sm font-semibold text-emerald-200">Guided Reflection Mode</h2>
+        <p className="text-xs text-gray-400">
+          Una breve sessione di 3–4 domande per fare chiarezza con gentilezza.
+        </p>
+      </div>
+      {guidedActive ? (
+        <button
+          onClick={resetGuided}
+          className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+        >
+          Reset
+        </button>
+      ) : null}
+    </div>
+
+    {!guidedActive ? (
+      <button
+        onClick={startGuidedSession}
+        className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
+      >
+        Start guided session
+      </button>
+    ) : (
+      <>
+        <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
+          {guidedMessages.length === 0 ? (
+            <p className="text-xs text-gray-500">
+              Avvia la sessione per iniziare una riflessione passo-passo.
+            </p>
+          ) : (
+            guidedMessages.map((m, idx) => (
+              <div
+                key={idx}
+                className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+                  m.role === "user"
+                    ? "bg-emerald-500/20 text-emerald-50 ml-auto"
+                    : "bg-white/5 text-white/90 fade-in"
+                }`}
+              >
+                {m.content}
+              </div>
+            ))
+          )}
+          {guidedLoading && (
+            <p className="text-xs text-gray-400 italic animate-pulse">
+              Reflecting with you for a moment...
+            </p>
+          )}
+        </div>
+
+        {!guidedFinal ? (
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              value={guidedInput}
+              onChange={(e) => setGuidedInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
+              placeholder="Scrivi cosa emerge adesso…"
+              className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+            />
+            <button
+              onClick={sendGuidedTurn}
+              disabled={guidedLoading}
+              className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+            >
+              {guidedStep === 0 ? "Start" : `Next (${guidedStep}/4)`}
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs text-emerald-200">
+              Sessione conclusa con gentilezza. Se vuoi, puoi ripartire quando ti va.
+            </p>
+            <button
+              onClick={resetGuided}
+              className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+            >
+              New session
+            </button>
+          </div>
+        )}
+      </>
+    )}
+  </div>
+</section>
+
       {/* chat */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10 pb-16">
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">

@@ -70,6 +70,87 @@ export default function App() {
   const [isReflecting, setIsReflecting] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
   const [isChatLoading, setIsChatLoading] = useState(false)
+  // --- Guided Reflection Mode (H1) ---
+type GuidedMsg = { role: "user" | "assistant"; content: string }
+
+const [guidedActive, setGuidedActive] = useState(false)
+const [guidedStep, setGuidedStep] = useState<number>(0) // 0=non iniziata, 1..4 in sessione
+const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
+const [guidedInput, setGuidedInput] = useState("")
+const [guidedLoading, setGuidedLoading] = useState(false)
+const [guidedFinal, setGuidedFinal] = useState(false)
+
+async function startGuidedSession() {
+  const activeUserId = session?.user?.id || userId
+  if (!activeUserId) {
+    showToast("Please log in first", "error")
+    return
+  }
+  setGuidedActive(true)
+  setGuidedFinal(false)
+  setGuidedStep(1)
+  setGuidedMessages([
+    { role: "assistant", content: "Ti va di fare una breve riflessione insieme? Cosa senti più presente in te adesso?" },
+  ])
+}
+
+async function sendGuidedTurn() {
+  const activeUserId = session?.user?.id || userId
+  if (!activeUserId) {
+    showToast("Please log in first", "error")
+    return
+  }
+  if (!guidedActive) {
+    startGuidedSession()
+    return
+  }
+  if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
+    showToast("Scrivi una breve risposta per continuare 💭", "info")
+    return
+  }
+
+  // Accodo la risposta utente (se c'è)
+  let msgs = guidedMessages
+  if (guidedInput.trim()) {
+    msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
+    setGuidedMessages(msgs)
+    setGuidedInput("")
+  }
+
+  setGuidedLoading(true)
+  try {
+    const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: activeUserId,
+        messages: msgs,
+        step: guidedStep || 1,
+      }),
+    })
+    const data = await res.json()
+    const reply = data?.reply || "Grazie per aver condiviso. Restiamo un momento con ciò che senti."
+    const isFinal = Boolean(data?.isFinal)
+
+    setGuidedMessages((prev) => [...prev, { role: "assistant", content: reply }])
+    setGuidedFinal(isFinal)
+    setGuidedStep((prev) => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
+  } catch (err) {
+    console.error("guided error:", err)
+    showToast("Errore nella sessione guidata", "error")
+  } finally {
+    setGuidedLoading(false)
+  }
+}
+
+function resetGuided() {
+  setGuidedActive(false)
+  setGuidedFinal(false)
+  setGuidedStep(0)
+  setGuidedMessages([])
+  setGuidedInput("")
+}
+
 
   const [toasts, setToasts] = useState<Toast[]>([])
 

@@ -560,6 +560,88 @@ app.get("/api/emotional-profile", async (req, reply) => {
     reply.code(500).send({ error: err.message })
   }
 })
+// Guided Reflection (H1)
+// POST /api/guided-reflection
+// Body: { user_id: string, messages: [{role,content}], step?: number }
+app.post("/api/guided-reflection", async (req, reply) => {
+  const { user_id, messages = [], step } = req.body || {}
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
+  try {
+    // step server-side (fallback): 1..4
+    const currentStep = Math.max(1, Math.min(4, Number(step || 1)))
+    const isFinal = currentStep >= 4
+
+    // contesto corto per ridurre i costi e mantenere la coerenza
+    const shortContext = Array.isArray(messages) ? messages.slice(-8) : []
+
+    // prompt dedicato H1 (CBT/ACT, domande progressive)
+    const GUIDED_PROMPT = `
+You are MyndSelf.ai, a calm CBT/ACT-inspired reflection guide.
+Run a short guided session of 3–4 turns:
+- Ask one gentle, open question per turn.
+- Validate the user's feeling before asking.
+- Keep replies short (2–3 sentences), Italian if the user is Italian.
+- Never diagnose; be kind and non-judgmental.
+
+Session logic:
+- Steps 1–3: ask ONE next question that deepens awareness (thoughts ↔ emotions ↔ body ↔ values).
+- Step 4 (final): do NOT ask a question. Offer a concise, compassionate summary + one tiny mindful suggestion (no imperative tone).
+`
+
+    // Istruzione additiva in base allo step
+    const turnInstruction = isFinal
+      ? "FINAL STEP: Provide a brief compassionate summary and one gentle mindful suggestion. No questions."
+      : "NON-FINAL STEP: Validate briefly, then ask ONE open question to go a bit deeper."
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.7,
+      max_tokens: 220,
+      messages: [
+        { role: "system", content: GUIDED_PROMPT },
+        // Aggiungo una breve istruzione esplicita per il turno corrente
+        { role: "system", content: `SESSION STEP = ${currentStep}. ${turnInstruction}` },
+        ...shortContext,
+      ],
+    })
+
+    const replyText =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      (isFinal
+        ? "Grazie per aver condiviso. Onora quello che provi e concediti un piccolo gesto di gentilezza."
+        : "Ti va di restare un attimo con ciò che senti? Cosa emerge di più in questo momento?")
+
+    // Salva sessione guidata (se vuoi separarla dalla chat libera)
+    try {
+      await supabase.from("chat_sessions").insert({
+        user_id,
+        messages,
+        reply: replyText,
+        type: "guided",           // richiede la colonna "type" (vedi nota SQL sotto)
+        step: currentStep,        // opzionale se vuoi tracciare lo step
+        created_at: new Date().toISOString(),
+      })
+    } catch (e) {
+      console.warn("⚠️ guided session insert failed:", e.message)
+    }
+
+    // Memoria semantica minimale (facoltativa)
+    try {
+      // ultimo input utente, se presente
+      const lastUser = [...messages].reverse().find((m) => m.role === "user")
+      if (lastUser?.content) {
+        await saveToMemory({ user_id, content: lastUser.content, source: "guided_user" })
+      }
+      await saveToMemory({ user_id, content: replyText, source: "guided_reply" })
+    } catch (_) {}
+
+    reply.send({ reply: replyText, isFinal })
+  } catch (err) {
+    console.error("❌ Guided reflection error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
 
 // =============================================================
 //  START

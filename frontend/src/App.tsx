@@ -79,6 +79,8 @@ const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
 const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
 const [guidedFinal, setGuidedFinal] = useState(false)
+const [emotionalWelcome, setEmotionalWelcome] = useState<string>("")
+
 
 async function startGuidedSession() {
   const activeUserId = session?.user?.id || userId
@@ -230,8 +232,28 @@ function resetGuided() {
           ]
           setChatMessages(restored)
         }
+        
       } catch (err) {
         console.error("init fetch error:", err)
+      }
+            // --- Emotional welcome strip (G4) ---
+      try {
+        const profileRes = await fetch(
+          `${API_BASE}/api/emotional-profile?user_id=${uid}`
+        )
+        const profileJson = await profileRes.json()
+        if (profileJson?.ok && typeof profileJson.profileText === "string") {
+          const raw = profileJson.profileText.trim()
+          // estrai la prima frase per il banner
+          const firstSentence =
+            raw.split(/(?<=[.!?])\s+/)[0] || raw.slice(0, 180)
+          setEmotionalWelcome(firstSentence)
+        } else {
+          setEmotionalWelcome("")
+        }
+      } catch (err) {
+        console.error("emotional profile fetch error:", err)
+        setEmotionalWelcome("")
       }
     })()
   }, [session, userId])

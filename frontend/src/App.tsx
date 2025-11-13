@@ -27,6 +27,7 @@ const MOOD_PRESETS = [
   { label: "Speranzoso", value: "Speranzoso" },
   { label: "Sovraccarico", value: "Sovraccarico" },
 ]
+
 const EMOTION_LABELS_IT: Record<string, string> = {
   calm: "calma",
   calmness: "calma",
@@ -475,21 +476,33 @@ export default function App() {
                   : emotionalWelcome}
               </span>
               {emotionalTags.length > 0 && (
-  <div className="mt-1 flex flex-wrap gap-1.5">
-    {emotionalTags.map((tag, idx) => {
-      const key = tag.toLowerCase().trim()
-      const label = EMOTION_LABELS_IT[key] || tag
-      return (
-        <span
-          key={idx}
-          className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
-        >
-          {label}
-        </span>
-      )
-    })}
-  </div>
-)}
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {emotionalTags.map((tag, idx) => {
+                    const key = tag.toLowerCase().trim()
+                    const label = EMOTION_LABELS_IT[key] || tag
+                    return (
+                      <span
+                        key={idx}
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
+                      >
+                        {label}
+                      </span>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            {emotionalFull && emotionalFull !== emotionalWelcome && (
+              <button
+                onClick={() => setEmotionalExpanded((prev) => !prev)}
+                className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
+              >
+                {emotionalExpanded ? "Mostra meno" : "Mostra di più"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* RIFLESSIONE DEL GIORNO + SINTESI SETTIMANA */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-4">

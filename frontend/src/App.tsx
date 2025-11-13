@@ -135,6 +135,18 @@ async function sendGuidedTurn() {
     setGuidedMessages((prev) => [...prev, { role: "assistant", content: reply }])
     setGuidedFinal(isFinal)
     setGuidedStep((prev) => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
+    // Se la sessione è conclusa, aggiorna gli insights
+if (isFinal) {
+  showToast("Guided insight saved ✅", "success")
+  const uid = session?.user?.id || userId
+  try {
+    const sumRes = await fetch(`${API_BASE}/api/summary/history?user_id=${uid}`)
+    const sumJson = await sumRes.json()
+    if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
+  } catch (e) {
+    console.error("refresh insights error:", e)
+  }
+}
   } catch (err) {
     console.error("guided error:", err)
     showToast("Errore nella sessione guidata", "error")

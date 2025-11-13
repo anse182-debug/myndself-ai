@@ -269,15 +269,25 @@ useEffect(() => {
       const data = await res.json()
 
       if (data?.ok && typeof data.profileText === "string") {
-        const raw = data.profileText.trim()
-        // prendi la prima frase, o al massimo ~160 caratteri
-        const firstSentence =
-          raw.split(/(?<=[.!?])\s+/)[0] || raw.slice(0, 160)
+  const raw = data.profileText.trim()
 
-        setEmotionalWelcome(firstSentence)
-      } else {
-        setEmotionalWelcome(null)
-      }
+  // 1) Prendi la prima riga non vuota
+  const firstLine =
+    raw
+      .split(/\r?\n/)
+      .map((l: string) => l.trim())
+      .find((l: string) => l.length > 0) || raw
+
+  // 2) Rimuovi eventuali numerazioni tipo "1. ", "- ", "• "
+  const cleaned = firstLine.replace(/^\s*[\d\-\u2022]+\.\s*|\s*[\-\u2022]\s*/g, "")
+
+  // 3) Taglia a max ~160 caratteri
+  const preview = cleaned.slice(0, 160)
+
+  setEmotionalWelcome(preview)
+} else {
+  setEmotionalWelcome(null)
+}
     } catch (err) {
       console.error("welcome emotional-profile error:", err)
       setEmotionalWelcome(null)

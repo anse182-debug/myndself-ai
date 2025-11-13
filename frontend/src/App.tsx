@@ -91,6 +91,10 @@ export default function App() {
   const [emotionalExpanded, setEmotionalExpanded] = useState(false)
   const [emotionalTags, setEmotionalTags] = useState<string[]>([])
 
+  // onboarding
+  const [showOnboarding, setShowOnboarding] = useState(false)
+  const [onboardingStep, setOnboardingStep] = useState(1)
+
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
   const showToast = (message: string, type: Toast["type"] = "info") => {
@@ -120,6 +124,26 @@ export default function App() {
     }
     setUserId(stored)
   }, [])
+
+  // onboarding: mostra solo se non già visto
+  useEffect(() => {
+    const seen = localStorage.getItem("myndself-onboarded-v1")
+    if (!seen) setShowOnboarding(true)
+  }, [])
+
+  const completeOnboarding = () => {
+    localStorage.setItem("myndself-onboarded-v1", "true")
+    setShowOnboarding(false)
+  }
+
+  const handleOnboardingNext = () => {
+    if (onboardingStep === 1) setOnboardingStep(2)
+    else completeOnboarding()
+  }
+
+  const handleOnboardingSkip = () => {
+    completeOnboarding()
+  }
 
   // fetch iniziale dati (sintesi, grafici, chat)
   useEffect(() => {
@@ -411,6 +435,67 @@ export default function App() {
   // ---------- RENDER ----------
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
+      {/* ONBOARDING OVERLAY */}
+      {showOnboarding && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md mx-4 bg-gray-900 border border-emerald-400/40 rounded-2xl p-5 shadow-xl">
+            <p className="text-[11px] text-emerald-300 mb-1 uppercase tracking-wide">
+              Benvenuto su MyndSelf
+            </p>
+            {onboardingStep === 1 ? (
+              <>
+                <h2 className="text-sm font-semibold text-emerald-100 mb-2">
+                  Come usarla in 30 secondi
+                </h2>
+                <ul className="text-xs text-gray-300 space-y-1.5 mb-3">
+                  <li>• A fine giornata, registra la tua “Riflessione del giorno”.</li>
+                  <li>
+                    • Nel weekend, genera la “Sintesi della settimana” per vedere i
+                    tuoi pattern.
+                  </li>
+                  <li>
+                    • Nei momenti di fatica, usa la “Chat riflessiva” o la
+                    “Riflessione guidata”.
+                  </li>
+                </ul>
+                <p className="text-[11px] text-gray-400">
+                  Non devi essere perfetto: bastano poche parole sincere, anche in
+                  modo irregolare.
+                </p>
+              </>
+            ) : (
+              <>
+                <h2 className="text-sm font-semibold text-emerald-100 mb-2">
+                  Uno spazio sicuro, tuo
+                </h2>
+                <p className="text-xs text-gray-300 mb-3">
+                  Le tue riflessioni restano private. I dati sono gestiti tramite
+                  Supabase e usati solo per generare insight per te.
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  MyndSelf non sostituisce un professionista, ma può essere un
+                  alleato gentile nella tua quotidianità.
+                </p>
+              </>
+            )}
+            <div className="mt-4 flex items-center justify-between gap-3">
+              <button
+                onClick={handleOnboardingSkip}
+                className="text-[11px] text-gray-400 hover:text-gray-200"
+              >
+                Salta
+              </button>
+              <button
+                onClick={handleOnboardingNext}
+                className="text-xs bg-emerald-400 text-gray-950 px-4 py-1.5 rounded-lg font-semibold hover:bg-emerald-300"
+              >
+                {onboardingStep === 1 ? "Avanti" : "Inizia"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* TOASTS */}
       <div className="fixed top-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] sm:w-80">
         {toasts.map((t) => (

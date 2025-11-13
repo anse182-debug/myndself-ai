@@ -80,6 +80,9 @@ const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
 const [guidedFinal, setGuidedFinal] = useState(false)
 const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
+const [emotionalFull, setEmotionalFull] = useState<string | null>(null)
+const [emotionalExpanded, setEmotionalExpanded] = useState(false)
+
 
 
 async function startGuidedSession() {
@@ -487,9 +490,33 @@ useEffect(() => {
       </header>
 {emotionalWelcome && (
   <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-    <div className="mb-4 bg-emerald-500/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-xs sm:text-sm text-emerald-50">
-      <span className="font-semibold mr-1">Emotional note:</span>
-      <span>{emotionalWelcome}</span>
+    <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+      {/* Icona soft */}
+      <div className="mt-0.5 flex-shrink-0">
+        <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
+          <span className="text-emerald-200 text-sm">🪷</span>
+        </div>
+      </div>
+
+      {/* Testo */}
+      <div className="flex-1">
+        <span className="font-semibold mr-1">Emotional note:</span>
+        <span className="align-middle">
+          {emotionalExpanded && emotionalFull
+            ? emotionalFull
+            : emotionalWelcome}
+        </span>
+      </div>
+
+      {/* Pulsante expand/collapse */}
+      {emotionalFull && emotionalFull !== emotionalWelcome && (
+        <button
+          onClick={() => setEmotionalExpanded((prev) => !prev)}
+          className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
+        >
+          {emotionalExpanded ? "Collapse" : "Expand"}
+        </button>
+      )}
     </div>
   </div>
 )}
@@ -686,26 +713,55 @@ useEffect(() => {
       const [topTags, setTopTags] = useState<string[]>([])
       const [loading, setLoading] = useState(true)
 
-      useEffect(() => {
-        const activeUserId = session?.user?.id || userId
-        if (!activeUserId) return
-        ;(async () => {
-          try {
-            const res = await fetch(
-              `${API_BASE}/api/emotional-profile?user_id=${activeUserId}`
-            )
-            const data = await res.json()
-            if (data?.ok) {
-              setProfile(data.profileText)
-              setTopTags(data.topTags || [])
-            }
-          } catch (err) {
-            console.error("profile fetch error:", err)
-          } finally {
-            setLoading(false)
-          }
-        })()
-      }, [session, userId])
+     useEffect(() => {
+  const uid = session?.user?.id || userId
+  if (!uid) return
+
+  ;(async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/emotional-profile?user_id=${uid}`
+      )
+      const data = await res.json()
+
+      if (data?.ok && typeof data.profileText === "string") {
+        const raw = data.profileText.trim()
+        setEmotionalFull(raw)          // salviamo il testo completo
+        setEmotionalExpanded(false)    // reset espansione
+
+        // --- costruisci una preview di 1–2 frasi pulite ---
+        const sentences = raw
+          .split(/(?<=[.!?])\s+/)
+          .map((s: string) => s.trim())
+          .filter((s: string) => s.length > 0)
+
+        if (sentences.length === 0) {
+          setEmotionalWelcome(null)
+          return
+        }
+
+        const clean = (s: string) =>
+          s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim()
+
+        let result = clean(sentences[0])
+        if (result.length < 80 && sentences.length > 1) {
+          result += " " + clean(sentences[1])
+        }
+
+        setEmotionalWelcome(result)
+      } else {
+        setEmotionalWelcome(null)
+        setEmotionalFull(null)
+        setEmotionalExpanded(false)
+      }
+    } catch (err) {
+      console.error("welcome emotional-profile error:", err)
+      setEmotionalWelcome(null)
+      setEmotionalFull(null)
+      setEmotionalExpanded(false)
+    }
+  })()
+}, [session, userId])
 
       if (loading)
         return (

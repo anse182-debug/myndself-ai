@@ -437,6 +437,14 @@ function resetGuided() {
           </button>
         )}
       </header>
+{emotionalWelcome && (
+  <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
+    <div className="mb-4 bg-emerald-500/10 border border-emerald-400/30 rounded-xl px-4 py-3 text-xs sm:text-sm text-emerald-50">
+      <span className="font-semibold mr-1">Emotional note:</span>
+      <span>{emotionalWelcome}</span>
+    </div>
+  </div>
+)}
 
       {/* MAIN GRID: Reflection + Summary */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">

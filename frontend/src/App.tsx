@@ -12,40 +12,20 @@ import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 
-type SummaryEntry = {
-  id?: string
-  summary: string
-  created_at: string
-}
-
-type DailyItem = {
-  day: string
-  entries: number
-}
-
-type TagItem = {
-  tag: string
-  tag_count: number
-}
-
-type ChatMessage = {
-  role: "user" | "assistant"
-  content: string
-}
-
-type Toast = {
-  id: string
-  message: string
-  type?: "success" | "error" | "info"
-}
+type SummaryEntry = { id?: string; summary: string; created_at: string }
+type DailyItem = { day: string; entries: number }
+type TagItem = { tag: string; tag_count: number }
+type ChatMessage = { role: "user" | "assistant"; content: string }
+type Toast = { id: string; message: string; type?: "success" | "error" | "info" }
+type GuidedMsg = { role: "user" | "assistant"; content: string }
 
 const MOOD_PRESETS = [
-  { label: "Calm", value: "Calmo / centrato" },
-  { label: "Grateful", value: "Grato" },
-  { label: "Stressed", value: "Stressato" },
-  { label: "Tired", value: "Stanco" },
-  { label: "Hopeful", value: "Speranzoso" },
-  { label: "Overwhelmed", value: "Sovraccarico" },
+  { label: "Calmo", value: "Calmo / centrato" },
+  { label: "Grato", value: "Grato" },
+  { label: "Stressato", value: "Stressato" },
+  { label: "Stanco", value: "Stanco" },
+  { label: "Speranzoso", value: "Speranzoso" },
+  { label: "Sovraccarico", value: "Sovraccarico" },
 ]
 
 function Spinner() {
@@ -58,6 +38,7 @@ export default function App() {
   const [session, setSession] = useState<any>(null)
   const [userId, setUserId] = useState<string>("")
 
+  // journaling & insights
   const [mood, setMood] = useState("")
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
@@ -65,133 +46,48 @@ export default function App() {
   const [summaryHistory, setSummaryHistory] = useState<SummaryEntry[]>([])
   const [dailyData, setDailyData] = useState<DailyItem[]>([])
   const [tagData, setTagData] = useState<TagItem[]>([])
+
+  // chat libera
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [chatInput, setChatInput] = useState("")
+  const [isChatLoading, setIsChatLoading] = useState(false)
+
+  // riflessione guidata
+  const [guidedActive, setGuidedActive] = useState(false)
+  const [guidedStep, setGuidedStep] = useState<number>(0) // 0 = non iniziata, 1..4
+  const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
+  const [guidedInput, setGuidedInput] = useState("")
+  const [guidedLoading, setGuidedLoading] = useState(false)
+  const [guidedFinal, setGuidedFinal] = useState(false)
+
+  // loading generici
   const [isReflecting, setIsReflecting] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
-  const [isChatLoading, setIsChatLoading] = useState(false)
-  // --- Guided Reflection Mode (H1) ---
-type GuidedMsg = { role: "user" | "assistant"; content: string }
 
-const [guidedActive, setGuidedActive] = useState(false)
-const [guidedStep, setGuidedStep] = useState<number>(0) // 0=non iniziata, 1..4 in sessione
-const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
-const [guidedInput, setGuidedInput] = useState("")
-const [guidedLoading, setGuidedLoading] = useState(false)
-const [guidedFinal, setGuidedFinal] = useState(false)
-const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
-const [emotionalFull, setEmotionalFull] = useState<string | null>(null)
-const [emotionalExpanded, setEmotionalExpanded] = useState(false)
+  // emotional profile / banner
+  const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
+  const [emotionalFull, setEmotionalFull] = useState<string | null>(null)
+  const [emotionalExpanded, setEmotionalExpanded] = useState(false)
+  const [emotionalTags, setEmotionalTags] = useState<string[]>([])
 
-
-
-async function startGuidedSession() {
-  const activeUserId = session?.user?.id || userId
-  if (!activeUserId) {
-    showToast("Please log in first", "error")
-    return
-  }
-  setGuidedActive(true)
-  setGuidedFinal(false)
-  setGuidedStep(1)
-  setGuidedMessages([
-    { role: "assistant", content: "Ti va di fare una breve riflessione insieme? Cosa senti più presente in te adesso?" },
-  ])
-}
-
-async function sendGuidedTurn() {
-  const activeUserId = session?.user?.id || userId
-  if (!activeUserId) {
-    showToast("Please log in first", "error")
-    return
-  }
-  if (!guidedActive) {
-    startGuidedSession()
-    return
-  }
-  if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
-    showToast("Scrivi una breve risposta per continuare 💭", "info")
-    return
-  }
-
-  // Accodo la risposta utente (se c'è)
-  let msgs = guidedMessages
-  if (guidedInput.trim()) {
-    msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
-    setGuidedMessages(msgs)
-    setGuidedInput("")
-  }
-
-  setGuidedLoading(true)
-  try {
-    const res = await fetch(`${API_BASE}/api/guided-reflection`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: activeUserId,
-        messages: msgs,
-        step: guidedStep || 1,
-      }),
-    })
-    const data = await res.json()
-    const reply = data?.reply || "Grazie per aver condiviso. Restiamo un momento con ciò che senti."
-    const isFinal = Boolean(data?.isFinal)
-
-    setGuidedMessages((prev) => [...prev, { role: "assistant", content: reply }])
-    setGuidedFinal(isFinal)
-    setGuidedStep((prev) => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
-    // Se la sessione è conclusa, aggiorna gli insights
-if (isFinal) {
-  showToast("Guided insight saved ✅", "success")
-  const uid = session?.user?.id || userId
-  try {
-    const sumRes = await fetch(`${API_BASE}/api/summary/history?user_id=${uid}`)
-    const sumJson = await sumRes.json()
-    if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-  } catch (e) {
-    console.error("refresh insights error:", e)
-  }
-}
-  } catch (err) {
-    console.error("guided error:", err)
-    showToast("Errore nella sessione guidata", "error")
-  } finally {
-    setGuidedLoading(false)
-  }
-}
-
-function resetGuided() {
-  setGuidedActive(false)
-  setGuidedFinal(false)
-  setGuidedStep(0)
-  setGuidedMessages([])
-  setGuidedInput("")
-}
-
-
+  // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
-
   const showToast = (message: string, type: Toast["type"] = "info") => {
     const id = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`
     setToasts((prev) => [...prev, { id, message, type }])
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id))
-    }, 3500)
+    setTimeout(
+      () => setToasts((prev) => prev.filter((t) => t.id !== id)),
+      3500
+    )
   }
 
-  // auth init
+  // ---------- AUTH ----------
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) setSession(data.session)
     })
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
-
-    return () => subscription.unsubscribe()
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    return () => data.subscription.unsubscribe()
   }, [])
 
   // anon id
@@ -204,29 +100,29 @@ function resetGuided() {
     setUserId(stored)
   }, [])
 
-  // fetch data when user changes
+  // fetch iniziale dati (sintesi, grafici, chat)
   useEffect(() => {
-    const activeUserId = session?.user?.id || userId
-    if (!activeUserId) return
+    const uid = session?.user?.id || userId
+    if (!uid) return
 
     ;(async () => {
       try {
         const [sumRes, dailyRes, tagRes, chatRes] = await Promise.all([
-          fetch(`${API_BASE}/api/summary/history?user_id=${activeUserId}`),
-          fetch(`${API_BASE}/api/analytics/daily?user_id=${activeUserId}`),
-          fetch(`${API_BASE}/api/analytics/tags?user_id=${activeUserId}`),
-          fetch(`${API_BASE}/api/chat/history?user_id=${activeUserId}`),
+          fetch(`${API_BASE}/api/summary/history?user_id=${uid}`),
+          fetch(`${API_BASE}/api/analytics/daily?user_id=${uid}`),
+          fetch(`${API_BASE}/api/analytics/tags?user_id=${uid}`),
+          fetch(`${API_BASE}/api/chat/history?user_id=${uid}`),
         ])
-
-        const sumJson = await sumRes.json()
-        const dailyJson = await dailyRes.json()
-        const tagJson = await tagRes.json()
-        const chatJson = await chatRes.json()
+        const [sumJson, dailyJson, tagJson, chatJson] = await Promise.all([
+          sumRes.json(),
+          dailyRes.json(),
+          tagRes.json(),
+          chatRes.json(),
+        ])
 
         if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
         if (dailyJson?.ok) setDailyData(dailyJson.items || [])
         if (tagJson?.ok) setTagData(tagJson.items || [])
-
         if (chatJson?.ok && chatJson.items?.length > 0) {
           const last = chatJson.items[0]
           const restored: ChatMessage[] = [
@@ -235,104 +131,85 @@ function resetGuided() {
           ]
           setChatMessages(restored)
         }
-        
-      } catch (err) {
-        console.error("init fetch error:", err)
-      }
-            // --- Emotional welcome strip (G4) ---
-      try {
-        const profileRes = await fetch(
-          `${API_BASE}/api/emotional-profile?user_id=${uid}`
-        )
-        const profileJson = await profileRes.json()
-        if (profileJson?.ok && typeof profileJson.profileText === "string") {
-          const raw = profileJson.profileText.trim()
-          // estrai la prima frase per il banner
-          const firstSentence =
-            raw.split(/(?<=[.!?])\s+/)[0] || raw.slice(0, 180)
-          setEmotionalWelcome(firstSentence)
-        } else {
-          setEmotionalWelcome("")
-        }
-      } catch (err) {
-        console.error("emotional profile fetch error:", err)
-        setEmotionalWelcome("")
+      } catch (e) {
+        console.error("init fetch error:", e)
       }
     })()
   }, [session, userId])
-useEffect(() => {
-  const uid = session?.user?.id || userId
-  if (!uid) return
 
-  ;(async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/emotional-profile?user_id=${uid}`
-      )
-      const data = await res.json()
+  // fetch profilo emotivo (nota + evoluzione)
+  useEffect(() => {
+    const uid = session?.user?.id || userId
+    if (!uid) return
 
-      if (data?.ok && typeof data.profileText === "string") {
-  const raw = data.profileText.trim();
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/emotional-profile?user_id=${uid}`
+        )
+        const data = await res.json()
 
-  // 1) Dividi in frasi vere (anche con "?", "!", ecc.)
-  const sentences = raw
-    .split(/(?<=[.!?])\s+/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
+        if (data?.ok && typeof data.profileText === "string") {
+          const raw = data.profileText.trim()
+          setEmotionalFull(raw)
+          setEmotionalExpanded(false)
+          setEmotionalTags(Array.isArray(data.topTags) ? data.topTags : [])
 
-  if (sentences.length === 0) {
-    setEmotionalWelcome(null);
-    return;
-  }
+          const sentences = raw
+            .split(/(?<=[.!?])\s+/)
+            .map((s: string) => s.trim())
+            .filter((s: string) => s.length > 0)
 
-  // 2) Rimuovi numerazioni tipo "1.", "2)", "-" ecc.
-  const clean = (s: string) =>
-    s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim();
+          if (sentences.length === 0) {
+            setEmotionalWelcome(null)
+            return
+          }
 
-  // 3) Costruisci un testo armonioso (1 o 2 frasi)
-  let result = clean(sentences[0]);
+          const clean = (s: string) =>
+            s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim()
 
-  // Se la prima frase è troppo corta (<80), aggiungi anche la seconda
-  if (result.length < 80 && sentences.length > 1) {
-    result += " " + clean(sentences[1]);
-  }
+          let result = clean(sentences[0])
+          if (result.length < 80 && sentences.length > 1) {
+            result += " " + clean(sentences[1])
+          }
 
-  setEmotionalWelcome(result);
-} else {
-  setEmotionalWelcome(null);
-}
-
-    } catch (err) {
-      console.error("welcome emotional-profile error:", err)
-      setEmotionalWelcome(null)
-    }
-  })()
-}, [session, userId])
+          setEmotionalWelcome(result)
+        } else {
+          setEmotionalWelcome(null)
+          setEmotionalFull(null)
+          setEmotionalTags([])
+          setEmotionalExpanded(false)
+        }
+      } catch (err) {
+        console.error("welcome emotional-profile error:", err)
+        setEmotionalWelcome(null)
+        setEmotionalFull(null)
+        setEmotionalTags([])
+        setEmotionalExpanded(false)
+      }
+    })()
+  }, [session, userId])
 
   const handleLogin = async () => {
-    const email = prompt("Enter your email")
+    const email = prompt("Inserisci la tua email")
     if (!email) return
     const { error } = await supabase.auth.signInWithOtp({ email })
     if (error) showToast(error.message, "error")
-    else showToast("Magic link sent. Check your email ✉️", "success")
+    else showToast("Ti ho mandato un link magico via email ✉️", "success")
   }
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setSession(null)
-    showToast("Signed out", "info")
+    showToast("Sei uscito dall'account", "info")
   }
 
+  // ---------- RIFLESSIONE DEL GIORNO ----------
   const handleReflection = async () => {
-    const activeUserId = session?.user?.id || userId
-    if (!activeUserId) {
-      showToast("Please log in first", "error")
-      return
-    }
-    if (!mood && !note) {
-      showToast("Try to write at least a mood or a short note 💭", "error")
-      return
-    }
+    const uid = session?.user?.id || userId
+    if (!uid) return showToast("Accedi prima per salvare le riflessioni", "error")
+    if (!mood && !note)
+      return showToast("Scrivi almeno come ti senti o una breve nota 💭", "error")
 
     setIsReflecting(true)
     setReflection("")
@@ -340,82 +217,71 @@ useEffect(() => {
       const res = await fetch(`${API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: activeUserId,
-          mood,
-          note,
-        }),
+        body: JSON.stringify({ user_id: uid, mood, note }),
       })
       const data = await res.json()
       setReflection(data.reflection || "")
-      showToast("Reflection saved ✅", "success")
+      showToast("Riflessione salvata ✅", "success")
 
-      // refresh analytics
       const dailyRes = await fetch(
-        `${API_BASE}/api/analytics/daily?user_id=${activeUserId}`
+        `${API_BASE}/api/analytics/daily?user_id=${uid}`
       )
       const dailyJson = await dailyRes.json()
       if (dailyJson?.ok) setDailyData(dailyJson.items || [])
 
       setMood("")
       setNote("")
-    } catch (err) {
-      console.error("reflection error:", err)
-      showToast("Error generating reflection", "error")
+    } catch (e) {
+      console.error("reflection error:", e)
+      showToast("Errore durante la riflessione", "error")
     } finally {
       setIsReflecting(false)
     }
   }
 
+  // ---------- SINTESI DELLA SETTIMANA ----------
   const handleSummary = async () => {
-    const activeUserId = session?.user?.id || userId
-    if (!activeUserId) {
-      showToast("Please log in first", "error")
-      return
-    }
+    const uid = session?.user?.id || userId
+    if (!uid)
+      return showToast("Accedi prima per generare una sintesi", "error")
     setIsSummarizing(true)
     try {
       const res = await fetch(
-        `${API_BASE}/api/summary?user_id=${activeUserId}&save=true`
+        `${API_BASE}/api/summary?user_id=${uid}&save=true`
       )
       const data = await res.json()
       setWeeklyInsight(data.summary || "")
-      showToast("Insight saved ✅", "success")
+      showToast("Sintesi salvata ✅", "success")
 
       const sumRes = await fetch(
-        `${API_BASE}/api/summary/history?user_id=${activeUserId}`
+        `${API_BASE}/api/summary/history?user_id=${uid}`
       )
       const sumJson = await sumRes.json()
       if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-    } catch (err) {
-      console.error("summary error:", err)
-      showToast("Error generating insight", "error")
+    } catch (e) {
+      console.error("summary error:", e)
+      showToast("Errore durante la sintesi", "error")
     } finally {
       setIsSummarizing(false)
     }
   }
 
+  // ---------- CHAT RIFLESSIVA ----------
   const handleChatSend = async () => {
-    const activeUserId = session?.user?.id || userId
-    if (!activeUserId) {
-      showToast("Please log in first", "error")
-      return
-    }
+    const uid = session?.user?.id || userId
+    if (!uid)
+      return showToast("Accedi prima per usare la chat riflessiva", "error")
     if (!chatInput.trim()) return
 
     const newMessages = [...chatMessages, { role: "user", content: chatInput }]
     setChatMessages(newMessages)
     setChatInput("")
     setIsChatLoading(true)
-
     try {
       const res = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: activeUserId,
-          messages: newMessages,
-        }),
+        body: JSON.stringify({ user_id: uid, messages: newMessages }),
       })
       const data = await res.json()
       if (data.reply) {
@@ -424,21 +290,104 @@ useEffect(() => {
           { role: "assistant", content: data.reply },
         ])
       }
-    } catch (err) {
-      console.error("chat error:", err)
-      showToast("Chat error", "error")
+    } catch (e) {
+      console.error("chat error:", e)
+      showToast("Errore nella chat riflessiva", "error")
     } finally {
       setIsChatLoading(false)
     }
   }
 
-  const chartData = useMemo(() => {
-    return (dailyData || []).map((d) => ({
-      day: d.day,
-      entries: d.entries,
-    }))
-  }, [dailyData])
+  // ---------- RIFLESSIONE GUIDATA ----------
+  async function startGuidedSession() {
+    const uid = session?.user?.id || userId
+    if (!uid)
+      return showToast("Accedi prima per avviare una riflessione guidata", "error")
 
+    setGuidedActive(true)
+    setGuidedFinal(false)
+    setGuidedStep(1)
+    setGuidedMessages([
+      {
+        role: "assistant",
+        content:
+          "Ti va di fare una breve riflessione insieme? In poche parole, cosa sta succedendo dentro di te adesso?",
+      },
+    ])
+  }
+
+  async function sendGuidedTurn() {
+    const uid = session?.user?.id || userId
+    if (!uid)
+      return showToast("Accedi prima per continuare la riflessione guidata", "error")
+
+    if (!guidedActive) return startGuidedSession()
+    if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
+      return showToast("Scrivi una breve risposta per continuare 💭", "info")
+    }
+
+    let msgs = guidedMessages
+    if (guidedInput.trim()) {
+      msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
+      setGuidedMessages(msgs)
+      setGuidedInput("")
+    }
+
+    setGuidedLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid, messages: msgs, step: guidedStep || 1 }),
+      })
+      const data = await res.json()
+      const reply =
+        data?.reply ||
+        "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
+      const isFinal = Boolean(data?.isFinal)
+
+      setGuidedMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: reply },
+      ])
+      setGuidedFinal(isFinal)
+      setGuidedStep((prev) => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
+
+      if (isFinal) {
+        showToast("Riflessione guidata salvata tra le sintesi ✅", "success")
+        try {
+          const sumRes = await fetch(
+            `${API_BASE}/api/summary/history?user_id=${uid}`
+          )
+          const sumJson = await sumRes.json()
+          if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
+        } catch (e) {
+          console.error("refresh insights error:", e)
+        }
+      }
+    } catch (e) {
+      console.error("guided error:", e)
+      showToast("Errore nella riflessione guidata", "error")
+    } finally {
+      setGuidedLoading(false)
+    }
+  }
+
+  function resetGuided() {
+    setGuidedActive(false)
+    setGuidedFinal(false)
+    setGuidedStep(0)
+    setGuidedMessages([])
+    setGuidedInput("")
+  }
+
+  // ---------- CHART DATA ----------
+  const chartData = useMemo(
+    () => (dailyData || []).map((d) => ({ day: d.day, entries: d.entries })),
+    [dailyData]
+  )
+
+  // ---------- RENDER ----------
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
       {/* TOASTS */}
@@ -468,7 +417,7 @@ useEffect(() => {
               MyndSelf.ai
             </h1>
             <p className="text-xs text-gray-400">
-              AI for Emotional Intelligence
+              Intelligenza emotiva supportata dall'AI
             </p>
           </div>
         </div>
@@ -477,60 +426,69 @@ useEffect(() => {
             onClick={handleLogout}
             className="text-sm bg-emerald-500/10 border border-emerald-400/40 rounded px-3 py-1.5 hover:bg-emerald-500/20 transition"
           >
-            Logout
+            Esci
           </button>
         ) : (
           <button
             onClick={handleLogin}
             className="text-sm bg-emerald-400 text-gray-950 rounded px-3 py-1.5 hover:bg-emerald-300 transition"
           >
-            Login
+            Accedi
           </button>
         )}
       </header>
-{emotionalWelcome && (
-  <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-    <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-      {/* Icona soft */}
-      <div className="mt-0.5 flex-shrink-0">
-        <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
-          <span className="text-emerald-200 text-sm">🪷</span>
+
+      {/* NOTA EMOTIVA */}
+      {emotionalWelcome && (
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
+          <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+            <div className="mt-0.5 flex-shrink-0">
+              <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
+                <span className="text-emerald-200 text-sm">🪷</span>
+              </div>
+            </div>
+            <div className="flex-1">
+              <span className="font-semibold mr-1">Nota emotiva:</span>
+              <span className="align-middle">
+                {emotionalExpanded && emotionalFull
+                  ? emotionalFull
+                  : emotionalWelcome}
+              </span>
+              {emotionalTags.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  {emotionalTags.map((tag, idx) => (
+                    <span
+                      key={idx}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {emotionalFull && emotionalFull !== emotionalWelcome && (
+              <button
+                onClick={() => setEmotionalExpanded((prev) => !prev)}
+                className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
+              >
+                {emotionalExpanded ? "Mostra meno" : "Mostra di più"}
+              </button>
+            )}
+          </div>
         </div>
-      </div>
-
-      {/* Testo */}
-      <div className="flex-1">
-        <span className="font-semibold mr-1">Emotional note:</span>
-        <span className="align-middle">
-          {emotionalExpanded && emotionalFull
-            ? emotionalFull
-            : emotionalWelcome}
-        </span>
-      </div>
-
-      {/* Pulsante expand/collapse */}
-      {emotionalFull && emotionalFull !== emotionalWelcome && (
-        <button
-          onClick={() => setEmotionalExpanded((prev) => !prev)}
-          className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
-        >
-          {emotionalExpanded ? "Collapse" : "Expand"}
-        </button>
       )}
-    </div>
-  </div>
-)}
 
-      {/* MAIN GRID: Reflection + Summary */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-6">
-        {/* reflection */}
+      {/* RIFLESSIONE DEL GIORNO + SINTESI SETTIMANA */}
+      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-4">
+        {/* Riflessione del giorno */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
           <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-            Daily reflection
+            Riflessione del giorno
           </h2>
           <p className="text-xs text-gray-400 mb-3">
-            Describe how you feel right now — I’ll help you look at it with
-            kindness.
+            Usala a fine giornata per decomprimere, chiarire cosa senti e lasciare
+            andare ciò che pesa.
           </p>
           <div className="flex flex-wrap gap-2 mb-3">
             {MOOD_PRESETS.map((m) => (
@@ -550,13 +508,13 @@ useEffect(() => {
           <input
             value={mood}
             onChange={(e) => setMood(e.target.value)}
-            placeholder="How are you feeling in this moment?"
+            placeholder="Come ti senti oggi?"
             className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
           />
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Would you like to share what happened, or what’s on your mind?"
+            placeholder="Vuoi aggiungere una nota su ciò che è successo o su come ti senti?"
             className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
           />
           <button
@@ -564,8 +522,8 @@ useEffect(() => {
             disabled={isReflecting}
             className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
           >
-            {isReflecting ? <Spinner /> : null}
-            {isReflecting ? "Reflecting..." : "Reflect with AI"}
+            {isReflecting && <Spinner />}
+            {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
           </button>
 
           {reflection && (
@@ -575,22 +533,22 @@ useEffect(() => {
           )}
         </div>
 
-        {/* summary */}
+        {/* Sintesi della settimana */}
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col">
           <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-            Weekly insight
+            Sintesi della settimana
           </h2>
           <p className="text-xs text-gray-400 mb-4">
-            MyndSelf can read your recent reflections and give you a calm
-            emotional snapshot.
+            Un breve sguardo ai tuoi stati emotivi degli ultimi giorni. Usala nel
+            weekend per cogliere i tuoi pattern e ritrovare equilibrio.
           </p>
           <button
             onClick={handleSummary}
             disabled={isSummarizing}
             className="bg-emerald-500/90 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 mb-4 disabled:opacity-50 w-fit"
           >
-            {isSummarizing ? <Spinner /> : null}
-            {isSummarizing ? "Generating..." : "Generate & save insight"}
+            {isSummarizing && <Spinner />}
+            {isSummarizing ? "Sto creando la sintesi..." : "Genera sintesi settimanale"}
           </button>
           {weeklyInsight && (
             <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
@@ -599,12 +557,13 @@ useEffect(() => {
           )}
           <div className="mt-4">
             <h3 className="text-sm font-semibold text-emerald-100 mb-2">
-              Previous insights
+              Sintesi salvate
             </h3>
             <div className="space-y-2 max-h-40 overflow-y-auto">
               {summaryHistory.length === 0 ? (
                 <p className="text-xs text-gray-500">
-                  No insights saved yet. Generate one above.
+                  Non hai ancora salvato nessuna sintesi. Generane una dopo alcuni
+                  giorni di utilizzo.
                 </p>
               ) : (
                 summaryHistory.map((item) => (
@@ -624,15 +583,18 @@ useEffect(() => {
         </div>
       </section>
 
-      {/* analytics */}
+      {/* ANALYTICS: PERCORSO EMOTIVO + EMOZIONI RICORRENTI */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-emerald-200 mb-3">
-            Emotional journey (last days)
+          <h2 className="text-sm font-semibold text-emerald-200 mb-1">
+            Percorso emotivo
           </h2>
+          <p className="text-xs text-gray-400 mb-3">
+            La tua evoluzione nel tempo: alti, bassi e nuovi equilibri che emergono.
+          </p>
           {chartData.length === 0 ? (
             <p className="text-xs text-gray-500">
-              Do a few check-ins and your emotional journey will appear here.
+              Il grafico si riempirà man mano che registri le tue emozioni.
             </p>
           ) : (
             <div className="h-56">
@@ -663,13 +625,16 @@ useEffect(() => {
         </div>
 
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-emerald-200 mb-3">
-            Most frequent emotions
+          <h2 className="text-sm font-semibold text-emerald-200 mb-1">
+            Emozioni ricorrenti
           </h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Le emozioni che si presentano più spesso nel tuo diario.
+          </p>
           {tagData.length === 0 ? (
             <p className="text-xs text-gray-500">
-              When you write, MyndSelf extracts emotional tags and shows them
-              here.
+              Ancora nessun dato: compila qualche riflessione per vedere i primi
+              pattern.
             </p>
           ) : (
             <div className="h-56">
@@ -697,228 +662,164 @@ useEffect(() => {
           )}
         </div>
       </section>
-{/* emotional evolution */}
-<section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
-  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-    <h2 className="text-sm font-semibold text-emerald-200 mb-3">
-      Emotional Evolution
-    </h2>
-    <p className="text-xs text-gray-400 mb-3">
-      A reflection of how your emotions have evolved over time.
-    </p>
 
-    {/* Fetch profile data */}
-    {(() => {
-      const [profile, setProfile] = useState<string>("")
-      const [topTags, setTopTags] = useState<string[]>([])
-      const [loading, setLoading] = useState(true)
-
-     useEffect(() => {
-  const uid = session?.user?.id || userId
-  if (!uid) return
-
-  ;(async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/emotional-profile?user_id=${uid}`
-      )
-      const data = await res.json()
-
-      if (data?.ok && typeof data.profileText === "string") {
-        const raw = data.profileText.trim()
-        setEmotionalFull(raw)          // salviamo il testo completo
-        setEmotionalExpanded(false)    // reset espansione
-
-        // --- costruisci una preview di 1–2 frasi pulite ---
-        const sentences = raw
-          .split(/(?<=[.!?])\s+/)
-          .map((s: string) => s.trim())
-          .filter((s: string) => s.length > 0)
-
-        if (sentences.length === 0) {
-          setEmotionalWelcome(null)
-          return
-        }
-
-        const clean = (s: string) =>
-          s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim()
-
-        let result = clean(sentences[0])
-        if (result.length < 80 && sentences.length > 1) {
-          result += " " + clean(sentences[1])
-        }
-
-        setEmotionalWelcome(result)
-      } else {
-        setEmotionalWelcome(null)
-        setEmotionalFull(null)
-        setEmotionalExpanded(false)
-      }
-    } catch (err) {
-      console.error("welcome emotional-profile error:", err)
-      setEmotionalWelcome(null)
-      setEmotionalFull(null)
-      setEmotionalExpanded(false)
-    }
-  })()
-}, [session, userId])
-
-      if (loading)
-        return (
-          <div className="text-xs text-gray-500 italic animate-pulse">
-            Reflecting on your emotional path...
-          </div>
-        )
-
-      if (!profile)
-        return (
-          <p className="text-xs text-gray-500">
-            Not enough reflections yet to build your emotional evolution.
+      {/* EVOLUZIONE EMOTIVA */}
+      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+          <h2 className="text-sm font-semibold text-emerald-200 mb-2">
+            Evoluzione emotiva
+          </h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Uno sguardo d’insieme su come le tue emozioni si sono mosse negli ultimi
+            giorni.
           </p>
-        )
-
-      return (
-        <div className="fade-in">
-          <div className="text-sm text-emerald-50 whitespace-pre-wrap mb-3 bg-white/5 rounded-lg p-3">
-            {profile}
-          </div>
-          {topTags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {topTags.map((tag, i) => (
-                <span
-                  key={i}
-                  className="bg-emerald-500/10 text-emerald-200 text-xs px-2 py-1 rounded-full border border-emerald-400/30"
-                >
-                  {tag}
-                </span>
-              ))}
+          {emotionalFull ? (
+            <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+              {emotionalFull}
             </div>
-          )}
-        </div>
-      )
-    })()}
-  </div>
-</section>
-
-      {/* Guided Reflection Mode */}
-<section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
-  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <h2 className="text-sm font-semibold text-emerald-200">Guided Reflection Mode</h2>
-        <p className="text-xs text-gray-400">
-          Una breve sessione di 3–4 domande per fare chiarezza con gentilezza.
-        </p>
-      </div>
-      {guidedActive ? (
-        <button
-          onClick={resetGuided}
-          className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
-        >
-          Reset
-        </button>
-      ) : null}
-    </div>
-
-    {!guidedActive ? (
-      <button
-        onClick={startGuidedSession}
-        className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
-      >
-        Start guided session
-      </button>
-    ) : (
-      <>
-        <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
-          {guidedMessages.length === 0 ? (
-            <p className="text-xs text-gray-500">
-              Avvia la sessione per iniziare una riflessione passo-passo.
-            </p>
           ) : (
-            guidedMessages.map((m, idx) => (
-              <div
-                key={idx}
-                className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                  m.role === "user"
-                    ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                    : "bg-white/5 text-white/90 fade-in"
-                }`}
-              >
-                {m.content}
-              </div>
-            ))
-          )}
-          {guidedLoading && (
-            <p className="text-xs text-gray-400 italic animate-pulse">
-              Reflecting with you for a moment...
+            <p className="text-xs text-gray-500">
+              Quando avrai registrato qualche riflessione in più, qui vedrai una
+              sintesi dell’evoluzione emotiva recente.
             </p>
           )}
         </div>
+      </section>
 
-        {!guidedFinal ? (
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              value={guidedInput}
-              onChange={(e) => setGuidedInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
-              placeholder="Scrivi cosa emerge adesso…"
-              className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-            />
-            <button
-              onClick={sendGuidedTurn}
-              disabled={guidedLoading}
-              className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-            >
-              {guidedStep === 0 ? "Start" : `Next (${guidedStep}/4)`}
-            </button>
+      {/* RIFLESSIONE GUIDATA */}
+      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
+        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-emerald-200">
+                Riflessione guidata
+              </h2>
+              <p className="text-xs text-gray-400">
+                Un percorso breve di 3–4 domande per vedere meglio ciò che stai
+                vivendo.
+              </p>
+              {guidedActive && (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Passo {guidedStep > 0 ? guidedStep : 1}/4
+                </p>
+              )}
+            </div>
+            {guidedActive ? (
+              <button
+                onClick={resetGuided}
+                className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+              >
+                Reset
+              </button>
+            ) : null}
           </div>
-        ) : (
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xs text-emerald-200">
-              Sessione conclusa con gentilezza. Se vuoi, puoi ripartire quando ti va.
-            </p>
-            <button
-              onClick={resetGuided}
-              className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
-            >
-              New session
-            </button>
-          </div>
-        )}
-      </>
-    )}
-  </div>
-</section>
 
-      {/* chat */}
+          {!guidedActive ? (
+            <button
+              onClick={startGuidedSession}
+              className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
+            >
+              Avvia percorso guidato
+            </button>
+          ) : (
+            <>
+              <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
+                {guidedMessages.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Avvia il percorso per iniziare una riflessione passo-passo.
+                  </p>
+                ) : (
+                  guidedMessages.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+                        m.role === "user"
+                          ? "bg-emerald-500/20 text-emerald-50 ml-auto"
+                          : "bg-white/5 text-white/90 fade-in"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
+                  ))
+                )}
+                {guidedLoading && (
+                  <p className="text-xs text-gray-400 italic animate-pulse">
+                    Sto riflettendo con te per un momento...
+                  </p>
+                )}
+              </div>
+
+              {!guidedFinal ? (
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    value={guidedInput}
+                    onChange={(e) => setGuidedInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
+                    placeholder="Scrivi cosa emerge adesso…"
+                    className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+                  />
+                  <button
+                    onClick={sendGuidedTurn}
+                    disabled={guidedLoading}
+                    className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                  >
+                    {guidedStep === 0
+                      ? "Avvia"
+                      : `Avanti (${guidedStep}/4)`}
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-emerald-200">
+                    Sessione conclusa con gentilezza. Se vuoi, puoi ripartire
+                    quando senti che ti serve.
+                  </p>
+                  <button
+                    onClick={resetGuided}
+                    className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+                  >
+                    Nuova sessione
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </section>
+
+      {/* CHAT RIFLESSIVA */}
       <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10 pb-16">
         <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">
           <h2 className="text-sm font-semibold text-emerald-200">
-            Reflective Chat
+            Chat riflessiva
           </h2>
+          <p className="text-xs text-gray-400">
+            Quando senti il bisogno di parlarne subito, anche solo per mettere
+            ordine tra i pensieri.
+          </p>
           <div className="flex-1 overflow-y-auto space-y-3">
             {chatMessages.length === 0 ? (
               <p className="text-xs text-gray-500">
-                Share a thought, a worry, or a small win — I’ll stay with you in
-                it.
+                Puoi iniziare scrivendo una preoccupazione, un pensiero ricorrente
+                o un piccolo momento positivo della tua giornata.
               </p>
             ) : (
               chatMessages.map((m, idx) => (
                 <div
-                    key={idx}
-                    className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                        m.role === "user"
-                            ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                            : "bg-white/5 text-white/90 fade-in"
-                    }`}
+                  key={idx}
+                  className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+                    m.role === "user"
+                      ? "bg-emerald-500/20 text-emerald-50 ml-auto"
+                      : "bg-white/5 text-white/90 fade-in"
+                  }`}
                 >
                   {m.content}
                 </div>
               ))
             )}
             {isChatLoading && (
-              <p className="text-xs text-gray-400 italic animate-pulse">
-                Reflecting with you for a moment...
+              <p className="text-xs text-gray-500 italic">
+                Sto pensando a come risponderti…
               </p>
             )}
           </div>
@@ -927,7 +828,7 @@ useEffect(() => {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
-              placeholder="Write what’s on your mind — I’m here to listen."
+              placeholder="Scrivi cosa senti in questo momento…"
               className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
             />
             <button
@@ -935,15 +836,16 @@ useEffect(() => {
               disabled={isChatLoading}
               className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
             >
-              {isChatLoading ? <Spinner /> : null}
-              Send
+              {isChatLoading && <Spinner />}
+              Invia
             </button>
           </div>
         </div>
       </section>
 
       <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-xs text-gray-500 text-center">
-        © {new Date().getFullYear()} MyndSelf.ai — Empathy through AI
+        © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le tue
+        emozioni
       </footer>
     </main>
   )

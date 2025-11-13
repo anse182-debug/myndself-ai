@@ -79,7 +79,7 @@ const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
 const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
 const [guidedFinal, setGuidedFinal] = useState(false)
-const [emotionalWelcome, setEmotionalWelcome] = useState<string>("")
+const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
 
 
 async function startGuidedSession() {
@@ -257,6 +257,33 @@ function resetGuided() {
       }
     })()
   }, [session, userId])
+useEffect(() => {
+  const uid = session?.user?.id || userId
+  if (!uid) return
+
+  ;(async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/emotional-profile?user_id=${uid}`
+      )
+      const data = await res.json()
+
+      if (data?.ok && typeof data.profileText === "string") {
+        const raw = data.profileText.trim()
+        // prendi la prima frase, o al massimo ~160 caratteri
+        const firstSentence =
+          raw.split(/(?<=[.!?])\s+/)[0] || raw.slice(0, 160)
+
+        setEmotionalWelcome(firstSentence)
+      } else {
+        setEmotionalWelcome(null)
+      }
+    } catch (err) {
+      console.error("welcome emotional-profile error:", err)
+      setEmotionalWelcome(null)
+    }
+  })()
+}, [session, userId])
 
   const handleLogin = async () => {
     const email = prompt("Enter your email")

@@ -625,6 +625,18 @@ Session logic:
     } catch (e) {
       console.warn("⚠️ guided session insert failed:", e.message)
     }
+// Se è l’ultimo step, salva il riepilogo finale negli insights
+try {
+  if (isFinal) {
+    await supabase.from("summary_entries").insert({
+      user_id,
+      summary: replyText,
+      created_at: new Date().toISOString(),
+    })
+  }
+} catch (e) {
+  console.warn("⚠️ save guided summary failed:", e.message)
+}
 
     // Memoria semantica minimale (facoltativa)
     try {

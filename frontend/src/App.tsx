@@ -269,25 +269,36 @@ useEffect(() => {
       const data = await res.json()
 
       if (data?.ok && typeof data.profileText === "string") {
-  const raw = data.profileText.trim()
+  const raw = data.profileText.trim();
 
-  // 1) Prendi la prima riga non vuota
-  const firstLine =
-    raw
-      .split(/\r?\n/)
-      .map((l: string) => l.trim())
-      .find((l: string) => l.length > 0) || raw
+  // 1) Dividi in frasi vere (anche con "?", "!", ecc.)
+  const sentences = raw
+    .split(/(?<=[.!?])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
 
-  // 2) Rimuovi eventuali numerazioni tipo "1. ", "- ", "• "
-  const cleaned = firstLine.replace(/^\s*[\d\-\u2022]+\.\s*|\s*[\-\u2022]\s*/g, "")
+  if (sentences.length === 0) {
+    setEmotionalWelcome(null);
+    return;
+  }
 
-  // 3) Taglia a max ~160 caratteri
-  const preview = cleaned.slice(0, 160)
+  // 2) Rimuovi numerazioni tipo "1.", "2)", "-" ecc.
+  const clean = (s: string) =>
+    s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim();
 
-  setEmotionalWelcome(preview)
+  // 3) Costruisci un testo armonioso (1 o 2 frasi)
+  let result = clean(sentences[0]);
+
+  // Se la prima frase è troppo corta (<80), aggiungi anche la seconda
+  if (result.length < 80 && sentences.length > 1) {
+    result += " " + clean(sentences[1]);
+  }
+
+  setEmotionalWelcome(result);
 } else {
-  setEmotionalWelcome(null)
+  setEmotionalWelcome(null);
 }
+
     } catch (err) {
       console.error("welcome emotional-profile error:", err)
       setEmotionalWelcome(null)

@@ -55,6 +55,8 @@ function Spinner() {
   )
 }
 
+type TabId = "oggi" | "insight" | "guidata" | "chat"
+
 export default function App() {
   const [session, setSession] = useState<any>(null)
   const [userId, setUserId] = useState<string>("")
@@ -94,6 +96,9 @@ export default function App() {
   // onboarding
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [onboardingStep, setOnboardingStep] = useState(1)
+
+  // tab / viste
+  const [currentTab, setCurrentTab] = useState<TabId>("oggi")
 
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -432,6 +437,84 @@ export default function App() {
     [dailyData]
   )
 
+  // ---------- COMPONENTI UI INTERNI ----------
+
+  const EmotionalBanner = () =>
+    emotionalWelcome ? (
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
+        <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
+          <div className="mt-0.5 flex-shrink-0">
+            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
+              <span className="text-emerald-200 text-sm">🪷</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <span className="font-semibold mr-1">Nota emotiva:</span>
+            <span className="align-middle">
+              {emotionalExpanded && emotionalFull
+                ? emotionalFull
+                : emotionalWelcome}
+            </span>
+            {emotionalTags.length > 0 && (
+              <div className="mt-1 flex flex-wrap gap-1.5">
+                {emotionalTags.map((tag, idx) => {
+                  const key = tag.toLowerCase().trim()
+                  const label = EMOTION_LABELS_IT[key] || tag
+                  return (
+                    <span
+                      key={idx}
+                      className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
+                    >
+                      {label}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+          {emotionalFull && emotionalFull !== emotionalWelcome && (
+            <button
+              onClick={() => setEmotionalExpanded((prev) => !prev)}
+              className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
+            >
+              {emotionalExpanded ? "Mostra meno" : "Mostra di più"}
+            </button>
+          )}
+        </div>
+      </div>
+    ) : null
+
+  const TabsNav = () => {
+    const tabs: { id: TabId; label: string }[] = [
+      { id: "oggi", label: "Oggi" },
+      { id: "insight", label: "Insight" },
+      { id: "guidata", label: "Guidata" },
+      { id: "chat", label: "Chat" },
+    ]
+    return (
+      <nav className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
+        <div className="flex justify-between sm:justify-start sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
+          {tabs.map((t) => {
+            const active = currentTab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setCurrentTab(t.id)}
+                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm transition ${
+                  active
+                    ? "bg-emerald-400 text-gray-950 font-semibold"
+                    : "text-gray-300 hover:bg-white/5"
+                }`}
+              >
+                {t.label}
+              </button>
+            )
+          })}
+        </div>
+      </nav>
+    )
+  }
+
   // ---------- RENDER ----------
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
@@ -544,414 +627,389 @@ export default function App() {
         )}
       </header>
 
-      {/* NOTA EMOTIVA */}
-      {emotionalWelcome && (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-          <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-            <div className="mt-0.5 flex-shrink-0">
-              <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
-                <span className="text-emerald-200 text-sm">🪷</span>
+      {/* NAV TABS */}
+      <TabsNav />
+
+      {/* CONTENUTO PER TAB */}
+      {currentTab === "oggi" && (
+        <>
+          <EmotionalBanner />
+
+          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-2">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+              <h2 className="text-xl font-semibold text-emerald-200 mb-3">
+                Riflessione del giorno
+              </h2>
+              <p className="text-xs text-gray-400 mb-3">
+                Usala a fine giornata per decomprimere, chiarire cosa senti e
+                lasciare andare ciò che pesa.
+              </p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {MOOD_PRESETS.map((m) => (
+                  <button
+                    key={m.label}
+                    onClick={() => setMood(m.value)}
+                    className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                      mood === m.value
+                        ? "bg-emerald-400 text-gray-950 border-emerald-400"
+                        : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
+                    }`}
+                  >
+                    {m.label}
+                  </button>
+                ))}
               </div>
-            </div>
-            <div className="flex-1">
-              <span className="font-semibold mr-1">Nota emotiva:</span>
-              <span className="align-middle">
-                {emotionalExpanded && emotionalFull
-                  ? emotionalFull
-                  : emotionalWelcome}
-              </span>
-              {emotionalTags.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  {emotionalTags.map((tag, idx) => {
-                    const key = tag.toLowerCase().trim()
-                    const label = EMOTION_LABELS_IT[key] || tag
-                    return (
-                      <span
-                        key={idx}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
-                      >
-                        {label}
-                      </span>
-                    )
-                  })}
+              <input
+                value={mood}
+                onChange={(e) => setMood(e.target.value)}
+                placeholder="Come ti senti oggi?"
+                className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+              />
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Vuoi aggiungere una nota su ciò che è successo o su come ti senti?"
+                className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
+              />
+              <button
+                onClick={handleReflection}
+                disabled={isReflecting}
+                className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+              >
+                {isReflecting && <Spinner />}
+                {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
+              </button>
+
+              {reflection && (
+                <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+                  {reflection}
                 </div>
               )}
             </div>
-            {emotionalFull && emotionalFull !== emotionalWelcome && (
-              <button
-                onClick={() => setEmotionalExpanded((prev) => !prev)}
-                className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
-              >
-                {emotionalExpanded ? "Mostra meno" : "Mostra di più"}
-              </button>
-            )}
-          </div>
-        </div>
+          </section>
+        </>
       )}
 
-      {/* RIFLESSIONE DEL GIORNO + SINTESI SETTIMANA */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-4">
-        {/* Riflessione del giorno */}
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-            Riflessione del giorno
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Usala a fine giornata per decomprimere, chiarire cosa senti e lasciare
-            andare ciò che pesa.
-          </p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {MOOD_PRESETS.map((m) => (
+      {currentTab === "insight" && (
+        <>
+          <EmotionalBanner />
+
+          {/* Sintesi + Insights */}
+          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-2">
+            {/* Sintesi della settimana */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col">
+              <h2 className="text-xl font-semibold text-emerald-200 mb-3">
+                Sintesi della settimana
+              </h2>
+              <p className="text-xs text-gray-400 mb-4">
+                Un breve sguardo ai tuoi stati emotivi degli ultimi giorni. Usala
+                nel weekend per cogliere i tuoi pattern e ritrovare equilibrio.
+              </p>
               <button
-                key={m.label}
-                onClick={() => setMood(m.value)}
-                className={`px-3 py-1.5 rounded-full text-xs border transition ${
-                  mood === m.value
-                    ? "bg-emerald-400 text-gray-950 border-emerald-400"
-                    : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
-                }`}
+                onClick={handleSummary}
+                disabled={isSummarizing}
+                className="bg-emerald-500/90 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 mb-4 disabled:opacity-50 w-fit"
               >
-                {m.label}
+                {isSummarizing && <Spinner />}
+                {isSummarizing
+                  ? "Sto creando la sintesi..."
+                  : "Genera sintesi settimanale"}
               </button>
-            ))}
-          </div>
-          <input
-            value={mood}
-            onChange={(e) => setMood(e.target.value)}
-            placeholder="Come ti senti oggi?"
-            className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-          />
-          <textarea
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Vuoi aggiungere una nota su ciò che è successo o su come ti senti?"
-            className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
-          />
-          <button
-            onClick={handleReflection}
-            disabled={isReflecting}
-            className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
-          >
-            {isReflecting && <Spinner />}
-            {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
-          </button>
-
-          {reflection && (
-            <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-              {reflection}
+              {weeklyInsight && (
+                <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+                  {weeklyInsight}
+                </div>
+              )}
+              <div className="mt-4">
+                <h3 className="text-sm font-semibold text-emerald-100 mb-2">
+                  Sintesi salvate
+                </h3>
+                <div className="space-y-2 max-h-40 overflow-y-auto">
+                  {summaryHistory.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      Non hai ancora salvato nessuna sintesi. Generane una dopo
+                      alcuni giorni di utilizzo.
+                    </p>
+                  ) : (
+                    summaryHistory.map((item) => (
+                      <div
+                        key={item.id || item.created_at}
+                        className="bg-white/0 border border-white/5 rounded p-2 text-xs text-gray-100 whitespace-pre-wrap"
+                      >
+                        <div className="text-[10px] text-gray-500 mb-1">
+                          {new Date(item.created_at).toLocaleString()}
+                        </div>
+                        {item.summary}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
-          )}
-        </div>
 
-        {/* Sintesi della settimana */}
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col">
-          <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-            Sintesi della settimana
-          </h2>
-          <p className="text-xs text-gray-400 mb-4">
-            Un breve sguardo ai tuoi stati emotivi degli ultimi giorni. Usala nel
-            weekend per cogliere i tuoi pattern e ritrovare equilibrio.
-          </p>
-          <button
-            onClick={handleSummary}
-            disabled={isSummarizing}
-            className="bg-emerald-500/90 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 mb-4 disabled:opacity-50 w-fit"
-          >
-            {isSummarizing && <Spinner />}
-            {isSummarizing ? "Sto creando la sintesi..." : "Genera sintesi settimanale"}
-          </button>
-          {weeklyInsight && (
-            <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-              {weeklyInsight}
-            </div>
-          )}
-          <div className="mt-4">
-            <h3 className="text-sm font-semibold text-emerald-100 mb-2">
-              Sintesi salvate
-            </h3>
-            <div className="space-y-2 max-h-40 overflow-y-auto">
-              {summaryHistory.length === 0 ? (
+            {/* Evoluzione emotiva */}
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-emerald-200 mb-2">
+                Evoluzione emotiva
+              </h2>
+              <p className="text-xs text-gray-400 mb-3">
+                Uno sguardo d’insieme su come le tue emozioni si sono mosse negli
+                ultimi giorni.
+              </p>
+              {emotionalFull ? (
+                <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+                  {emotionalFull}
+                </div>
+              ) : (
                 <p className="text-xs text-gray-500">
-                  Non hai ancora salvato nessuna sintesi. Generane una dopo alcuni
-                  giorni di utilizzo.
+                  Quando avrai registrato qualche riflessione in più, qui vedrai una
+                  sintesi dell’evoluzione emotiva recente.
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* Analytics: percorso + emozioni ricorrenti */}
+          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pb-16">
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-emerald-200 mb-1">
+                Percorso emotivo
+              </h2>
+              <p className="text-xs text-gray-400 mb-3">
+                La tua evoluzione nel tempo: alti, bassi e nuovi equilibri che
+                emergono.
+              </p>
+              {chartData.length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  Il grafico si riempirà man mano che registri le tue emozioni.
                 </p>
               ) : (
-                summaryHistory.map((item) => (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
+                      <YAxis stroke="#94a3b8" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#020617",
+                          border: "1px solid rgba(16,185,129,0.4)",
+                          borderRadius: "0.5rem",
+                          fontSize: "0.7rem",
+                        }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="entries"
+                        stroke="#10b981"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+              <h2 className="text-sm font-semibold text-emerald-200 mb-1">
+                Emozioni ricorrenti
+              </h2>
+              <p className="text-xs text-gray-400 mb-3">
+                Le emozioni che si presentano più spesso nel tuo diario.
+              </p>
+              {tagData.length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  Ancora nessun dato: compila qualche riflessione per vedere i primi
+                  pattern.
+                </p>
+              ) : (
+                <div className="h-56">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={tagData}>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="rgba(148,163,184,0.1)"
+                      />
+                      <XAxis dataKey="tag" stroke="#94a3b8" fontSize={10} />
+                      <YAxis stroke="#94a3b8" fontSize={10} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#020617",
+                          border: "1px solid rgba(16,185,129,0.4)",
+                          borderRadius: "0.5rem",
+                          fontSize: "0.7rem",
+                        }}
+                      />
+                      <Legend />
+                      <Bar dataKey="tag_count" fill="#38bdf8" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {currentTab === "guidata" && (
+        <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-sm font-semibold text-emerald-200">
+                  Riflessione guidata
+                </h2>
+                <p className="text-xs text-gray-400">
+                  Un percorso breve di 3–4 domande per vedere meglio ciò che stai
+                  vivendo.
+                </p>
+                {guidedActive && (
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Passo {guidedStep > 0 ? guidedStep : 1}/4
+                  </p>
+                )}
+              </div>
+              {guidedActive ? (
+                <button
+                  onClick={resetGuided}
+                  className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+
+            {!guidedActive ? (
+              <button
+                onClick={startGuidedSession}
+                className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
+              >
+                Avvia percorso guidato
+              </button>
+            ) : (
+              <>
+                <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
+                  {guidedMessages.length === 0 ? (
+                    <p className="text-xs text-gray-500">
+                      Avvia il percorso per iniziare una riflessione passo-passo.
+                    </p>
+                  ) : (
+                    guidedMessages.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+                          m.role === "user"
+                            ? "bg-emerald-500/20 text-emerald-50 ml-auto"
+                            : "bg-white/5 text-white/90 fade-in"
+                        }`}
+                      >
+                        {m.content}
+                      </div>
+                    ))
+                  )}
+                  {guidedLoading && (
+                    <p className="text-xs text-gray-400 italic animate-pulse">
+                      Sto riflettendo con te per un momento...
+                    </p>
+                  )}
+                </div>
+
+                {!guidedFinal ? (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      value={guidedInput}
+                      onChange={(e) => setGuidedInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
+                      placeholder="Scrivi cosa emerge adesso…"
+                      className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+                    />
+                    <button
+                      onClick={sendGuidedTurn}
+                      disabled={guidedLoading}
+                      className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
+                    >
+                      {guidedStep === 0
+                        ? "Avvia"
+                        : `Avanti (${guidedStep}/4)`}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs text-emerald-200">
+                      Sessione conclusa con gentilezza. Se vuoi, puoi ripartire
+                      quando senti che ti serve.
+                    </p>
+                    <button
+                      onClick={resetGuided}
+                      className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+                    >
+                      Nuova sessione
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
+      {currentTab === "chat" && (
+        <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
+          <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">
+            <h2 className="text-sm font-semibold text-emerald-200">
+              Chat riflessiva
+            </h2>
+            <p className="text-xs text-gray-400">
+              Quando senti il bisogno di parlarne subito, anche solo per mettere
+              ordine tra i pensieri.
+            </p>
+            <div className="flex-1 overflow-y-auto space-y-3">
+              {chatMessages.length === 0 ? (
+                <p className="text-xs text-gray-500">
+                  Puoi iniziare scrivendo una preoccupazione, un pensiero
+                  ricorrente o un piccolo momento positivo della tua giornata.
+                </p>
+              ) : (
+                chatMessages.map((m, idx) => (
                   <div
-                    key={item.id || item.created_at}
-                    className="bg-white/0 border border-white/5 rounded p-2 text-xs text-gray-100 whitespace-pre-wrap"
+                    key={idx}
+                    className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
+                      m.role === "user"
+                        ? "bg-emerald-500/20 text-emerald-50 ml-auto"
+                        : "bg-white/5 text-white/90 fade-in"
+                    }`}
                   >
-                    <div className="text-[10px] text-gray-500 mb-1">
-                      {new Date(item.created_at).toLocaleString()}
-                    </div>
-                    {item.summary}
+                    {m.content}
                   </div>
                 ))
               )}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ANALYTICS: PERCORSO EMOTIVO + EMOZIONI RICORRENTI */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-emerald-200 mb-1">
-            Percorso emotivo
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            La tua evoluzione nel tempo: alti, bassi e nuovi equilibri che emergono.
-          </p>
-          {chartData.length === 0 ? (
-            <p className="text-xs text-gray-500">
-              Il grafico si riempirà man mano che registri le tue emozioni.
-            </p>
-          ) : (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData}>
-                  <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
-                  <YAxis stroke="#94a3b8" fontSize={10} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#020617",
-                      border: "1px solid rgba(16,185,129,0.4)",
-                      borderRadius: "0.5rem",
-                      fontSize: "0.7rem",
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="entries"
-                    stroke="#10b981"
-                    strokeWidth={2}
-                    dot={{ r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-emerald-200 mb-1">
-            Emozioni ricorrenti
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Le emozioni che si presentano più spesso nel tuo diario.
-          </p>
-          {tagData.length === 0 ? (
-            <p className="text-xs text-gray-500">
-              Ancora nessun dato: compila qualche riflessione per vedere i primi
-              pattern.
-            </p>
-          ) : (
-            <div className="h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={tagData}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="rgba(148,163,184,0.1)"
-                  />
-                  <XAxis dataKey="tag" stroke="#94a3b8" fontSize={10} />
-                  <YAxis stroke="#94a3b8" fontSize={10} />
-                  <Tooltip
-                    contentStyle={{
-                      background: "#020617",
-                      border: "1px solid rgba(16,185,129,0.4)",
-                      borderRadius: "0.5rem",
-                      fontSize: "0.7rem",
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="tag_count" fill="#38bdf8" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* EVOLUZIONE EMOTIVA */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-emerald-200 mb-2">
-            Evoluzione emotiva
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">
-            Uno sguardo d’insieme su come le tue emozioni si sono mosse negli ultimi
-            giorni.
-          </p>
-          {emotionalFull ? (
-            <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-              {emotionalFull}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500">
-              Quando avrai registrato qualche riflessione in più, qui vedrai una
-              sintesi dell’evoluzione emotiva recente.
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* RIFLESSIONE GUIDATA */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10">
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-emerald-200">
-                Riflessione guidata
-              </h2>
-              <p className="text-xs text-gray-400">
-                Un percorso breve di 3–4 domande per vedere meglio ciò che stai
-                vivendo.
-              </p>
-              {guidedActive && (
-                <p className="text-[10px] text-gray-500 mt-1">
-                  Passo {guidedStep > 0 ? guidedStep : 1}/4
+              {isChatLoading && (
+                <p className="text-xs text-gray-500 italic">
+                  Sto pensando a come risponderti…
                 </p>
               )}
             </div>
-            {guidedActive ? (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
+                placeholder="Scrivi cosa senti in questo momento…"
+                className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+              />
               <button
-                onClick={resetGuided}
-                className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
+                onClick={handleChatSend}
+                disabled={isChatLoading}
+                className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
               >
-                Reset
+                {isChatLoading && <Spinner />}
+                Invia
               </button>
-            ) : null}
+            </div>
           </div>
-
-          {!guidedActive ? (
-            <button
-              onClick={startGuidedSession}
-              className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
-            >
-              Avvia percorso guidato
-            </button>
-          ) : (
-            <>
-              <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
-                {guidedMessages.length === 0 ? (
-                  <p className="text-xs text-gray-500">
-                    Avvia il percorso per iniziare una riflessione passo-passo.
-                  </p>
-                ) : (
-                  guidedMessages.map((m, idx) => (
-                    <div
-                      key={idx}
-                      className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                        m.role === "user"
-                          ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                          : "bg-white/5 text-white/90 fade-in"
-                      }`}
-                    >
-                      {m.content}
-                    </div>
-                  ))
-                )}
-                {guidedLoading && (
-                  <p className="text-xs text-gray-400 italic animate-pulse">
-                    Sto riflettendo con te per un momento...
-                  </p>
-                )}
-              </div>
-
-              {!guidedFinal ? (
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    value={guidedInput}
-                    onChange={(e) => setGuidedInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
-                    placeholder="Scrivi cosa emerge adesso…"
-                    className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-                  />
-                  <button
-                    onClick={sendGuidedTurn}
-                    disabled={guidedLoading}
-                    className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                  >
-                    {guidedStep === 0
-                      ? "Avvia"
-                      : `Avanti (${guidedStep}/4)`}
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs text-emerald-200">
-                    Sessione conclusa con gentilezza. Se vuoi, puoi ripartire
-                    quando senti che ti serve.
-                  </p>
-                  <button
-                    onClick={resetGuided}
-                    className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
-                  >
-                    Nuova sessione
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
-
-      {/* CHAT RIFLESSIVA */}
-      <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-10 pb-16">
-        <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">
-          <h2 className="text-sm font-semibold text-emerald-200">
-            Chat riflessiva
-          </h2>
-          <p className="text-xs text-gray-400">
-            Quando senti il bisogno di parlarne subito, anche solo per mettere
-            ordine tra i pensieri.
-          </p>
-          <div className="flex-1 overflow-y-auto space-y-3">
-            {chatMessages.length === 0 ? (
-              <p className="text-xs text-gray-500">
-                Puoi iniziare scrivendo una preoccupazione, un pensiero ricorrente
-                o un piccolo momento positivo della tua giornata.
-              </p>
-            ) : (
-              chatMessages.map((m, idx) => (
-                <div
-                  key={idx}
-                  className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                      : "bg-white/5 text-white/90 fade-in"
-                  }`}
-                >
-                  {m.content}
-                </div>
-              ))
-            )}
-            {isChatLoading && (
-              <p className="text-xs text-gray-500 italic">
-                Sto pensando a come risponderti…
-              </p>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
-              placeholder="Scrivi cosa senti in questo momento…"
-              className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-            />
-            <button
-              onClick={handleChatSend}
-              disabled={isChatLoading}
-              className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
-            >
-              {isChatLoading && <Spinner />}
-              Invia
-            </button>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-xs text-gray-500 text-center">
         © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le tue

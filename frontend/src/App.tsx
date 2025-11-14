@@ -568,8 +568,8 @@ export default function App() {
         </div>
       )}
 
-      {/* TOASTS */}
-      <div className="fixed top-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] sm:w-80">
+      {/* TOASTS - spostati IN BASSO A DESTRA */}
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] sm:w-80">
         {toasts.map((t) => (
           <div
             key={t.id}

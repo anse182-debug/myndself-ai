@@ -68,6 +68,24 @@ export default function App() {
   const [summaryHistory, setSummaryHistory] = useState<SummaryEntry[]>([])
   const [dailyData, setDailyData] = useState<DailyItem[]>([])
   const [tagData, setTagData] = useState<TagItem[]>([])
+  // Banner Nota emotiva (expand/collapse)
+  const [isEmotionalExpanded, setIsEmotionalExpanded] = useState(false)
+  // --- Derivati per il banner "Nota emotiva" ---
+
+  const latestSummary = summaryHistory && summaryHistory.length > 0 ? summaryHistory[0] : null
+  const emotionalFullText = latestSummary?.summary || ""
+  const emotionalTags = Array.isArray(latestSummary?.tags)
+    ? (latestSummary!.tags as string[])
+    : []
+
+  const EMOTIONAL_PREVIEW_CHARS = 220
+
+const emotionalPreview =
+  emotionalFullText.length > EMOTIONAL_PREVIEW_CHARS
+    ? emotionalFullText.slice(0, EMOTIONAL_PREVIEW_CHARS) + "…"
+    : emotionalFullText
+
+const emotionalTextToShow = isEmotionalExpanded ? emotionalFullText : emotionalPreview
 
   // chat libera
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
@@ -727,6 +745,53 @@ export default function App() {
               <EmotionalBanner />
 
               {/* Sintesi + Insights */}
+              {latestSummary && emotionalFullText && (
+  <div className="mb-6 rounded-2xl border border-emerald-700/40 bg-emerald-900/10 px-5 py-4 sm:px-6 sm:py-5 flex flex-col gap-3">
+    <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/40">
+          <span className="text-lg">🌸</span>
+        </div>
+        <div className="flex flex-col">
+          <span className="font-semibold text-emerald-100">Nota emotiva</span>
+          <span className="text-xs text-emerald-200/70">
+            Ultima sintesi generata il{" "}
+            {new Date(latestSummary.created_at).toLocaleString("it-IT")}
+          </span>
+        </div>
+      </div>
+
+      {emotionalFullText.length > EMOTIONAL_PREVIEW_CHARS && (
+        <button
+          type="button"
+          onClick={() => setIsEmotionalExpanded((v) => !v)}
+          className="shrink-0 rounded-full border border-emerald-500/60 px-3 py-1 text-xs font-medium text-emerald-100 hover:bg-emerald-500/10 transition"
+        >
+          {isEmotionalExpanded ? "Mostra meno" : "Mostra di più"}
+        </button>
+      )}
+    </div>
+
+    <p className="text-sm leading-relaxed text-emerald-50">
+      <span className="font-semibold">Dalle tue riflessioni:</span>{" "}
+      {emotionalTextToShow}
+    </p>
+
+    {emotionalTags && emotionalTags.length > 0 && (
+      <div className="mt-1 flex flex-wrap gap-2">
+        {emotionalTags.map((tag, idx) => (
+          <span
+            key={`${tag}-${idx}`}
+            className="inline-flex items-center rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-50"
+          >
+            {tag}
+          </span>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
               <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-2">
                 {/* Sintesi della settimana */}
                 <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col">

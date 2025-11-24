@@ -127,47 +127,21 @@ ${mentorPrompt}
  * Tabelle attese:
  * - subscribers: { id, user_id, mentor_style, created_at, ... }
  */
+// ========== SUBSCRIBER & MENTOR HELPERS (VERSIONE SAFE) ==========
+// Per ora NON leggiamo/possiamo leggere la tabella subscribers, perché la colonna user_id
+// non esiste nel tuo schema. Usiamo sempre mentor_style = "calm".
+
 async function getOrCreateSubscriber(userId) {
-  const { data: existing, error: readError } = await supabase
-    .from("subscribers")
-    .select("*")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (readError) {
-    console.error("❌ Error fetching subscriber", readError);
-    throw readError;
-  }
-
-  if (existing) {
-    return existing;
-  }
-
-  const { data: inserted, error: insertError } = await supabase
-    .from("subscribers")
-    .insert({
-      user_id: userId,
-      mentor_style: "calm",
-    })
-    .select()
-    .single();
-
-  if (insertError) {
-    console.error("❌ Error creating subscriber", insertError);
-    throw insertError;
-  }
-
-  return inserted;
+  // Stub: simuliamo un subscriber con mentor_style di default
+  return { mentor_style: "calm" };
 }
 
 /**
  * Restituisce lo stile del mentor per un dato userId.
- * Se non impostato, restituisce "calm".
+ * Attualmente ritorna sempre "calm" per non rompere nulla.
  */
 async function getUserMentorStyle(userId) {
-  const subscriber = await getOrCreateSubscriber(userId);
-  const style = subscriber.mentor_style || "calm";
-  return style;
+  return "calm";
 }
 
 // ========== HEALTHCHECK ==========

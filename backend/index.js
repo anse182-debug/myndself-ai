@@ -583,30 +583,39 @@ fastify.get("/api/emotional-note/latest", async (request, reply) => {
 
 // ========== ENDPOINT: CHAT (POST /api/chat) ==========
 
+// ========== ENDPOINT: CHAT (POST /api/chat) ==========
+
 fastify.post("/api/chat", async (request, reply) => {
   const body = request.body || {};
 
   const userId =
+    body.user_id ||
     body.userId ||
     request.query?.user_id ||
     request.query?.userId ||
     null;
 
-  // accettiamo message / text / content / prompt
-  const message =
-    body.message ??
-    body.text ??
-    body.content ??
-    body.prompt ??
-    "";
+  // Il frontend manda: { user_id, messages: [...] }
+  const messagesFromClient = Array.isArray(body.messages) ? body.messages : [];
 
-  const language = body.language || "it";
-
-  // Ora richiediamo SOLO il messaggio, non più obbligatorio userId
-  if (!message || typeof message !== "string" || !message.trim()) {
+  if (!messagesFromClient.length) {
     return reply
       .status(400)
-      .send({ error: "Missing message (message/text/content/prompt)" });
+      .send({ error: "Missing messages array in request body" });
+  }
+
+  // Per sicurezza, troviamo anche qui l'ultimo messaggio utente
+  const lastUser =
+    [...messagesFromClient].reverse().find((m) => m.role === "user") ||
+    messagesFromClient[messagesFromClient.length - 1];
+
+  const lastUserMessage =
+    lastUser && typeof lastUser.content === "string" ? lastUser.content : "";
+
+  if (!lastUserMessage.trim()) {
+    return reply
+      .status(400)
+      .send({ error: "Last user message is empty or missing" });
   }
 
   try {
@@ -622,54 +631,34 @@ fastify.post("/api/chat", async (request, reply) => {
 
     const systemPrompt = buildSystemPromptForMentor(mentorStyle);
 
-    // Proviamo a recuperare un po' di contesto, ma se la tabella non esiste non blocchiamo niente
-    let historyMessages = [];
-    try {
-      const { data: history, error: historyError } = await supabase
-        .from("chat_messages")
-        .select("role, content, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: true })
-        .limit(20);
-
-      if (historyError) {
-        console.warn("⚠️ Error fetching chat history in POST /api/chat:", historyError.message);
-      } else if (history) {
-        historyMessages = history.map((m) => ({
-          role: m.role,
-          content: m.content,
-        }));
-      }
-    } catch (e) {
-      console.warn("⚠️ Exception fetching chat history in POST /api/chat:", e);
-    }
-
-    const messages = [
-      ...historyMessages,
-      {
-        role: "user",
-        content: `Lingua: ${language}\n\n${message}`,
-      },
-    ];
+    // Ricostruiamo la conversazione per OpenAI
+    const openAiMessages = messagesFromClient.map((m) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: m.content || "",
+    }));
 
     const answer = await callOpenAIChat({
       system: systemPrompt,
-      messages,
+      messages: openAiMessages,
     });
 
-    // Proviamo a salvare, ma se la tabella non esiste non blocchiamo la risposta
+    // Salvataggio NON bloccante, nel caso la tabella non esista
     try {
       if (userId) {
         await supabase.from("chat_messages").insert([
-          { user_id: userId, role: "user", content: message },
+          { user_id: userId, role: "user", content: lastUserMessage },
           { user_id: userId, role: "assistant", content: answer },
         ]);
       }
     } catch (e) {
-      console.warn("⚠️ Error inserting chat_messages (non-blocking):", e.message || e);
+      console.warn(
+        "⚠️ Error inserting chat_messages (non-blocking):",
+        e.message || e
+      );
     }
 
-    return reply.send({ answer });
+    // Il frontend si aspetta data.reply
+    return reply.send({ reply: answer });
   } catch (error) {
     console.error("❌ Chat error:", error);
     return reply.status(500).send({ error: "Chat failed" });
@@ -751,28 +740,40 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
 
 // ========== ENDPOINT: GUIDED REFLECTION ==========
 
+// ========== ENDPOINT: GUIDED REFLECTION ==========
+
 async function handleGuidedReflection(request, reply) {
-  const body = request.body || {};
+const body = request.body || {};
+const userId =
+  body.user_id ||
+  body.userId ||
+  request.query?.user_id ||
+  request.query?.userId ||
+  null;
 
-  // userId, se c'è, lo usiamo; se manca, andiamo comunque avanti
-  const userId =
-    body.userId ||
-    request.query?.user_id ||
-    request.query?.userId ||
-    null;
+const mood = body.mood ?? null;
+const note = body.note ?? body.text ?? "";
+const language = body.language || "it";
 
-  // step attuale (non è obbligatorio)
-  const step = body.step ?? body.stage ?? null;
+if (!userId) {
+  return reply.status(400).send({ error: "Missing user id" });
+}
 
-  // QUI la parte importante: recuperiamo la risposta dell’utente
-  const answerRaw =
-    body.answer ??
-    body.text ??
-    body.message ??
-    body.content ??
-    "";
 
-  const language = body.language || "it";
+  // Lato FE: messages = [{ role: "user" | "assistant", content: string }, ...]
+  const messagesFromClient = Array.isArray(body.messages) ? body.messages : [];
+
+  // Prendiamo l'ULTIMO messaggio utente come "risposta" del passo corrente
+  let lastUserMessage = "";
+  if (messagesFromClient.length > 0) {
+    const lastUser =
+      [...messagesFromClient].reverse().find((m) => m.role === "user") ||
+      messagesFromClient[messagesFromClient.length - 1];
+
+    if (lastUser && typeof lastUser.content === "string") {
+      lastUserMessage = lastUser.content;
+    }
+  }
 
   try {
     let mentorStyle = "calm";
@@ -801,7 +802,9 @@ Rispondi in massimo 4–5 frasi.
     const userContent = `
 Lingua: ${language}
 Passo corrente: ${step || "non specificato"}
-Risposta dell'utente: ${answerRaw || "(nessuna risposta inserita)"}
+Ultima risposta dell'utente: ${
+      lastUserMessage || "(nessuna risposta inserita)"
+    }
 
 1) Riconosci ciò che l'utente ha condiviso con 1–2 frasi.
 2) Aggiungi 1 piccolo spunto di consapevolezza o normalizzazione.
@@ -813,14 +816,15 @@ Risposta dell'utente: ${answerRaw || "(nessuna risposta inserita)"}
       messages: [{ role: "user", content: userContent }],
     });
 
-    return reply.send({ reply: replyText });
+    // In futuro potremmo derivare isFinal dal contenuto o dallo step
+    return reply.send({ reply: replyText, isFinal: false });
   } catch (error) {
     console.error("❌ Guided reflection error:", error);
 
-    // Fallback di sicurezza, lo vedrai solo se OpenAI o il backend vanno in errore
     return reply.send({
       reply:
         "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo. Se vuoi, puoi aggiungere ancora qualche dettaglio su come ti senti adesso.",
+      isFinal: false,
     });
   }
 }

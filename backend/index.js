@@ -669,6 +669,12 @@ fastify.get("/api/summary/weekly", async (request, reply) => {
 // Shape restituito:
 // { ok: true, items: [ { id, user_id, summary, created_at, tags, mood_score? }, ... ] }
 
+// ========== ENDPOINT: SUMMARY HISTORY (GET /api/summary/history) ==========
+//
+// Usa mood_summaries SE esiste, altrimenti ritorna lista vuota.
+// Shape risposta:
+// { ok: true, items: [ { id, user_id, summary, created_at, tags, mood_score? }, ... ] }
+
 fastify.get("/api/summary/history", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
 
@@ -685,6 +691,14 @@ fastify.get("/api/summary/history", async (request, reply) => {
       .limit(20);
 
     if (error) {
+      // Caso specifico: tabella NON esiste ancora in Supabase
+      if (error.code === "PGRST205") {
+        console.warn(
+          "⚠️ mood_summaries table not found (history), returning empty list"
+        );
+        return reply.send({ ok: true, items: [] });
+      }
+
       console.error("❌ Error fetching mood_summaries (history)", error);
       return reply.status(500).send({ ok: false, error: "DB fetch failed" });
     }

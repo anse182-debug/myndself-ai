@@ -581,33 +581,71 @@ fastify.get("/api/emotional-note/latest", async (request, reply) => {
 
 // ========== ENDPOINT: CHAT (POST) ==========
 
-fastify.post("/api/chat", async (request, reply) => {
-  const { userId, message, language = "it" } = request.body || {};
+// ========== ENDPOINT: CHAT (POST /api/chat) ==========
 
-  if (!userId || !message) {
-    return reply.status(400).send({ error: "Missing userId or message" });
+fastify.post("/api/chat", async (request, reply) => {
+  const body = request.body || {};
+
+  const userId =
+    body.userId ||
+    request.query?.user_id ||
+    request.query?.userId ||
+    null;
+
+  // accettiamo message / text / content / prompt
+  const message =
+    body.message ??
+    body.text ??
+    body.content ??
+    body.prompt ??
+    "";
+
+  const language = body.language || "it";
+
+  // Ora richiediamo SOLO il messaggio, non più obbligatorio userId
+  if (!message || typeof message !== "string" || !message.trim()) {
+    return reply
+      .status(400)
+      .send({ error: "Missing message (message/text/content/prompt)" });
   }
 
   try {
-    const mentorStyle = await getUserMentorStyle(userId);
+    let mentorStyle = "calm";
+    try {
+      if (userId) {
+        mentorStyle = await getUserMentorStyle(userId);
+      }
+    } catch (e) {
+      console.warn("⚠️ getUserMentorStyle failed in chat, using calm:", e);
+      mentorStyle = "calm";
+    }
+
     const systemPrompt = buildSystemPromptForMentor(mentorStyle);
 
-    const { data: history, error: historyError } = await supabase
-      .from("chat_messages")
-      .select("role, content, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(20);
+    // Proviamo a recuperare un po' di contesto, ma se la tabella non esiste non blocchiamo niente
+    let historyMessages = [];
+    try {
+      const { data: history, error: historyError } = await supabase
+        .from("chat_messages")
+        .select("role, content, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+        .limit(20);
 
-    if (historyError) {
-      console.error("❌ Error fetching chat history", historyError);
+      if (historyError) {
+        console.warn("⚠️ Error fetching chat history in POST /api/chat:", historyError.message);
+      } else if (history) {
+        historyMessages = history.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
+      }
+    } catch (e) {
+      console.warn("⚠️ Exception fetching chat history in POST /api/chat:", e);
     }
 
     const messages = [
-      ...(history || []).map((m) => ({
-        role: m.role,
-        content: m.content,
-      })),
+      ...historyMessages,
       {
         role: "user",
         content: `Lingua: ${language}\n\n${message}`,
@@ -619,15 +657,16 @@ fastify.post("/api/chat", async (request, reply) => {
       messages,
     });
 
-    const { error: insertError } = await supabase
-      .from("chat_messages")
-      .insert([
-        { user_id: userId, role: "user", content: message },
-        { user_id: userId, role: "assistant", content: answer },
-      ]);
-
-    if (insertError) {
-      console.error("❌ Error inserting chat_messages", insertError);
+    // Proviamo a salvare, ma se la tabella non esiste non blocchiamo la risposta
+    try {
+      if (userId) {
+        await supabase.from("chat_messages").insert([
+          { user_id: userId, role: "user", content: message },
+          { user_id: userId, role: "assistant", content: answer },
+        ]);
+      }
+    } catch (e) {
+      console.warn("⚠️ Error inserting chat_messages (non-blocking):", e.message || e);
     }
 
     return reply.send({ answer });
@@ -710,8 +749,30 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
 
 // ========== ENDPOINT: GUIDED REFLECTION ==========
 
+// ========== ENDPOINT: GUIDED REFLECTION ==========
+
 async function handleGuidedReflection(request, reply) {
-  const { userId, step, answer, language = "it" } = request.body || {};
+  const body = request.body || {};
+
+  // userId, se c'è, lo usiamo; se manca, andiamo comunque avanti
+  const userId =
+    body.userId ||
+    request.query?.user_id ||
+    request.query?.userId ||
+    null;
+
+  // step attuale (non è obbligatorio)
+  const step = body.step ?? body.stage ?? null;
+
+  // QUI la parte importante: recuperiamo la risposta dell’utente
+  const answerRaw =
+    body.answer ??
+    body.text ??
+    body.message ??
+    body.content ??
+    "";
+
+  const language = body.language || "it";
 
   try {
     let mentorStyle = "calm";
@@ -740,7 +801,7 @@ Rispondi in massimo 4–5 frasi.
     const userContent = `
 Lingua: ${language}
 Passo corrente: ${step || "non specificato"}
-Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
+Risposta dell'utente: ${answerRaw || "(nessuna risposta inserita)"}
 
 1) Riconosci ciò che l'utente ha condiviso con 1–2 frasi.
 2) Aggiungi 1 piccolo spunto di consapevolezza o normalizzazione.
@@ -756,6 +817,7 @@ Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
   } catch (error) {
     console.error("❌ Guided reflection error:", error);
 
+    // Fallback di sicurezza, lo vedrai solo se OpenAI o il backend vanno in errore
     return reply.send({
       reply:
         "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo. Se vuoi, puoi aggiungere ancora qualche dettaglio su come ti senti adesso.",
@@ -766,7 +828,6 @@ Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
 fastify.post("/api/guided-session", handleGuidedReflection);
 fastify.post("/api/guided", handleGuidedReflection);
 fastify.post("/api/guided-reflection", handleGuidedReflection);
-
 // ========== START SERVER ==========
 
 try {

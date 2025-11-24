@@ -742,23 +742,22 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
 
 // ========== ENDPOINT: GUIDED REFLECTION ==========
 
+// ========== ENDPOINT: GUIDED REFLECTION ==========
+
 async function handleGuidedReflection(request, reply) {
-const body = request.body || {};
-const userId =
-  body.user_id ||
-  body.userId ||
-  request.query?.user_id ||
-  request.query?.userId ||
-  null;
+  const body = request.body || {};
 
-const mood = body.mood ?? null;
-const note = body.note ?? body.text ?? "";
-const language = body.language || "it";
+  // Lato FE: user_id
+  const userId =
+    body.user_id ||
+    body.userId ||
+    request.query?.user_id ||
+    request.query?.userId ||
+    null;
 
-if (!userId) {
-  return reply.status(400).send({ error: "Missing user id" });
-}
-
+  // passo corrente
+  const currentStep = body.step ?? body.stage ?? null;
+  const language = body.language || "it";
 
   // Lato FE: messages = [{ role: "user" | "assistant", content: string }, ...]
   const messagesFromClient = Array.isArray(body.messages) ? body.messages : [];
@@ -801,7 +800,7 @@ Rispondi in massimo 4–5 frasi.
 
     const userContent = `
 Lingua: ${language}
-Passo corrente: ${step || "non specificato"}
+Passo corrente: ${currentStep || "non specificato"}
 Ultima risposta dell'utente: ${
       lastUserMessage || "(nessuna risposta inserita)"
     }
@@ -816,7 +815,7 @@ Ultima risposta dell'utente: ${
       messages: [{ role: "user", content: userContent }],
     });
 
-    // In futuro potremmo derivare isFinal dal contenuto o dallo step
+    // Per ora non chiudiamo mai automaticamente: isFinal = false
     return reply.send({ reply: replyText, isFinal: false });
   } catch (error) {
     console.error("❌ Guided reflection error:", error);

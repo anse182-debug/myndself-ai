@@ -107,16 +107,44 @@ function getMentorPrompt(style) {
  * Combina il system prompt base con lo stile del Mentor selezionato.
  */
 function buildSystemPromptForMentor(style) {
-  const mentorPrompt = getMentorPrompt(style);
-  return `
-${BASE_SYSTEM_PROMPT}
+  const base = `
+Sei MyndSelf.ai, un mentore emotivo digitale che aiuta le persone a sviluppare consapevolezza emotiva e gentilezza verso sé stesse.
 
------
-STILE DEL MENTOR SELEZIONATO:
-
-${mentorPrompt}
+Linee guida generali (sempre valide):
+- Rispondi SEMPRE in italiano.
+- Usa un tono calmo, empatico e non giudicante.
+- Dai risposte BREVI: in genere 3–5 frasi, evita muri di testo.
+- Se possibile, organizza le idee in frasi chiare e semplici, non in lunghi paragrafi.
+- Non dare consigli medici o diagnosi; se emergono temi gravi, suggerisci di parlarne con un professionista.
+- Invita spesso la persona a fare un piccolo passo concreto o a osservare come si sente, senza pressione.
 `.trim();
+
+  const personas = {
+    calm: `
+Stile: "calm".
+- Voce dolce, rassicurante, quasi da "amico saggio".
+- Normalizza le emozioni difficili e riduce il senso di colpa.
+- Usa spesso frasi come "è comprensibile", "non sei solo in questo".
+`.trim(),
+    coach: `
+Stile: "coach".
+- Voce un po' più energica ma sempre gentile.
+- Aiuta a definire piccoli passi concreti e realistici.
+- Fa 1–2 domande brevi per chiarire, senza interrogare troppo.
+`.trim(),
+    reflective: `
+Stile: "reflective".
+- Aiuta soprattutto a mettere in parole ciò che la persona sente.
+- Riflette e riformula ciò che l'utente scrive, per aumentare consapevolezza.
+- Più orientato a "vedere meglio" che a "risolvere".
+`.trim(),
+  };
+
+  const persona = personas[style] || personas.calm;
+
+  return `${base}\n\n${persona}`;
 }
+
 
 // ========== SUBSCRIBER & MENTOR HELPERS ==========
 
@@ -744,6 +772,8 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
 
 // ========== ENDPOINT: GUIDED REFLECTION ==========
 
+// ========== ENDPOINT: GUIDED REFLECTION ==========
+
 async function handleGuidedReflection(request, reply) {
   const body = request.body || {};
 
@@ -755,8 +785,10 @@ async function handleGuidedReflection(request, reply) {
     request.query?.userId ||
     null;
 
-  // passo corrente
-  const currentStep = body.step ?? body.stage ?? null;
+  // passo corrente (di default 1)
+  const rawStep = body.step ?? body.stage ?? 1;
+  const numericStep = Number(rawStep) || 1;
+  const isFinalStep = numericStep >= 4; // dopo il 4° consideriamo conclusa la riflessione
   const language = body.language || "it";
 
   // Lato FE: messages = [{ role: "user" | "assistant", content: string }, ...]
@@ -790,24 +822,36 @@ ${buildSystemPromptForMentor(mentorStyle)}
 
 Sei in modalità RIFLESSIONE GUIDATA.
 L'utente sta rispondendo a una serie di piccole domande, passo per passo.
-Il tuo compito:
-- riconoscere brevemente ciò che l'utente ha condiviso;
-- offrire 1–2 spunti di riflessione;
-- proporre UNA sola domanda successiva, chiara e concreta.
 Mantieni il tono caldo, non giudicante e rispettoso dei tempi dell'utente.
-Rispondi in massimo 4–5 frasi.
+Rispondi sempre in italiano.
+`.trim();
+
+    const guidanceInstructions = isFinalStep
+      ? `
+Questa è l'ULTIMA tappa del percorso di riflessione.
+- Riconosci brevemente ciò che l'utente ha condiviso negli ultimi passi.
+- Offri 1–2 spunti di sintesi e normalizzazione.
+- NON fare ulteriori domande aperte.
+- Chiudi con un invito gentile verso di sé o un piccolo promemoria pratico.
+- Mantieni la risposta breve: massimo 3 frasi.
+`.trim()
+      : `
+Questa è una tappa INTERMEDIA del percorso di riflessione.
+- Riconosci ciò che l'utente ha condiviso in 1–2 frasi.
+- Aggiungi 1 piccolo spunto di consapevolezza o normalizzazione.
+- Concludi con UNA sola domanda aperta ma semplice, per il passo successivo.
+- Mantieni la risposta breve: massimo 4–5 frasi.
 `.trim();
 
     const userContent = `
 Lingua: ${language}
-Passo corrente: ${currentStep || "non specificato"}
+Passo corrente: ${numericStep}
 Ultima risposta dell'utente: ${
       lastUserMessage || "(nessuna risposta inserita)"
     }
 
-1) Riconosci ciò che l'utente ha condiviso con 1–2 frasi.
-2) Aggiungi 1 piccolo spunto di consapevolezza o normalizzazione.
-3) Concludi con UNA sola domanda, aperta ma semplice, per il prossimo passo.
+Istruzioni specifiche per questo passo:
+${guidanceInstructions}
 `.trim();
 
     const replyText = await callOpenAIChat({
@@ -815,8 +859,8 @@ Ultima risposta dell'utente: ${
       messages: [{ role: "user", content: userContent }],
     });
 
-    // Per ora non chiudiamo mai automaticamente: isFinal = false
-    return reply.send({ reply: replyText, isFinal: false });
+    // isFinalStep dice al frontend se deve chiudere il flusso
+    return reply.send({ reply: replyText, isFinal: isFinalStep });
   } catch (error) {
     console.error("❌ Guided reflection error:", error);
 

@@ -665,6 +665,10 @@ fastify.post("/api/chat", async (request, reply) => {
 
 // ========== ENDPOINT: CHAT HISTORY (GET /api/chat/history) ==========
 
+// ========== ENDPOINT: CHAT HISTORY (GET /api/chat/history) ==========
+// Per ora non leggiamo il DB perché la tabella chat_messages non esiste nel tuo schema.
+// Ritorniamo semplicemente una lista vuota di messaggi, così il frontend non va in errore.
+
 fastify.get("/api/chat/history", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
 
@@ -673,21 +677,9 @@ fastify.get("/api/chat/history", async (request, reply) => {
   }
 
   try {
-    const { data, error } = await supabase
-      .from("chat_messages")
-      .select("role, content, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(50);
-
-    if (error) {
-      console.error("❌ Error fetching chat history (GET)", error);
-      return reply.status(500).send({ error: "DB fetch failed" });
-    }
-
-    return reply.send({ messages: data || [] });
+    return reply.send({ messages: [] });
   } catch (error) {
-    console.error("❌ Chat history error:", error);
+    console.error("❌ Chat history error (stub):", error);
     return reply.status(500).send({ error: "Chat history failed" });
   }
 });

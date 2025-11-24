@@ -478,34 +478,154 @@ fastify.post("/api/summary/weekly", async (request, reply) => {
 
 // ========== ENDPOINT COMPATIBILE: GET /api/summary ==========
 
+// ========== ENDPOINT: SUMMARY (GET /api/summary) ==========
+//
+// Genera una sintesi delle emozioni recenti dell’utente usando mood_entries.
+// Shape risposta:
+// { ok: true, summary: string | null, tags: string[] }
+
 fastify.get("/api/summary", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
-  const saveParam = request.query.save;
-  const language = request.query.language || "it";
+  const save = request.query.save === "true";
 
   if (!userId) {
-    return reply.status(400).send({ error: "Missing userId" });
+    return reply.status(400).send({ ok: false, error: "Missing userId" });
   }
 
-  const shouldSave =
-    typeof saveParam === "string"
-      ? saveParam.toLowerCase() === "true"
-      : !!saveParam;
-
   try {
-    const { summaryText, inserted } = await generateWeeklySummaryForUser(
-      userId,
-      language,
-      shouldSave
+    // 1) Prendiamo le ultime 30–40 entry recenti
+    const { data: entries, error: entriesError } = await supabase
+      .from("mood_entries")
+      .select("at, mood, note, tags")
+      .eq("user_id", userId)
+      .order("at", { ascending: false })
+      .limit(40);
+
+    if (entriesError) {
+      console.error("❌ Error fetching mood_entries for summary:", entriesError);
+      return reply
+        .status(500)
+        .send({ ok: false, error: "DB fetch failed (mood_entries)" });
+    }
+
+    if (!entries || entries.length === 0) {
+      // Nessun dato: nessuna sintesi da mostrare
+      return reply.send({ ok: true, summary: null, tags: [] });
+    }
+
+    // 2) Costruiamo un contesto testuale da passare all’AI
+    const contextLines = entries.map((e) => {
+      const dateStr = e.at || "";
+      const moodStr = e.mood || "";
+      const noteStr = e.note || "";
+      const tagsStr = Array.isArray(e.tags) && e.tags.length
+        ? ` [tag: ${e.tags.join(", ")}]`
+        : "";
+      return `- ${dateStr}: umore=${moodStr}, nota="${noteStr}"${tagsStr}`;
+    });
+
+    const contextText = contextLines.join("\n");
+
+    // 3) Stile mentor (per ora "calm", ma manteniamo l’hook)
+    let mentorStyle = "calm";
+    try {
+      mentorStyle = await getUserMentorStyle(userId);
+    } catch (e) {
+      console.warn("⚠️ getUserMentorStyle in /api/summary failed, using calm:", e);
+      mentorStyle = "calm";
+    }
+
+    const systemPrompt = `
+${buildSystemPromptForMentor(mentorStyle)}
+
+Stai generando una breve sintesi settimanale dello stato emotivo della persona.
+Devi:
+- descrivere in modo sintetico i pattern emotivi emersi (massimo 4–5 frasi);
+- sottolineare 1–2 piccoli progressi o segnali utili, anche se la settimana è stata difficile;
+- proporre al massimo 1 piccolo suggerimento pratico o spunto di auto-riflessione;
+- mantenere un tono empatico, non giudicante, caldo.
+Rispondi SEMPRE in italiano.
+`.trim();
+
+    const userContent = `
+Questi sono gli ultimi registri di umore e note dell'utente:
+
+${contextText}
+
+Genera:
+1) Una breve sintesi in prosa (massimo 4–5 frasi).
+2) Una lista di 3–6 parole chiave emotive o temi ricorrenti (in italiano), da usare come tag.
+`.trim();
+
+    const rawReply = await callOpenAIChat({
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+    });
+
+    // 4) Tiriamo fuori summary + tags dal testo AI con una strategia semplice
+    // Strategia: cerchiamo una riga con "Tag:" o "Parole chiave:"; se non c'è, proviamo a estrarle noi.
+    let summaryText = rawReply.trim();
+    let tags = [];
+
+    const lines = rawReply.split("\n").map((l) => l.trim());
+    const tagLine = lines.find((l) =>
+      /^tag:|^tags:|^parole chiave:/i.test(l)
     );
 
+    if (tagLine) {
+      // Es. "Tag: equilibrio emotivo, ansia, speranza"
+      const parts = tagLine.split(":");
+      if (parts[1]) {
+        tags = parts[1]
+          .split(/[;,]/)
+          .map((t) => t.trim())
+          .filter(Boolean);
+      }
+      // summary = tutto il testo senza la linea tag
+      summaryText = lines.filter((l) => l !== tagLine).join(" ");
+    } else {
+      // fallback: proviamo a prendere le parole più significative manualmente in base alle entry
+      const moods = entries
+        .map((e) => e.mood)
+        .filter(Boolean)
+        .map((m) => String(m));
+      const uniqueMoods = [...new Set(moods)];
+      tags = uniqueMoods.slice(0, 6);
+    }
+
+    // 5) Salviamo opzionalmente su mood_summaries
+    if (save) {
+      try {
+        const { error: insertError } = await supabase
+          .from("mood_summaries")
+          .insert({
+            user_id: userId,
+            summary: summaryText,
+            tags,
+          });
+
+        if (insertError) {
+          console.warn(
+            "⚠️ Error inserting into mood_summaries (non-blocking):",
+            insertError.message || insertError
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "⚠️ Exception inserting into mood_summaries (non-blocking):",
+          e.message || e
+        );
+      }
+    }
+
     return reply.send({
+      ok: true,
       summary: summaryText,
-      entry: inserted,
+      tags,
     });
   } catch (error) {
     console.error("❌ Weekly summary error (GET /api/summary):", error);
-    return reply.status(500).send({ error: "Summary failed" });
+    return reply.status(500).send({ ok: false, error: "Summary failed" });
   }
 });
 

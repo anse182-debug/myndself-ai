@@ -1,7 +1,6 @@
 import React from "react"
-import { useSession } from "../hooks/useSession"
+import { useSession, supabase } from "../hooks/useSession"
 import { showToast } from "../utils/toast"
-import { supabase } from "../supabaseClient"
 
 const Header: React.FC = () => {
   const { session, isLoading } = useSession()

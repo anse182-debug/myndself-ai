@@ -1,5 +1,5 @@
 // backend/index.js
-// MyndSelf.ai – Backend API (Fastify + Supabase + OpenAI) con Mentor
+// MyndSelf.ai – Backend API (Fastify + Supabase + OpenAI) con Mentor e endpoint compatibili
 
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -191,14 +191,79 @@ async function callOpenAIChat({ system, messages }) {
   return content;
 }
 
+// Helper per serializzare le ultime entry per la summary
+function serializeEntriesForSummary(entries) {
+  return (entries || [])
+    .map(
+      (e) =>
+        `- [${e.created_at}] mood: ${e.mood || "n/d"}, note: ${
+          e.note || "n/d"
+        }`
+    )
+    .join("\n");
+}
+
+// Genera una weekly summary, opzionalmente salvandola
+async function generateWeeklySummaryForUser(userId, language = "it", shouldSave = true) {
+  const mentorStyle = await getUserMentorStyle(userId);
+  const systemPrompt = buildSystemPromptForMentor(mentorStyle);
+
+  const { data: entries, error } = await supabase
+    .from("mood_entries")
+    .select("mood, note, tags, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(60);
+
+  if (error) {
+    console.error("❌ Error fetching mood_entries for summary", error);
+    throw error;
+  }
+
+  const serialized = serializeEntriesForSummary(entries);
+
+  const userMessage = `
+Lingua: ${language}
+
+Queste sono le ultime riflessioni dell'utente:
+
+${serialized || "(nessun dato disponibile)"}
+
+1) Scrivi una breve sintesi della settimana emotiva (max 8–10 frasi).
+2) Evidenzia i 2–3 temi principali.
+3) Proponi 2 suggerimenti pratici per la prossima settimana.
+`.trim();
+
+  const summaryText = await callOpenAIChat({
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  let inserted = null;
+
+  if (shouldSave) {
+    const { data: ins, error: insertError } = await supabase
+      .from("weekly_summaries")
+      .insert({
+        user_id: userId,
+        summary: summaryText,
+      })
+      .select()
+      .single();
+
+    if (insertError) {
+      console.error("❌ Error inserting weekly_summary", insertError);
+      throw insertError;
+    }
+
+    inserted = ins;
+  }
+
+  return { summaryText, inserted };
+}
+
 // ========== ENDPOINT: REFLECTION ==========
-/**
- * POST /api/reflection
- * Body: { userId, mood, note, language }
- *
- * - genera una riflessione con l'AI
- * - salva su mood_entries { user_id, mood, note, reflection, tags, at }
- */
+
 fastify.post("/api/reflection", async (request, reply) => {
   const { userId, mood, note, language = "it" } = request.body || {};
 
@@ -233,7 +298,6 @@ Nota dell'utente: ${note || "(nessuna nota)"}
     if (tagsMatch) {
       try {
         const jsonLike = `[${tagsMatch[1]}]`;
-        // Normalizza eventuali virgolette
         const normalized = jsonLike.replace(/'/g, '"');
         tags = JSON.parse(normalized);
       } catch (e) {
@@ -269,16 +333,10 @@ Nota dell'utente: ${note || "(nessuna nota)"}
   }
 });
 
-// ========== ENDPOINT: MOOD OVERVIEW (EMOTIONAL JOURNEY) ==========
-/**
- * GET /api/mood/overview?userId=...
- *
- * Restituisce:
- * - entries recenti (es. 30 giorni)
- * - conteggio emozioni più frequenti
- */
+// ========== ENDPOINT: MOOD OVERVIEW (Emotional Journey) ==========
+
 fastify.get("/api/mood/overview", async (request, reply) => {
-  const { userId } = request.query;
+  const userId = request.query.user_id || request.query.userId;
 
   if (!userId) {
     return reply.status(400).send({ error: "Missing userId" });
@@ -296,7 +354,6 @@ fastify.get("/api/mood/overview", async (request, reply) => {
       return reply.status(500).send({ error: "DB fetch failed" });
     }
 
-    // Conta le emozioni più frequenti dalla colonna mood
     const moodCounts = {};
     for (const e of entries || []) {
       if (!e.mood) continue;
@@ -313,15 +370,46 @@ fastify.get("/api/mood/overview", async (request, reply) => {
   }
 });
 
-// ========== ENDPOINT: WEEKLY SUMMARY ==========
-/**
- * POST /api/summary/weekly
- * Body: { userId, language }
- *
- * - prende le ultime X entry
- * - genera una sintesi settimanale
- * - salva in weekly_summaries
- */
+// ========== ENDPOINT COMPATIBILE: /api/analytics/daily ==========
+// Il frontend chiama ancora questo endpoint: lo facciamo puntare alla stessa logica di /api/mood/overview
+
+fastify.get("/api/analytics/daily", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  try {
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("id, mood, note, tags, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("❌ Error fetching mood_entries (analytics)", error);
+      return reply.status(500).send({ error: "DB fetch failed" });
+    }
+
+    const moodCounts = {};
+    for (const e of entries || []) {
+      if (!e.mood) continue;
+      moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1;
+    }
+
+    return reply.send({
+      entries: entries || [],
+      moodCounts,
+    });
+  } catch (error) {
+    console.error("❌ Analytics daily error:", error);
+    return reply.status(500).send({ error: "Analytics daily failed" });
+  }
+});
+
+// ========== ENDPOINT: WEEKLY SUMMARY (POST) ==========
+
 fastify.post("/api/summary/weekly", async (request, reply) => {
   const { userId, language = "it" } = request.body || {};
 
@@ -330,77 +418,60 @@ fastify.post("/api/summary/weekly", async (request, reply) => {
   }
 
   try {
-    const mentorStyle = await getUserMentorStyle(userId);
-    const systemPrompt = buildSystemPromptForMentor(mentorStyle);
-
-    const { data: entries, error } = await supabase
-      .from("mood_entries")
-      .select("mood, note, tags, created_at")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(60); // ultime 60 entry, es.
-
-    if (error) {
-      console.error("❌ Error fetching mood_entries for summary", error);
-      return reply.status(500).send({ error: "DB fetch failed" });
-    }
-
-    const serialized = (entries || [])
-      .map(
-        (e) =>
-          `- [${e.created_at}] mood: ${e.mood || "n/d"}, note: ${
-            e.note || "n/d"
-          }`
-      )
-      .join("\n");
-
-    const userMessage = `
-Lingua: ${language}
-
-Queste sono le ultime riflessioni dell'utente:
-
-${serialized || "(nessun dato disponibile)"}
-
-1) Scrivi una breve sintesi della settimana emotiva (max 8–10 frasi).
-2) Evidenzia i 2–3 temi principali.
-3) Proponi 2 suggerimenti pratici per la prossima settimana.
-`.trim();
-
-    const summaryText = await callOpenAIChat({
-      system: systemPrompt,
-      messages: [{ role: "user", content: userMessage }],
-    });
-
-    const { data: inserted, error: insertError } = await supabase
-      .from("weekly_summaries")
-      .insert({
-        user_id: userId,
-        summary: summaryText,
-      })
-      .select()
-      .single();
-
-    if (insertError) {
-      console.error("❌ Error inserting weekly_summary", insertError);
-      return reply.status(500).send({ error: "DB insert failed" });
-    }
+    const { summaryText, inserted } = await generateWeeklySummaryForUser(
+      userId,
+      language,
+      true
+    );
 
     return reply.send({
       summary: summaryText,
       entry: inserted,
     });
   } catch (error) {
-    console.error("❌ Weekly summary error:", error);
+    console.error("❌ Weekly summary error (POST):", error);
     return reply.status(500).send({ error: "Weekly summary failed" });
   }
 });
 
-/**
- * GET /api/summary/weekly?userId=...
- * Restituisce le sintesi salvate (ultime N).
- */
+// ========== ENDPOINT COMPATIBILE: GET /api/summary ==========
+// Il frontend chiama ancora GET /api/summary?user_id=...&save=true
+
+fastify.get("/api/summary", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+  const saveParam = request.query.save;
+  const language = request.query.language || "it";
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  const shouldSave =
+    typeof saveParam === "string"
+      ? saveParam.toLowerCase() === "true"
+      : !!saveParam;
+
+  try {
+    const { summaryText, inserted } = await generateWeeklySummaryForUser(
+      userId,
+      language,
+      shouldSave
+    );
+
+    return reply.send({
+      summary: summaryText,
+      entry: inserted,
+    });
+  } catch (error) {
+    console.error("❌ Weekly summary error (GET /api/summary):", error);
+    return reply.status(500).send({ error: "Summary failed" });
+  }
+});
+
+// ========== ENDPOINT: LISTA WEEKLY SUMMARIES ==========
+
 fastify.get("/api/summary/weekly", async (request, reply) => {
-  const { userId } = request.query;
+  const userId = request.query.user_id || request.query.userId;
 
   if (!userId) {
     return reply.status(400).send({ error: "Missing userId" });
@@ -425,16 +496,38 @@ fastify.get("/api/summary/weekly", async (request, reply) => {
   }
 });
 
+// ========== ENDPOINT COMPATIBILE: /api/summary/history ==========
+
+fastify.get("/api/summary/history", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("weekly_summaries")
+      .select("id, summary, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ Error fetching weekly_summaries (history)", error);
+      return reply.status(500).send({ error: "DB fetch failed" });
+    }
+
+    return reply.send({ summaries: data || [] });
+  } catch (error) {
+    console.error("❌ Summary history error:", error);
+    return reply.status(500).send({ error: "Summary history failed" });
+  }
+});
+
 // ========== ENDPOINT: EMOTIONAL NOTE (BANNER) ==========
-/**
- * GET /api/emotional-note/latest?userId=...
- *
- * Restituisce l'ultima nota emotiva sintetica (se c'è).
- * Se non hai una tabella dedicata, puoi ricollegarla a weekly_summaries.summary
- * oppure usare una tabella emotional_notes.
- */
+
 fastify.get("/api/emotional-note/latest", async (request, reply) => {
-  const { userId } = request.query;
+  const userId = request.query.user_id || request.query.userId;
 
   if (!userId) {
     return reply.status(400).send({ error: "Missing userId" });
@@ -450,7 +543,6 @@ fastify.get("/api/emotional-note/latest", async (request, reply) => {
       .maybeSingle();
 
     if (error && error.code !== "PGRST116") {
-      // PGRST116 = no rows
       console.error("❌ Error fetching emotional_notes", error);
       return reply.status(500).send({ error: "DB fetch failed" });
     }
@@ -467,15 +559,7 @@ fastify.get("/api/emotional-note/latest", async (request, reply) => {
 });
 
 // ========== ENDPOINT: CHAT ==========
-/**
- * POST /api/chat
- * Body: { userId, message, language }
- *
- * - legge lo storico da chat_messages
- * - aggiunge il messaggio utente
- * - chiama l'AI
- * - salva sia il messaggio utente che la risposta
- */
+
 fastify.post("/api/chat", async (request, reply) => {
   const { userId, message, language = "it" } = request.body || {};
 
@@ -487,7 +571,6 @@ fastify.post("/api/chat", async (request, reply) => {
     const mentorStyle = await getUserMentorStyle(userId);
     const systemPrompt = buildSystemPromptForMentor(mentorStyle);
 
-    // recupera ultimi N messaggi chat
     const { data: history, error: historyError } = await supabase
       .from("chat_messages")
       .select("role, content, created_at")
@@ -500,7 +583,8 @@ fastify.post("/api/chat", async (request, reply) => {
     }
 
     const messages = [
-      { role: "system", content: systemPrompt },
+      // passiamo solo i messaggi non-system a callOpenAIChat,
+      // perché la funzione aggiunge già il system all'inizio
       ...(history || []).map((m) => ({
         role: m.role,
         content: m.content,
@@ -511,9 +595,11 @@ fastify.post("/api/chat", async (request, reply) => {
       },
     ];
 
-    const answer = await callOpenAIChat({ system: systemPrompt, messages: messages.slice(1) });
+    const answer = await callOpenAIChat({
+      system: systemPrompt,
+      messages,
+    });
 
-    // salva messaggi
     const { error: insertError } = await supabase
       .from("chat_messages")
       .insert([
@@ -536,7 +622,7 @@ fastify.post("/api/chat", async (request, reply) => {
 
 try {
   await fastify.listen({ port: PORT, host: HOST });
-  fastify.log.info(`🚀 MyndSelf backend (Mentor) running on http://${HOST}:${PORT}`);
+  fastify.log.info(`🚀 MyndSelf backend (Mentor + compat) running on http://${HOST}:${PORT}`);
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);

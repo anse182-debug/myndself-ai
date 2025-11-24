@@ -1,75 +1,78 @@
 import React from "react"
-import useSession from "../hooks/useSession"
+import { useSession } from "../hooks/useSession"
 import { showToast } from "../utils/toast"
+import { supabase } from "../supabaseClient"
 
 const Header: React.FC = () => {
-  const { session, isLoading, signInWithEmail, signOut } = useSession()
+  const { session, isLoading } = useSession()
 
-  const handleLoginClick = async () => {
+  const handleLogin = async () => {
     const email = window.prompt(
-      "Inserisci la tua email per ricevere il link magico:"
+      "Inserisci la tua email per ricevere il link magico di accesso:"
     )
     if (!email) return
 
     try {
-      await signInWithEmail(email.trim())
+      const { error } = await supabase.auth.signInWithOtp({ email })
+      if (error) throw error
       showToast(
-        "Ti ho inviato un link magico. Controlla la tua casella email 📩",
+        "Link magico inviato! Controlla la tua email per completare l’accesso.",
         "success"
       )
-    } catch (err) {
-      console.error("login error:", err)
+    } catch (err: any) {
+      console.error("magic link error:", err)
       showToast(
-        "Errore durante l'invio del link magico. Riprova tra poco.",
+        "Non sono riuscito a inviare il link magico. Riprova tra poco.",
         "error"
       )
     }
   }
 
-  const handleLogoutClick = async () => {
+  const handleLogout = async () => {
     try {
-      await signOut()
+      await supabase.auth.signOut()
       showToast("Sei uscito da MyndSelf.ai", "info")
-    } catch (err) {
+    } catch (err: any) {
       console.error("logout error:", err)
-      showToast("Errore durante il logout. Riprova.", "error")
+      showToast("Errore durante il logout", "error")
     }
   }
 
   return (
-    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
+    <header className="border-b border-slate-800 bg-slate-900/90 backdrop-blur">
+      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
         {/* Logo + tagline */}
         <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center">
-            <span className="text-emerald-300 text-lg font-semibold">🧠</span>
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/30">
+            <span className="text-lg">🧠</span>
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-semibold text-slate-50">MyndSelf.ai</span>
+            <span className="font-semibold text-emerald-400">MyndSelf.ai</span>
             <span className="text-xs text-slate-400">
               AI for Emotional Intelligence
             </span>
           </div>
         </div>
 
-        {/* Pulsante login / logout */}
+        {/* Login / Logout */}
         <div className="flex items-center gap-3">
-          {!isLoading &&
-            (session ? (
-              <button
-                onClick={handleLogoutClick}
-                className="text-sm px-4 py-1.5 rounded-full border border-slate-700/80 hover:border-slate-500 hover:bg-slate-900 transition"
-              >
-                Esci
-              </button>
-            ) : (
-              <button
-                onClick={handleLoginClick}
-                className="text-sm px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-medium transition"
-              >
-                Accedi
-              </button>
-            ))}
+          {!isLoading && !session && (
+            <button
+              onClick={handleLogin}
+              className="rounded-full border border-emerald-500/60 bg-emerald-500/10 px-4 py-1.5 text-sm font-medium text-emerald-100 hover:bg-emerald-500/20 transition-colors"
+            >
+              Accedi
+            </button>
+          )}
+
+          {session && (
+            <button
+              onClick={handleLogout}
+              className="rounded-full border border-slate-600 bg-slate-800 px-4 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-700 transition-colors"
+            >
+              Esci
+            </button>
+          )}
         </div>
       </div>
     </header>

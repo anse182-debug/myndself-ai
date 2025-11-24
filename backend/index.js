@@ -706,6 +706,69 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
     return reply.status(500).send({ error: "Emotional profile failed" });
   }
 });
+// ========== ENDPOINT: GUIDED REFLECTION (POST /api/guided-session e /api/guided) ==========
+
+// Handler riutilizzabile per entrambe le route
+async function handleGuidedReflection(request, reply) {
+  const { userId, step, answer, language = "it" } = request.body || {};
+
+  try {
+    // Se abbiamo l'userId, applichiamo comunque lo stile mentor (per ora sempre "calm" via stub)
+    let mentorStyle = "calm";
+    try {
+      if (userId) {
+        mentorStyle = await getUserMentorStyle(userId);
+      }
+    } catch (e) {
+      console.warn("⚠️ getUserMentorStyle failed, using calm:", e);
+      mentorStyle = "calm";
+    }
+
+    const systemPrompt = `
+${buildSystemPromptForMentor(mentorStyle)}
+
+Sei in modalità RIFLESSIONE GUIDATA.
+L'utente sta rispondendo a una serie di piccole domande, passo per passo.
+Il tuo compito:
+- riconoscere brevemente ciò che l'utente ha condiviso;
+- offrire 1–2 spunti di riflessione;
+- proporre UNA sola domanda successiva, chiara e concreta.
+Mantieni il tono caldo, non giudicante e rispettoso dei tempi dell'utente.
+Rispondi in massimo 4–5 frasi.
+`.trim();
+
+    const userContent = `
+Lingua: ${language}
+Passo corrente: ${step || "non specificato"}
+Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
+
+1) Riconosci ciò che l'utente ha condiviso con 1–2 frasi.
+2) Aggiungi 1 piccolo spunto di consapevolezza o normalizzazione.
+3) Concludi con UNA sola domanda, aperta ma semplice, per il prossimo passo.
+`.trim();
+
+    const replyText = await callOpenAIChat({
+      system: systemPrompt,
+      messages: [{ role: "user", content: userContent }],
+    });
+
+    return reply.send({ reply: replyText });
+  } catch (error) {
+    console.error("❌ Guided reflection error:", error);
+
+    // Fallback "di sicurezza" che stai vedendo ora
+    return reply.send({
+      reply:
+        "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo. Se vuoi, puoi aggiungere ancora qualche dettaglio su come ti senti adesso.",
+    });
+  }
+}
+
+// Route principale usata dalla guided session
+fastify.post("/api/guided-session", handleGuidedReflection);
+
+// Alias di compatibilità: nel caso il frontend usi /api/guided
+fastify.post("/api/guided", handleGuidedReflection);
 
 // ========== START SERVER ==========
 

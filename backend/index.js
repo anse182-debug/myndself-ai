@@ -708,12 +708,12 @@ fastify.get("/api/emotional-profile", async (request, reply) => {
 });
 // ========== ENDPOINT: GUIDED REFLECTION (POST /api/guided-session e /api/guided) ==========
 
-// Handler riutilizzabile per entrambe le route
+// ========== ENDPOINT: GUIDED REFLECTION ==========
+
 async function handleGuidedReflection(request, reply) {
   const { userId, step, answer, language = "it" } = request.body || {};
 
   try {
-    // Se abbiamo l'userId, applichiamo comunque lo stile mentor (per ora sempre "calm" via stub)
     let mentorStyle = "calm";
     try {
       if (userId) {
@@ -756,7 +756,6 @@ Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
   } catch (error) {
     console.error("❌ Guided reflection error:", error);
 
-    // Fallback "di sicurezza" che stai vedendo ora
     return reply.send({
       reply:
         "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo. Se vuoi, puoi aggiungere ancora qualche dettaglio su come ti senti adesso.",
@@ -764,11 +763,9 @@ Risposta dell'utente: ${answer || "(nessuna risposta inserita)"}
   }
 }
 
-// Route principale usata dalla guided session
 fastify.post("/api/guided-session", handleGuidedReflection);
-
-// Alias di compatibilità: nel caso il frontend usi /api/guided
 fastify.post("/api/guided", handleGuidedReflection);
+fastify.post("/api/guided-reflection", handleGuidedReflection);
 
 // ========== START SERVER ==========
 

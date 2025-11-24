@@ -543,33 +543,39 @@ fastify.get("/api/summary/weekly", async (request, reply) => {
 
 // ========== ENDPOINT COMPATIBILE: /api/summary/history ==========
 
+// ========== ENDPOINT: SUMMARY HISTORY (GET /api/summary/history) ==========
+//
+// Usa la tabella mood_summaries, NON weekly_summaries.
+// Shape restituito:
+// { ok: true, items: [ { id, user_id, summary, created_at, tags, mood_score? }, ... ] }
+
 fastify.get("/api/summary/history", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
 
   if (!userId) {
-    return reply.status(400).send({ error: "Missing userId" });
+    return reply.status(400).send({ ok: false, error: "Missing userId" });
   }
 
   try {
     const { data, error } = await supabase
-      .from("weekly_summaries")
-      .select("id, summary, created_at")
+      .from("mood_summaries")
+      .select("id, user_id, summary, created_at, tags, mood_score")
       .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(20);
 
     if (error) {
-      if (error.code === "PGRST205") {
-        console.warn("⚠️ weekly_summaries table not found (history), returning empty list");
-        return reply.send({ summaries: [] });
-      }
-      console.error("❌ Error fetching weekly_summaries (history)", error);
-      return reply.status(500).send({ error: "DB fetch failed" });
+      console.error("❌ Error fetching mood_summaries (history)", error);
+      return reply.status(500).send({ ok: false, error: "DB fetch failed" });
     }
 
-    return reply.send({ summaries: data || [] });
+    return reply.send({
+      ok: true,
+      items: data || [],
+    });
   } catch (error) {
     console.error("❌ Summary history error:", error);
-    return reply.status(500).send({ error: "Summary history failed" });
+    return reply.status(500).send({ ok: false, error: "History failed" });
   }
 });
 

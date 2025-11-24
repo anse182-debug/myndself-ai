@@ -1,28 +1,52 @@
-// frontend/src/components/Header.tsx
 import React from "react"
+import useSession from "../hooks/useSession"
+import { showToast } from "../utils/toast"
 
-type HeaderProps = {
-  session: { user: { email?: string | null } } | null
-  onLoginClick: () => void
-  onLogoutClick: () => void
-}
+const Header: React.FC = () => {
+  const { session, isLoading, signInWithEmail, signOut } = useSession()
 
-export function Header({ session, onLoginClick, onLogoutClick }: HeaderProps) {
-  const userEmail = session?.user?.email || ""
+  const handleLoginClick = async () => {
+    const email = window.prompt(
+      "Inserisci la tua email per ricevere il link magico:"
+    )
+    if (!email) return
+
+    try {
+      await signInWithEmail(email.trim())
+      showToast(
+        "Ti ho inviato un link magico. Controlla la tua casella email 📩",
+        "success"
+      )
+    } catch (err) {
+      console.error("login error:", err)
+      showToast(
+        "Errore durante l'invio del link magico. Riprova tra poco.",
+        "error"
+      )
+    }
+  }
+
+  const handleLogoutClick = async () => {
+    try {
+      await signOut()
+      showToast("Sei uscito da MyndSelf.ai", "info")
+    } catch (err) {
+      console.error("logout error:", err)
+      showToast("Errore durante il logout. Riprova.", "error")
+    }
+  }
 
   return (
-    <header className="w-full border-b border-white/5 bg-surface/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+    <header className="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         {/* Logo + tagline */}
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
-            <span className="text-lg">🧠</span>
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-xl bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center">
+            <span className="text-emerald-300 text-lg font-semibold">🧠</span>
           </div>
-          <div className="flex flex-col">
-            <span className="text-base font-semibold tracking-tight text-primary">
-              MyndSelf.ai
-            </span>
-            <span className="text-xs text-muted">
+          <div className="flex flex-col leading-tight">
+            <span className="font-semibold text-slate-50">MyndSelf.ai</span>
+            <span className="text-xs text-slate-400">
               AI for Emotional Intelligence
             </span>
           </div>
@@ -30,30 +54,26 @@ export function Header({ session, onLoginClick, onLogoutClick }: HeaderProps) {
 
         {/* Pulsante login / logout */}
         <div className="flex items-center gap-3">
-          {session ? (
-            <>
-              {userEmail && (
-                <span className="hidden text-xs text-muted sm:inline">
-                  {userEmail}
-                </span>
-              )}
+          {!isLoading &&
+            (session ? (
               <button
-                onClick={onLogoutClick}
-                className="rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-1.5 text-xs font-medium text-emerald-100 transition hover:bg-emerald-400/20"
+                onClick={handleLogoutClick}
+                className="text-sm px-4 py-1.5 rounded-full border border-slate-700/80 hover:border-slate-500 hover:bg-slate-900 transition"
               >
                 Esci
               </button>
-            </>
-          ) : (
-            <button
-              onClick={onLoginClick}
-              className="rounded-full bg-primary px-4 py-1.5 text-xs font-medium text-surface shadow-sm transition hover:bg-primary/90"
-            >
-              Accedi
-            </button>
-          )}
+            ) : (
+              <button
+                onClick={handleLoginClick}
+                className="text-sm px-4 py-1.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-medium transition"
+              >
+                Accedi
+              </button>
+            ))}
         </div>
       </div>
     </header>
   )
 }
+
+export default Header

@@ -1,5 +1,6 @@
 // backend/index.js
-// MyndSelf.ai – Backend API (Fastify + Supabase + OpenAI) con Mentor e endpoint compatibili
+// MyndSelf.ai – Backend API (Fastify + Supabase + OpenAI)
+// con Mentor + endpoint compatibili + fix per weekly_summaries mancanti
 
 import Fastify from "fastify";
 import cors from "@fastify/cors";
@@ -203,7 +204,7 @@ function serializeEntriesForSummary(entries) {
     .join("\n");
 }
 
-// Genera una weekly summary, opzionalmente salvandola
+// Genera una weekly summary, opzionalmente salvandola in weekly_summaries
 async function generateWeeklySummaryForUser(userId, language = "it", shouldSave = true) {
   const mentorStyle = await getUserMentorStyle(userId);
   const systemPrompt = buildSystemPromptForMentor(mentorStyle);
@@ -252,11 +253,16 @@ ${serialized || "(nessun dato disponibile)"}
       .single();
 
     if (insertError) {
-      console.error("❌ Error inserting weekly_summary", insertError);
-      throw insertError;
+      // se la tabella non esiste, non blocchiamo l'utente
+      if (insertError.code === "PGRST205") {
+        console.warn("⚠️ weekly_summaries table not found, returning summary without save");
+      } else {
+        console.error("❌ Error inserting weekly_summary", insertError);
+        throw insertError;
+      }
+    } else {
+      inserted = ins;
     }
-
-    inserted = ins;
   }
 
   return { summaryText, inserted };
@@ -290,7 +296,6 @@ Nota dell'utente: ${note || "(nessuna nota)"}
       messages: [{ role: "user", content: userMessage }],
     });
 
-    // Proviamo a estrarre i tag da una sezione tipo "Tag: [...]"
     let reflectionText = raw;
     let tags = null;
 
@@ -371,7 +376,6 @@ fastify.get("/api/mood/overview", async (request, reply) => {
 });
 
 // ========== ENDPOINT COMPATIBILE: /api/analytics/daily ==========
-// Il frontend chiama ancora questo endpoint: lo facciamo puntare alla stessa logica di /api/mood/overview
 
 fastify.get("/api/analytics/daily", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
@@ -408,6 +412,42 @@ fastify.get("/api/analytics/daily", async (request, reply) => {
   }
 });
 
+// ========== ENDPOINT: ANALYTICS TAGS (/api/analytics/tags) ==========
+
+fastify.get("/api/analytics/tags", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  try {
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("tags")
+      .eq("user_id", userId);
+
+    if (error) {
+      console.error("❌ Error fetching tags from mood_entries", error);
+      return reply.status(500).send({ error: "DB fetch failed" });
+    }
+
+    const tagCounts = {};
+    for (const row of entries || []) {
+      if (!row.tags || !Array.isArray(row.tags)) continue;
+      for (const tag of row.tags) {
+        if (!tag) continue;
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      }
+    }
+
+    return reply.send({ tagCounts });
+  } catch (error) {
+    console.error("❌ Analytics tags error:", error);
+    return reply.status(500).send({ error: "Analytics tags failed" });
+  }
+});
+
 // ========== ENDPOINT: WEEKLY SUMMARY (POST) ==========
 
 fastify.post("/api/summary/weekly", async (request, reply) => {
@@ -435,7 +475,6 @@ fastify.post("/api/summary/weekly", async (request, reply) => {
 });
 
 // ========== ENDPOINT COMPATIBILE: GET /api/summary ==========
-// Il frontend chiama ancora GET /api/summary?user_id=...&save=true
 
 fastify.get("/api/summary", async (request, reply) => {
   const userId = request.query.user_id || request.query.userId;
@@ -485,6 +524,10 @@ fastify.get("/api/summary/weekly", async (request, reply) => {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (error.code === "PGRST205") {
+        console.warn("⚠️ weekly_summaries table not found, returning empty list");
+        return reply.send({ summaries: [] });
+      }
       console.error("❌ Error fetching weekly_summaries", error);
       return reply.status(500).send({ error: "DB fetch failed" });
     }
@@ -513,6 +556,10 @@ fastify.get("/api/summary/history", async (request, reply) => {
       .order("created_at", { ascending: false });
 
     if (error) {
+      if (error.code === "PGRST205") {
+        console.warn("⚠️ weekly_summaries table not found (history), returning empty list");
+        return reply.send({ summaries: [] });
+      }
       console.error("❌ Error fetching weekly_summaries (history)", error);
       return reply.status(500).send({ error: "DB fetch failed" });
     }
@@ -558,7 +605,7 @@ fastify.get("/api/emotional-note/latest", async (request, reply) => {
   }
 });
 
-// ========== ENDPOINT: CHAT ==========
+// ========== ENDPOINT: CHAT (POST) ==========
 
 fastify.post("/api/chat", async (request, reply) => {
   const { userId, message, language = "it" } = request.body || {};
@@ -583,8 +630,6 @@ fastify.post("/api/chat", async (request, reply) => {
     }
 
     const messages = [
-      // passiamo solo i messaggi non-system a callOpenAIChat,
-      // perché la funzione aggiunge già il system all'inizio
       ...(history || []).map((m) => ({
         role: m.role,
         content: m.content,
@@ -618,11 +663,89 @@ fastify.post("/api/chat", async (request, reply) => {
   }
 });
 
+// ========== ENDPOINT: CHAT HISTORY (GET /api/chat/history) ==========
+
+fastify.get("/api/chat/history", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("chat_messages")
+      .select("role, content, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(50);
+
+    if (error) {
+      console.error("❌ Error fetching chat history (GET)", error);
+      return reply.status(500).send({ error: "DB fetch failed" });
+    }
+
+    return reply.send({ messages: data || [] });
+  } catch (error) {
+    console.error("❌ Chat history error:", error);
+    return reply.status(500).send({ error: "Chat history failed" });
+  }
+});
+
+// ========== ENDPOINT: EMOTIONAL PROFILE (/api/emotional-profile) ==========
+
+fastify.get("/api/emotional-profile", async (request, reply) => {
+  const userId = request.query.user_id || request.query.userId;
+
+  if (!userId) {
+    return reply.status(400).send({ error: "Missing userId" });
+  }
+
+  try {
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("mood, tags, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: true })
+      .limit(60);
+
+    if (error) {
+      console.error("❌ Error fetching mood_entries for emotional profile", error);
+      return reply.status(500).send({ error: "DB fetch failed" });
+    }
+
+    // calcola conteggio mood
+    const moodCounts = {};
+    const tagCounts = {};
+    for (const e of entries || []) {
+      if (e.mood) {
+        moodCounts[e.mood] = (moodCounts[e.mood] || 0) + 1;
+      }
+      if (Array.isArray(e.tags)) {
+        for (const t of e.tags) {
+          if (!t) continue;
+          tagCounts[t] = (tagCounts[t] || 0) + 1;
+        }
+      }
+    }
+
+    // profilo minimale: nessuna chiamata AI per ora (evitiamo costi extra)
+    return reply.send({
+      moodCounts,
+      tagCounts,
+      hasData: (entries || []).length > 0,
+    });
+  } catch (error) {
+    console.error("❌ Emotional profile error:", error);
+    return reply.status(500).send({ error: "Emotional profile failed" });
+  }
+});
+
 // ========== START SERVER ==========
 
 try {
   await fastify.listen({ port: PORT, host: HOST });
-  fastify.log.info(`🚀 MyndSelf backend (Mentor + compat) running on http://${HOST}:${PORT}`);
+  fastify.log.info(`🚀 MyndSelf backend (Mentor + compat + analytics) running on http://${HOST}:${PORT}`);
 } catch (err) {
   fastify.log.error(err);
   process.exit(1);

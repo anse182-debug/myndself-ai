@@ -1,7 +1,7 @@
 // src/Landing.tsx
-import { Logo } from "./Logo"
-import { Section } from "./Section"
-import { CTAForm } from "./CTAForm"
+import { Logo } from "./Components/Logo"
+import { Section } from "./Components/Section"
+import { CTAForm } from "./Components/CTAForm"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 

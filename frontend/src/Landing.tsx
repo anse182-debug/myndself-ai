@@ -56,16 +56,16 @@ export default function Landing() {
               <span className="text-lg">🧠</span>
               Una micro-pausa emotiva, ogni giorno
             </p>
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-mist">
-              Chiarezza mentale in <span className="text-aqua">60 secondi</span>,
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-100">
+              Chiarezza mentale in <span className="text-emerald-300">60 secondi</span>,
               con un Mentor AI gentile.
             </h1>
-            <p className="text-sm sm:text-base text-mist/80 max-w-xl">
+            <p className="text-sm sm:text-base text-gray-300 max-w-xl">
               MyndSelf.ai ti aiuta a registrare come stai, vedere i tuoi pattern
               emotivi e parlare con un&apos;AI allenata sulla cura di sé.
               Niente giudizi, solo spazio sicuro e chiarezza in pochi minuti.
             </p>
-            <ul className="text-sm text-mist/80 space-y-1">
+            <ul className="text-sm text-gray-300 space-y-1">
               <li>• Check-in emotivi veloci, anche quando hai pochissimo tempo</li>
               <li>• Un Mentor AI che ricorda come ti senti nel tempo</li>
               <li>• Insight e trend per riconoscere i tuoi pattern</li>
@@ -73,17 +73,17 @@ export default function Landing() {
 
             <div
               id="early-access"
-              className="mt-6 max-w-xl bg-dark/40 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur"
+              className="mt-6 max-w-xl bg-gray-950/40 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur"
             >
-              <p className="text-xs uppercase tracking-wide text-mist/60 mb-1">
+              <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
                 Pre-lancio • Accesso anticipato
               </p>
-              <p className="text-sm text-mist mb-3">
+              <p className="text-sm text-gray-100 mb-3">
                 Iscriviti per entrare tra i primi a provare MyndSelf.ai e per
                 ricevere un invito alla beta privata.
               </p>
               <CTAForm apiBase={API_BASE} />
-              <p className="mt-2 text-[11px] text-mist/60">
+              <p className="mt-2 text-[11px] text-gray-400">
                 Nessuno spam, solo aggiornamenti importanti sul lancio.
               </p>
             </div>
@@ -100,7 +100,7 @@ export default function Landing() {
                     </div>
                     <div>
                       <p className="text-xs text-mist/70">Oggi</p>
-                      <p className="text-sm font-medium text-mist">
+                      <p className="text-sm font-medium text-gray-100">
                         Riflessione del giorno
                       </p>
                     </div>
@@ -118,7 +118,7 @@ export default function Landing() {
                     {["Calmo", "Grato", "Stressato", "Sovraccarico"].map((mood) => (
                       <span
                         key={mood}
-                        className="text-[11px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-mist/80"
+                        className="text-[11px] px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-gray-300"
                       >
                         {mood}
                       </span>
@@ -137,7 +137,7 @@ export default function Landing() {
                   </p>
                 </div>
 
-                <button className="w-full mt-1 text-xs font-medium bg-aqua/90 text-dark rounded-xl py-2.5 hover:bg-aqua transition-colors">
+                <button className="w-full mt-1 text-xs font-medium bg-emerald-400/90 text-dark rounded-xl py-2.5 hover:bg-emerald-400 transition-colors">
                   Inizia il tuo primo check-in
                 </button>
               </div>
@@ -169,7 +169,7 @@ export default function Landing() {
       </div>
 
       {/* MENTOR AI */}
-      <div id="mentor" className="border-t border-white/5 bg-dark/40">
+      <div id="mentor" className="border-t border-white/5 bg-gray-950/40">
         <Section
           title="Il tuo Mentor AI, su misura"
           subtitle="Non un chatbot generico, ma un alleato che si modella su di te e sui tuoi stati emotivi."
@@ -188,13 +188,13 @@ export default function Landing() {
               <li>• Sintesi emotive settimanali che danno un quadro d&apos;insieme</li>
               <li>• Ricordo dei pattern, senza riproporti sempre le stesse cose</li>
             </ul>
-            <p className="text-xs text-mist/60">
+            <p className="text-xs text-gray-400">
               MyndSelf.ai non sostituisce un professionista, ma può diventare uno
               spazio quotidiano per prenderti cura di te con continuità.
             </p>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 space-y-3 text-sm">
-            <p className="text-[11px] text-aqua/80 uppercase tracking-wide">
+            <p className="text-[11px] text-emerald-300/80 uppercase tracking-wide">
               Esempio di momento con il Mentor
             </p>
             <Bubble role="assistant">
@@ -223,7 +223,7 @@ export default function Landing() {
         />
         <div className="max-w-6xl mx-auto px-6 pb-16 grid gap-6 md:grid-cols-2">
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 space-y-3 text-sm text-mist/85">
-            <h3 className="text-sm font-semibold text-mist">Trend settimanali</h3>
+            <h3 className="text-sm font-semibold text-gray-100">Trend settimanali</h3>
             <p>
               MyndSelf.ai crea piccole sintesi della tua settimana emotiva,
               evidenziando cosa è cambiato, cosa torna spesso e dove stai
@@ -236,7 +236,7 @@ export default function Landing() {
             </ul>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 text-sm text-mist/85">
-            <h3 className="text-sm font-semibold text-mist">
+            <h3 className="text-sm font-semibold text-gray-100">
               Un grafico che parla di te, non solo di numeri
             </h3>
             <p className="mt-2">
@@ -245,7 +245,7 @@ export default function Landing() {
               aiutarti a riconoscere quando è il momento di rallentare, di chiedere
               supporto o di celebrare.
             </p>
-            <p className="mt-2 text-xs text-mist/60">
+            <p className="mt-2 text-xs text-gray-400">
               La versione beta si concentrerà su pochi indicatori essenziali, per
               non trasformare la tua vita emotiva in una dashboard da KPI.
             </p>
@@ -254,24 +254,24 @@ export default function Landing() {
       </div>
 
       {/* CTA FINALE */}
-      <section className="border-t border-white/5 bg-dark/60">
+      <section className="border-t border-white/5 bg-gray-950/60">
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-16 grid gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-center">
           <div>
-            <h2 className="text-2xl md:text-3xl font-semibold text-mist">
+            <h2 className="text-2xl md:text-3xl font-semibold text-gray-100">
               Vuoi essere tra i primi a costruire il tuo rituale con MyndSelf.ai?
             </h2>
-            <p className="mt-3 text-sm text-mist/80 max-w-lg">
+            <p className="mt-3 text-sm text-gray-300 max-w-lg">
               Stiamo preparando una beta privata con un piccolo gruppo di persone
               che vogliono prendersi cura delle proprie emozioni in modo gentile ma
               strutturato. Se ti risuona, lascia la tua email.
             </p>
-            <p className="mt-2 text-xs text-mist/60">
+            <p className="mt-2 text-xs text-gray-400">
               Useremo la beta per co-creare il prodotto insieme e definire il Mentor
               AI sulle situazioni reali delle persone.
             </p>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5">
-            <p className="text-xs uppercase tracking-wide text-mist/60 mb-1">
+            <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
               Early access · Limited seats
             </p>
             <CTAForm apiBase={API_BASE} compact />
@@ -304,7 +304,7 @@ export default function Landing() {
 
       {/* FOOTER */}
       <footer className="border-t border-white/5 bg-gray-950">
-        <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-mist/60">
+        <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
           <span>© {new Date().getFullYear()} MyndSelf.ai</span>
           <span>Uno spazio sicuro per le tue emozioni.</span>
         </div>
@@ -316,7 +316,7 @@ export default function Landing() {
 function Card({ title, body }: { title: string; body: string }) {
   return (
     <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 text-sm text-mist/85">
-      <h3 className="text-sm font-semibold text-mist mb-2">{title}</h3>
+      <h3 className="text-sm font-semibold text-gray-100 mb-2">{title}</h3>
       <p>{body}</p>
     </div>
   )
@@ -335,7 +335,7 @@ function Bubble({
       className={`max-w-[90%] px-3 py-2 rounded-2xl text-xs ${
         isUser
           ? "ml-auto bg-emerald-500/20 text-emerald-50"
-          : "bg-white/5 text-mist"
+          : "bg-white/5 text-gray-100"
       }`}
     >
       {children}
@@ -346,8 +346,8 @@ function Bubble({
 function FAQ({ q, a }: { q: string; a: string }) {
   return (
     <div>
-      <p className="font-medium text-mist mb-1">{q}</p>
-      <p className="text-mist/80 text-sm">{a}</p>
+      <p className="font-medium text-gray-100 mb-1">{q}</p>
+      <p className="text-gray-300 text-sm">{a}</p>
     </div>
   )
 }

@@ -1,5 +1,4 @@
 // src/Landing.tsx
-import { Logo } from "./components/Logo"
 import { Section } from "./components/Section"
 import { CTAForm } from "./components/CTAForm"
 
@@ -10,25 +9,43 @@ export default function Landing() {
     <main className="min-h-screen bg-gray-950 text-gray-50">
       {/* HEADER */}
       <header className="border-b border-white/5">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Logo />
-          <nav className="hidden md:flex items-center gap-6 text-sm text-mist/80">
-            <a href="#how-it-works" className="hover:text-mist">Come funziona</a>
-            <a href="#mentor" className="hover:text-mist">Mentor AI</a>
-            <a href="#insight" className="hover:text-mist">Insight</a>
-            <a href="#faq" className="hover:text-mist">FAQ</a>
-          </nav>
-          <button
-            className="hidden md:inline-flex text-xs font-medium px-3 py-1.5 rounded-full border border-white/10 hover:border-aqua/70 hover:text-aqua"
-            onClick={() => {
-              const el = document.getElementById("early-access")
-              if (el) el.scrollIntoView({ behavior: "smooth" })
-            }}
-          >
-            Ottieni l&apos;accesso anticipato
-          </button>
-        </div>
-      </header>
+  <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between gap-3">
+    <div className="flex items-center gap-3">
+      <img src="/logo.svg" alt="MyndSelf.ai" className="h-9" />
+      <div>
+        <h1 className="text-lg font-semibold text-emerald-200">
+          MyndSelf.ai
+        </h1>
+        <p className="text-xs text-gray-400">
+          Intelligenza emotiva supportata dall&apos;AI
+        </p>
+      </div>
+    </div>
+
+    <div className="flex items-center gap-4">
+      <nav className="hidden md:flex items-center gap-6 text-sm text-gray-300">
+        <a href="#how-it-works" className="hover:text-gray-100">
+          Come funziona
+        </a>
+        <a href="#mentor" className="hover:text-gray-100">
+          Mentor AI
+        </a>
+        <a href="#insight" className="hover:text-gray-100">
+          Insight
+        </a>
+        <a href="#faq" className="hover:text-gray-100">
+          FAQ
+        </a>
+      </nav>
+      <a
+        href="/app"
+        className="hidden md:inline-flex text-sm bg-emerald-400 text-gray-950 rounded px-3 py-1.5 hover:bg-emerald-300 transition"
+      >
+        Apri nell&apos;app
+      </a>
+    </div>
+  </div>
+</header>
 
       {/* HERO */}
       <section className="relative overflow-hidden border-b border-white/5">

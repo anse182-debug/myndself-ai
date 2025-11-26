@@ -218,7 +218,7 @@ export default function Landing() {
       <div id="insight">
         <Section
           title="Insight che ti restituiscono la trama"
-          subtitle="Non solo sfoghi, ma una visione più chiara di come ti muovi nel tempo."
+          subtitle="Non solo sfoghi, ma una visione più chiara di come ti muovi nel tempo: quando ti carichi, quando ti scarichi e quali temi tornano più spesso nella tua vita."
         />
         <div className="max-w-6xl mx-auto px-6 pb-16 grid gap-6 md:grid-cols-2">
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 space-y-3 text-sm text-mist/85">
@@ -245,8 +245,7 @@ export default function Landing() {
               supporto o di celebrare.
             </p>
             <p className="mt-2 text-xs text-gray-400">
-              La versione beta si concentrerà su pochi indicatori essenziali, per
-              non trasformare la tua vita emotiva in una dashboard da KPI.
+              La versione beta si concentrerà su pochi indicatori essenziali, per non trasformare la tua vita emotiva in una dashboard da KPI, ma in una mappa che ha senso per te.
             </p>
           </div>
         </div>

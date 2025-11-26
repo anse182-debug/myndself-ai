@@ -85,6 +85,29 @@ const copy = {
       graphNote:
         "La versione beta si concentrerà su pochi indicatori essenziali, per non trasformare la tua vita emotiva in una dashboard da KPI.",
     },
+
+    beta: {
+    title: "Cosa troverai nella beta",
+    subtitle:
+      "La beta privata si concentra su poche cose essenziali, ma già utili per capire se MyndSelf fa per te.",
+    items: [
+      {
+        title: "Check-in emotivi veloci",
+        body:
+          "Puoi registrare come stai in meno di un minuto, con emozioni selezionabili e uno spazio di testo solo quando ne senti il bisogno.",
+      },
+      {
+        title: "Prime versioni del Mentor AI",
+        body:
+          "Un Mentor gentile che ti fa domande brevi, ti restituisce una piccola sintesi e inizia a riconoscere i tuoi pattern emotivi.",
+      },
+      {
+        title: "Insight e trend base",
+        body:
+          "Una prima vista sui momenti in cui ti senti più scarico o carico, e su alcune ricorrenze nelle parole che usi.",
+      },
+    ],
+  },
     cta: {
       title:
         "Vuoi essere tra i primi a costruire il tuo rituale con MyndSelf.ai?",
@@ -197,6 +220,29 @@ const copy = {
       graphNote:
         "The beta will focus on a few essential indicators, so your emotional life doesn’t turn into just another KPI dashboard.",
     },
+
+beta: {
+    title: "What you’ll find in the beta",
+    subtitle:
+      "The private beta focuses on a few essential pieces that are already useful to see if MyndSelf is a fit for you.",
+    items: [
+      {
+        title: "Fast emotional check-ins",
+        body:
+          "You can capture how you feel in under a minute, with selectable emotions and a text field only when you need it.",
+      },
+      {
+        title: "Early versions of the AI mentor",
+        body:
+          "A gentle mentor that asks short questions, gives you a small reflection back and starts noticing your emotional patterns.",
+      },
+      {
+        title: "Basic insights and trends",
+        body:
+          "An initial view on when you feel more drained or energised, and on recurring themes in the words you use.",
+      },
+    ],
+  },
     cta: {
       title: "Want to be among the first to build this ritual with MyndSelf.ai?",
       body:
@@ -241,7 +287,7 @@ const [lang, setLang] = useState<Lang>(() =>
       : "en"
   )
 
-  const { header, hero, how, mentor, insight, cta, faq, footer } = copy[lang]
+  const { header, hero, how, mentor, insight, beta, cta, faq, footer } = copy[lang]
   
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
@@ -464,6 +510,15 @@ const [lang, setLang] = useState<Lang>(() =>
               {insight.graphNote}
             </p>
           </div>
+        </div>
+      </div>
+      {/* BETA OVERVIEW */}
+      <div id="beta">
+        <Section title={beta.title} subtitle={beta.subtitle} />
+        <div className="max-w-6xl mx-auto px-6 pb-16 grid gap-6 md:grid-cols-3">
+          {beta.items.map((item) => (
+            <Card key={item.title} title={item.title} body={item.body} />
+          ))}
         </div>
       </div>
 

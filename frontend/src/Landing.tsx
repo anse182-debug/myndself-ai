@@ -9,6 +9,14 @@ type Lang = "it" | "en"
 
 const copy = {
   it: {
+    header: {
+      how: "Come funziona",
+      mentor: "Mentor AI",
+      insight: "Insight",
+      faq: "FAQ",
+      openApp: "Apri nell'app",
+      betaBadge: "Pre-lancio • Accesso anticipato",
+    },
     hero: {
       pill: "Una micro-pausa emotiva, ogni giorno",
       title: "Chiarezza mentale in 60 secondi, con un Mentor AI gentile.",
@@ -19,9 +27,108 @@ const copy = {
         "Un Mentor AI che ricorda come ti senti e ti fa le domande giuste",
         "Insight e trend che ti aiutano a riconoscere i tuoi pattern",
       ],
+      ctaTitle:
+        "Iscriviti per entrare tra i primi a provare MyndSelf.ai e per ricevere un invito alla beta privata.",
+      ctaNote: "Nessuno spam, solo aggiornamenti importanti sul lancio.",
+    },
+    how: {
+      title: "Come funziona MyndSelf.ai",
+      subtitle:
+        "Un rituale emotivo leggero, costruito intorno a tre momenti chiave.",
+      cards: [
+        {
+          title: "1. Check-in veloce",
+          body: "Ogni giorno, in meno di un minuto, registri come ti senti con poche parole e qualche tocco.",
+        },
+        {
+          title: "2. Mentor AI",
+          body: "Un'AI gentile ti fa domande, ti restituisce prospettiva e sintetizza cosa sta succedendo dentro di te.",
+        },
+        {
+          title: "3. Insight nel tempo",
+          body: "Settimana dopo settimana, vedi pattern, ricorrenze emotive e piccoli cambiamenti che da solo non noteresti.",
+        },
+      ],
+    },
+    mentor: {
+      title: "Il tuo Mentor AI, su misura",
+      subtitle:
+        "Non un chatbot generico, ma un alleato che si modella su di te e sui tuoi stati emotivi.",
+      body: [
+        "MyndSelf.ai impara dal modo in cui descrivi le tue giornate, dalle emozioni che ricorrono e da come rispondi alle domande. Non è lì per giudicarti, ma per aiutarti a vedere più chiaramente cosa sta succedendo dentro di te.",
+      ],
+      bullets: [
+        "Stile di dialogo gentile, diretto ma non invadente",
+        "Domande brevi che ti aiutano a mettere ordine",
+        "Sintesi emotive settimanali che ti danno un quadro d’insieme",
+        "Ricordo dei pattern, senza riproporti sempre le stesse cose",
+      ],
+      disclaimer:
+        "MyndSelf.ai non sostituisce un percorso professionale, ma può diventare uno spazio quotidiano in cui prenderti cura di te con continuità.",
+      exampleLabel: "Esempio di momento con il Mentor",
+    },
+    insight: {
+      title: "Insight che ti restituiscono la trama",
+      subtitle:
+        "Non solo sfoghi, ma una visione più chiara di come ti muovi nel tempo.",
+      trendTitle: "Trend settimanali",
+      trendBody:
+        "MyndSelf.ai crea piccole sintesi della tua settimana emotiva, evidenziando cosa è cambiato, cosa torna spesso e dove stai costruendo nuove abitudini interiori.",
+      trendList: [
+        "Momenti in cui ti senti più scarico o sovraccarico",
+        "Temi che ricorrono nelle tue parole",
+        "Piccoli progressi che rischieresti di non notare",
+      ],
+      graphTitle: "Un grafico che parla di te, non solo di numeri",
+      graphBody:
+        "Man mano che registri le tue riflessioni, MyndSelf.ai costruisce una mappa delle emozioni che attraversi. Non per giudicarti, ma per aiutarti a riconoscere quando è il momento di rallentare, chiedere supporto o celebrare.",
+      graphNote:
+        "La versione beta si concentrerà su pochi indicatori essenziali, per non trasformare la tua vita emotiva in una dashboard da KPI.",
+    },
+    cta: {
+      title:
+        "Vuoi essere tra i primi a costruire il tuo rituale con MyndSelf.ai?",
+      body:
+        "Stiamo preparando una beta privata con un piccolo gruppo di persone che vogliono prendersi cura delle proprie emozioni in modo gentile ma strutturato. Se ti risuona, lascia la tua email.",
+      note:
+        "Useremo la beta per co-creare il prodotto insieme e definire il Mentor AI sulle situazioni reali delle persone.",
+      label: "Early access · Posti limitati",
+    },
+    faq: {
+      title: "Domande frequenti",
+      items: [
+        {
+          q: "MyndSelf.ai sostituisce un percorso con uno psicologo?",
+          a: "No. MyndSelf.ai può diventare un alleato quotidiano per fare chiarezza, ma non sostituisce un professionista. Può però aiutarti ad arrivare alla terapia con più consapevolezza di ciò che senti.",
+        },
+        {
+          q: "Quanto tempo richiede ogni giorno?",
+          a: "L'obiettivo è restare sotto il minuto per il check-in quotidiano, con la possibilità di approfondire solo quando ne senti il bisogno.",
+        },
+        {
+          q: "I miei dati sono al sicuro?",
+          a: "Le riflessioni sono salvate in modo sicuro e usate solo per generare insight per te. Non vendiamo i tuoi dati e non li usiamo per advertising.",
+        },
+        {
+          q: "Quando partirà la beta?",
+          a: "Stiamo lavorando alla beta chiusa nei prossimi mesi. Le persone iscritte alla lista d'attesa riceveranno l'invito in anticipo rispetto al lancio pubblico.",
+        },
+      ],
+    },
+    footer: {
+      tagline: "Uno spazio sicuro per le tue emozioni.",
     },
   },
+
   en: {
+    header: {
+      how: "How it works",
+      mentor: "AI Mentor",
+      insight: "Insights",
+      faq: "FAQ",
+      openApp: "Open the app",
+      betaBadge: "Pre-launch • Early access",
+    },
     hero: {
       pill: "A tiny emotional check-in, every day",
       title: "Emotional clarity in 60 seconds, with a gentle AI mentor.",
@@ -32,6 +139,95 @@ const copy = {
         "An AI mentor that remembers how you feel and asks better questions",
         "Insights and trends that help you notice your patterns",
       ],
+      ctaTitle:
+        "Join the early access list to be among the first to try MyndSelf.ai.",
+      ctaNote: "No spam, only important updates about the launch.",
+    },
+    how: {
+      title: "How MyndSelf.ai works",
+      subtitle:
+        "A light emotional ritual, built around three key moments.",
+      cards: [
+        {
+          title: "1. Quick check-in",
+          body: "Every day, in under a minute, you capture how you feel with a few taps and words.",
+        },
+        {
+          title: "2. AI mentor",
+          body: "A gentle AI asks you questions, gives you perspective and summarises what’s going on inside.",
+        },
+        {
+          title: "3. Insights over time",
+          body: "Week after week, you start seeing patterns, recurring themes and small changes you’d normally miss.",
+        },
+      ],
+    },
+    mentor: {
+      title: "Your AI mentor, shaped around you",
+      subtitle:
+        "Not a generic chatbot, but an ally that adapts to you and your emotional states.",
+      body: [
+        "MyndSelf.ai learns from how you describe your days, from the emotions that keep coming back and from how you answer its questions. It’s not there to judge you, but to help you see things more clearly.",
+      ],
+      bullets: [
+        "Gentle, direct dialogue without being intrusive",
+        "Short questions that help you put things in order",
+        "Weekly emotional summaries that give you the bigger picture",
+        "Memory of your patterns, without repeating the same advice",
+      ],
+      disclaimer:
+        "MyndSelf.ai doesn’t replace professional help, but it can become a daily space where you take care of yourself with continuity.",
+      exampleLabel: "Example of a moment with the mentor",
+    },
+    insight: {
+      title: "Insights that give you back the storyline",
+      subtitle:
+        "Not only venting, but a clearer view of how you move through time.",
+      trendTitle: "Weekly trends",
+      trendBody:
+        "MyndSelf.ai creates short summaries of your emotional week, highlighting what changed, what keeps showing up and where you’re building new inner habits.",
+      trendList: [
+        "Moments when you feel more drained or overwhelmed",
+        "Themes that keep coming back in your words",
+        "Small progress you would otherwise overlook",
+      ],
+      graphTitle: "A graph that talks about you, not just numbers",
+      graphBody:
+        "As you log your reflections, MyndSelf.ai builds a map of the emotions you go through. Not to judge you, but to help you know when it’s time to slow down, reach out or celebrate.",
+      graphNote:
+        "The beta will focus on a few essential indicators, so your emotional life doesn’t turn into just another KPI dashboard.",
+    },
+    cta: {
+      title: "Want to be among the first to build this ritual with MyndSelf.ai?",
+      body:
+        "We’re preparing a private beta with a small group of people who want to care for their emotions in a gentle but structured way. If that resonates with you, leave your email.",
+      note:
+        "We’ll co-create the product together and tune the AI mentor on real-life situations.",
+      label: "Early access · Limited seats",
+    },
+    faq: {
+      title: "Frequently asked questions",
+      items: [
+        {
+          q: "Does MyndSelf.ai replace therapy?",
+          a: "No. MyndSelf.ai can be a daily ally to gain clarity, but it does not replace a professional. It can, however, help you arrive in therapy with more awareness of what you feel.",
+        },
+        {
+          q: "How much time does it take each day?",
+          a: "The goal is to stay under one minute for the daily check-in, with the option to go deeper only when you want to.",
+        },
+        {
+          q: "Are my data safe?",
+          a: "Your reflections are stored securely and only used to generate insights for you. We don’t sell your data and we don’t use them for advertising.",
+        },
+        {
+          q: "When will the beta start?",
+          a: "We’re working on a closed beta in the next few months. People on the waitlist will receive the invite before the public launch.",
+        },
+      ],
+    },
+    footer: {
+      tagline: "A safe space for your emotions.",
     },
   },
 } as const
@@ -45,7 +241,7 @@ const [lang, setLang] = useState<Lang>(() =>
       : "en"
   )
 
-  const t = copy[lang].hero
+  const { header, hero, how, mentor, insight, cta, faq, footer } = copy[lang]
   
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
@@ -67,16 +263,16 @@ const [lang, setLang] = useState<Lang>(() =>
     <div className="flex items-center gap-4">
       <nav className="hidden md:flex items-center gap-6 text-sm text-gray-300">
         <a href="#how-it-works" className="hover:text-gray-100">
-          Come funziona
+          {header.how}
         </a>
         <a href="#mentor" className="hover:text-gray-100">
-          Mentor AI
+          {header.mentor}
         </a>
         <a href="#insight" className="hover:text-gray-100">
-          Insight
+          {header.insight}
         </a>
         <a href="#faq" className="hover:text-gray-100">
-          FAQ
+          {header.faq}
         </a>
       </nav>
       <button
@@ -98,16 +294,16 @@ const [lang, setLang] = useState<Lang>(() =>
           <div className="space-y-5">
             <p className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/40 text-emerald-100">
               <span className="text-lg">🧠</span>
-              {t.pill}
+              {hero.pill}
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-100">
-             {t.title}
+             {hero.title}
             </h1>
             <p className="text-sm sm:text-base text-gray-300 max-w-xl">
-             {t.subtitle}
+             {hero.subtitle}
             </p>
             <ul className="text-sm text-gray-300 space-y-1">
-              {t.bullets.map((line) => (
+              {hero.bullets.map((line) => (
           <li key={line}>• {line}</li>
         ))}
             </ul>
@@ -117,15 +313,14 @@ const [lang, setLang] = useState<Lang>(() =>
               className="mt-6 max-w-xl bg-gray-950/40 border border-white/10 rounded-2xl p-4 sm:p-5 backdrop-blur"
             >
               <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
-                Pre-lancio • Accesso anticipato
+                {header.betaBadge}
               </p>
               <p className="text-sm text-gray-100 mb-3">
-                Iscriviti per entrare tra i primi a provare MyndSelf.ai e per
-                ricevere un invito alla beta privata.
+                {hero.ctaTitle}
               </p>
               <CTAForm apiBase={API_BASE} />
               <p className="mt-2 text-[11px] text-gray-400">
-                Nessuno spam, solo aggiornamenti importanti sul lancio.
+                {hero.ctaNote}
               </p>
             </div>
           </div>
@@ -190,22 +385,13 @@ const [lang, setLang] = useState<Lang>(() =>
       {/* COME FUNZIONA */}
       <div id="how-it-works">
         <Section
-          title="Come funziona MyndSelf.ai"
-          subtitle="Un rituale emotivo leggero, costruito intorno a tre momenti chiave."
+          title={how.title}
+          subtitle={how.subtitle}
         />
         <div className="max-w-6xl mx-auto px-6 pb-12 grid gap-6 md:grid-cols-3">
-          <Card
-            title="1. Check-in veloce"
-            body="Ogni giorno, in meno di un minuto, registri come ti senti con poche parole e qualche tocco."
-          />
-          <Card
-            title="2. Mentor AI"
-            body="Un'AI gentile ti fa domande, ti restituisce prospettiva e sintetizza cosa sta succedendo dentro di te."
-          />
-          <Card
-            title="3. Insight nel tempo"
-            body="Settimana dopo settimana, vedi pattern, ricorrenze emotive e piccoli cambiamenti che da solo non noteresti."
-          />
+          {how.cards.map((card) => (
+    <Card key={card.title} title={card.title} body={card.body} />
+  ))}
         </div>
       </div>
 

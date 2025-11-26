@@ -1,10 +1,52 @@
 // src/Landing.tsx
+import { useState } from "react"
 import { Section } from "./components/Section"
 import { CTAForm } from "./components/CTAForm"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 
+type Lang = "it" | "en"
+
+const copy = {
+  it: {
+    hero: {
+      pill: "Una micro-pausa emotiva, ogni giorno",
+      title: "Chiarezza mentale in 60 secondi, con un Mentor AI gentile.",
+      subtitle:
+        "Registri come stai, l’AI ti aiuta a mettere ordine e a vedere i tuoi pattern emotivi nel tempo. Senza giudizio, in un rituale breve che puoi davvero mantenere.",
+      bullets: [
+        "Check-in emotivi veloci, anche quando hai pochissimo tempo",
+        "Un Mentor AI che ricorda come ti senti e ti fa le domande giuste",
+        "Insight e trend che ti aiutano a riconoscere i tuoi pattern",
+      ],
+    },
+  },
+  en: {
+    hero: {
+      pill: "A tiny emotional check-in, every day",
+      title: "Emotional clarity in 60 seconds, with a gentle AI mentor.",
+      subtitle:
+        "Capture how you feel, let the AI help you make sense of it and see your emotional patterns over time — without judgment, in a short ritual you can actually stick to.",
+      bullets: [
+        "Fast emotional check-ins, even when you have almost no time",
+        "An AI mentor that remembers how you feel and asks better questions",
+        "Insights and trends that help you notice your patterns",
+      ],
+    },
+  },
+} as const
+
+
+
 export default function Landing() {
+const [lang, setLang] = useState<Lang>(() =>
+    typeof navigator !== "undefined" && navigator.language?.startsWith("it")
+      ? "it"
+      : "en"
+  )
+
+  const t = copy[lang].hero
+  
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
       {/* HEADER */}
@@ -37,6 +79,13 @@ export default function Landing() {
           FAQ
         </a>
       </nav>
+      <button
+          type="button"
+          onClick={() => setLang(lang === "it" ? "en" : "it")}
+          className="text-xs px-2 py-1 rounded-full border border-white/15 text-gray-300 hover:bg-white/5"
+        >
+          {lang === "it" ? "IT · EN" : "EN · IT"}
+        </button>
       <a
         href="/app"
         className="hidden md:inline-flex text-sm bg-emerald-400 text-gray-950 rounded px-3 py-1.5 hover:bg-emerald-300 transition"
@@ -54,21 +103,18 @@ export default function Landing() {
           <div className="space-y-5">
             <p className="inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-400/40 text-emerald-100">
               <span className="text-lg">🧠</span>
-              Una micro-pausa emotiva, ogni giorno
+              {t.pill}
             </p>
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-semibold tracking-tight text-gray-100">
-              Chiarezza mentale in <span className="text-emerald-300">60 secondi</span>,
-              con un Mentor AI gentile.
+             {t.title}
             </h1>
             <p className="text-sm sm:text-base text-gray-300 max-w-xl">
-              MyndSelf.ai ti aiuta a registrare come stai, vedere i tuoi pattern
-              emotivi e parlare con un&apos;AI allenata sulla cura di sé.
-              Niente giudizi, solo spazio sicuro e chiarezza in pochi minuti.
+             {t.subtitle}
             </p>
             <ul className="text-sm text-gray-300 space-y-1">
-              <li>• Check-in emotivi veloci, anche quando hai pochissimo tempo</li>
-              <li>• Un Mentor AI che ricorda come ti senti nel tempo</li>
-              <li>• Insight e trend per riconoscere i tuoi pattern</li>
+              {t.bullets.map((line) => (
+          <li key={line}>• {line}</li>
+        ))}
             </ul>
 
             <div

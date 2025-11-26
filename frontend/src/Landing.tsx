@@ -398,30 +398,24 @@ const [lang, setLang] = useState<Lang>(() =>
       {/* MENTOR AI */}
       <div id="mentor" className="border-t border-white/5 bg-gray-950/40">
         <Section
-          title="Il tuo Mentor AI, su misura"
-          subtitle="Non un chatbot generico, ma un alleato che si modella su di te e sui tuoi stati emotivi."
+          title={mentor.title}
+          subtitle={mentor.subtitle}
         />
         <div className="max-w-6xl mx-auto px-6 pb-14 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-center">
           <div className="space-y-4 text-sm text-mist/85">
-            <p>
-              MyndSelf.ai impara dal modo in cui descrivi le tue giornate, dalle emozioni che 
-              ricorrono e da come rispondi alle domande. Non è lì per giudicarti, ma per aiutarti a 
-              vedere più chiaramente cosa sta succedendo dentro di te.
-            </p>
+            {mentor.body.map((p) => (
+    <p key={p}>{p}</p>
+  ))}
             <ul className="space-y-2">
-              <li>• Stile di dialogo gentile, diretto ma non invadente</li>
-              <li>• Domande brevi che ti aiutano a mettere ordine</li>
-              <li>• Sintesi emotive settimanali che danno un quadro d&apos;insieme</li>
-              <li>• Ricordo dei pattern, senza riproporti sempre le stesse cose</li>
-            </ul>
-            <p className="text-xs text-gray-400">
-              MyndSelf.ai non sostituisce un professionista, ma può diventare uno
-              spazio quotidiano per prenderti cura di te con continuità.
-            </p>
+    {mentor.bullets.map((b) => (
+      <li key={b}>• {b}</li>
+    ))}
+  </ul>
+            <p className="text-xs text-gray-500">{mentor.disclaimer}</p>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 space-y-3 text-sm">
             <p className="text-[11px] text-emerald-300/80 uppercase tracking-wide">
-              Esempio di momento con il Mentor
+              {mentor.exampleLabel}
             </p>
             <Bubble role="assistant">
               Ho notato che negli ultimi giorni parli spesso di sentirti
@@ -444,35 +438,30 @@ const [lang, setLang] = useState<Lang>(() =>
       {/* INSIGHT / TREND */}
       <div id="insight">
         <Section
-          title="Insight che ti restituiscono la trama"
-          subtitle="Non solo sfoghi, ma una visione più chiara di come ti muovi nel tempo: quando ti carichi, quando ti scarichi e quali temi tornano più spesso nella tua vita."
+          title={insight.title}
+          subtitle={insight.subtitle}
         />
         <div className="max-w-6xl mx-auto px-6 pb-16 grid gap-6 md:grid-cols-2">
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 space-y-3 text-sm text-mist/85">
-            <h3 className="text-sm font-semibold text-gray-100">Trend settimanali</h3>
+            <h3 className="text-sm font-semibold text-gray-100">{insight.trendTitle}</h3>
             <p>
-              MyndSelf.ai crea piccole sintesi della tua settimana emotiva,
-              evidenziando cosa è cambiato, cosa torna spesso e dove stai
-              costruendo nuove abitudini interiori.
+              {insight.trendBody}
             </p>
             <ul className="text-xs text-mist/70 space-y-1.5">
-              <li>• Momenti in cui ti senti più scarico</li>
-              <li>• Temi che tornano spesso nelle tue parole</li>
-              <li>• Piccoli progressi che rischieresti di non vedere</li>
+              {insight.trendList.map((line) => (
+    <li key={line}>• {line}</li>
+  ))}
             </ul>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-5 text-sm text-mist/85">
             <h3 className="text-sm font-semibold text-gray-100">
-              Un grafico che parla di te, non solo di numeri
+              {insight.graphTitle}
             </h3>
             <p className="mt-2">
-              Man mano che registri le tue riflessioni, MyndSelf.ai costruisce una
-              mappa delle emozioni che attraversi. Non per giudicarti, ma per
-              aiutarti a riconoscere quando è il momento di rallentare, di chiedere
-              supporto o di celebrare.
+              {insight.graphBody}
             </p>
             <p className="mt-2 text-xs text-gray-400">
-              La versione beta si concentrerà su pochi indicatori essenziali, per non trasformare la tua vita emotiva in una dashboard da KPI, ma in una mappa che ha senso per te.
+              {insight.graphNote}
             </p>
           </div>
         </div>
@@ -483,21 +472,18 @@ const [lang, setLang] = useState<Lang>(() =>
         <div className="max-w-6xl mx-auto px-6 py-12 md:py-16 grid gap-8 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-center">
           <div>
             <h2 className="text-2xl md:text-3xl font-semibold text-gray-100">
-              Vuoi essere tra i primi a costruire il tuo rituale con MyndSelf.ai?
+              {cta.title}
             </h2>
             <p className="mt-3 text-sm text-gray-300 max-w-lg">
-              Stiamo preparando una beta privata con un piccolo gruppo di persone
-              che vogliono prendersi cura delle proprie emozioni in modo gentile ma
-              strutturato. Se ti risuona, lascia la tua email.
+              {cta.body}
             </p>
             <p className="mt-2 text-xs text-gray-400">
-              Useremo la beta per co-creare il prodotto insieme e definire il Mentor
-              AI sulle situazioni reali delle persone.
+              {cta.note}
             </p>
           </div>
           <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5">
             <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">
-              Early access · Limited seats
+              {cta.label}
             </p>
             <CTAForm apiBase={API_BASE} compact />
           </div>
@@ -506,24 +492,11 @@ const [lang, setLang] = useState<Lang>(() =>
 
       {/* FAQ */}
       <div id="faq" className="border-t border-white/5 bg-gray-950">
-        <Section title="Domande frequenti" />
+        <Section title={faq.title} />
         <div className="max-w-4xl mx-auto px-6 pb-16 space-y-6 text-sm text-mist/85">
-          <FAQ
-            q="MyndSelf.ai sostituisce un percorso con uno psicologo?"
-            a="No. MyndSelf.ai può diventare un alleato quotidiano per fare chiarezza, ma non sostituisce un professionista. Può però aiutarti ad arrivare alla terapia con più consapevolezza di ciò che senti."
-          />
-          <FAQ
-            q="Quanto tempo richiede ogni giorno?"
-            a="L'obiettivo è restare sotto il minuto per il check-in quotidiano, con la possibilità di approfondire solo quando ne senti il bisogno."
-          />
-          <FAQ
-            q="I miei dati sono al sicuro?"
-            a="Le riflessioni sono salvate in modo sicuro e usate solo per generare insight per te. Non vendiamo i tuoi dati e non li usiamo per advertising."
-          />
-          <FAQ
-            q="Quando partirà la beta?"
-            a="Stiamo lavorando alla beta chiusa nei prossimi mesi. Le persone iscritte alla lista d'attesa riceveranno l'invito in anticipo rispetto al lancio pubblico."
-          />
+          {faq.items.map((item) => (
+    <FAQ key={item.q} q={item.q} a={item.a} />
+  ))}
         </div>
       </div>
 
@@ -531,7 +504,7 @@ const [lang, setLang] = useState<Lang>(() =>
       <footer className="border-t border-white/5 bg-gray-950">
         <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
           <span>© {new Date().getFullYear()} MyndSelf.ai</span>
-          <span>Uno spazio sicuro per le tue emozioni.</span>
+          <span>{footer.tagline}</span>
         </div>
       </footer>
     </main>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import { Onboarding } from "./Onboarding"
 import { supabase } from "./lib/supabase"
 import {
   ResponsiveContainer,
@@ -11,6 +12,7 @@ import {
 import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
+const ONBOARDING_KEY = "myndself_onboarding_v1_done"
 
 type SummaryEntry = { id?: string; summary: string; created_at: string }
 type DailyItem = { day: string; entries: number }
@@ -58,6 +60,14 @@ function Spinner() {
 type TabId = "oggi" | "insight" | "guidata" | "chat"
 
 export default function App() {
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(true)
+
+useEffect(() => {
+  if (typeof window === "undefined") return
+  const done = window.localStorage.getItem(ONBOARDING_KEY) === "true"
+  setHasCompletedOnboarding(done)
+}, [])
+
   const [session, setSession] = useState<any>(null)
 
   // journaling & insights

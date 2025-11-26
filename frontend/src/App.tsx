@@ -60,13 +60,14 @@ function Spinner() {
 type TabId = "oggi" | "insight" | "guidata" | "chat"
 
 export default function App() {
-  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(true)
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
 
-useEffect(() => {
-  if (typeof window === "undefined") return
-  const done = window.localStorage.getItem(ONBOARDING_KEY) === "true"
-  setHasCompletedOnboarding(done)
-}, [])
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const done = window.localStorage.getItem(ONBOARDING_KEY) === "true"
+    setHasCompletedOnboarding(done)
+  }, [])
+
 
   const [session, setSession] = useState<any>(null)
 
@@ -102,10 +103,6 @@ useEffect(() => {
   const [emotionalExpanded, setEmotionalExpanded] = useState(false)
   const [emotionalTags, setEmotionalTags] = useState<string[]>([])
 
-  // onboarding
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [onboardingStep, setOnboardingStep] = useState(1)
-
   // tab / viste
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
 
@@ -128,26 +125,6 @@ useEffect(() => {
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-
-  // onboarding: mostra solo se non già visto
-  useEffect(() => {
-    const seen = localStorage.getItem("myndself-onboarded-v1")
-    if (!seen) setShowOnboarding(true)
-  }, [])
-
-  const completeOnboarding = () => {
-    localStorage.setItem("myndself-onboarded-v1", "true")
-    setShowOnboarding(false)
-  }
-
-  const handleOnboardingNext = () => {
-    if (onboardingStep === 1) setOnboardingStep(2)
-    else completeOnboarding()
-  }
-
-  const handleOnboardingSkip = () => {
-    completeOnboarding()
-  }
 
   // fetch iniziale dati (solo se loggato)
   useEffect(() => {
@@ -501,6 +478,19 @@ useEffect(() => {
       { id: "guidata", label: "Guidata" },
       { id: "chat", label: "Chat" },
     ]
+    // ---------- RENDER ----------
+  if (!hasCompletedOnboarding) {
+    return (
+      <Onboarding
+        onFinish={() => {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(ONBOARDING_KEY, "true")
+          }
+          setHasCompletedOnboarding(true)
+        }}
+      />
+    )
+  }
     return (
       <nav className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
         <div className="flex justify-between sm:justify-start sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
@@ -528,66 +518,7 @@ useEffect(() => {
   // ---------- RENDER ----------
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
-      {/* ONBOARDING OVERLAY */}
-      {showOnboarding && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-md mx-4 bg-gray-900 border border-emerald-400/40 rounded-2xl p-5 shadow-xl">
-            <p className="text-[11px] text-emerald-300 mb-1 uppercase tracking-wide">
-              Benvenuto su MyndSelf
-            </p>
-            {onboardingStep === 1 ? (
-              <>
-                <h2 className="text-sm font-semibold text-emerald-100 mb-2">
-                  Come usarla in 30 secondi
-                </h2>
-                <ul className="text-xs text-gray-300 space-y-1.5 mb-3">
-                  <li>• A fine giornata, registra la tua “Riflessione del giorno”.</li>
-                  <li>
-                    • Nel weekend, genera la “Sintesi della settimana” per vedere i
-                    tuoi pattern.
-                  </li>
-                  <li>
-                    • Nei momenti di fatica, usa la “Chat riflessiva” o la
-                    “Riflessione guidata”.
-                  </li>
-                </ul>
-                <p className="text-[11px] text-gray-400">
-                  Non devi essere perfetto: bastano poche parole sincere, anche in
-                  modo irregolare.
-                </p>
-              </>
-            ) : (
-              <>
-                <h2 className="text-sm font-semibold text-emerald-100 mb-2">
-                  Uno spazio sicuro, tuo
-                </h2>
-                <p className="text-xs text-gray-300 mb-3">
-                  Le tue riflessioni restano private. I dati sono gestiti tramite
-                  Supabase e usati solo per generare insight per te.
-                </p>
-                <p className="text-[11px] text-gray-400">
-                  MyndSelf non sostituisce un professionista, ma può essere un
-                  alleato gentile nella tua quotidianità.
-                </p>
-              </>
-            )}
-            <div className="mt-4 flex items-center justify-between gap-3">
-              <button
-                onClick={handleOnboardingSkip}
-                className="text-[11px] text-gray-400 hover:text-gray-200"
-              >
-                Salta
-              </button>
-              <button
-                onClick={handleOnboardingNext}
-                className="text-xs bg-emerald-400 text-gray-950 px-4 py-1.5 rounded-lg font-semibold hover:bg-emerald-300"
-              >
-                {onboardingStep === 1 ? "Avanti" : "Inizia"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    
 
       {/* TOASTS - spostati IN BASSO A DESTRA */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] sm:w-80">

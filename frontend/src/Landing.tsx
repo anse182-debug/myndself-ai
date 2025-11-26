@@ -86,12 +86,13 @@ const [lang, setLang] = useState<Lang>(() =>
         >
           {lang === "it" ? "IT · EN" : "EN · IT"}
         </button>
-      <a
+     /* <a
         href="/app"
         className="hidden md:inline-flex text-sm bg-emerald-400 text-gray-950 rounded px-3 py-1.5 hover:bg-emerald-300 transition"
       >
         Apri nell&apos;app
       </a>
+      */
     </div>
   </div>
 </header>

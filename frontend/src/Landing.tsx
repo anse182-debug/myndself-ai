@@ -144,84 +144,85 @@ const copy = {
   },
 
   en: {
-    header: {
-      how: "How it works",
-      mentor: "AI Mentor",
-      insight: "Insights",
-      faq: "FAQ",
-      openApp: "Open the app",
-      betaBadge: "Pre-launch • Early access",
-    },
-    hero: {
-      pill: "A tiny emotional check-in, every day",
-      title: "Emotional clarity in 60 seconds, with a gentle AI mentor.",
-      subtitle:
-        "Capture how you feel, let the AI help you make sense of it and see your emotional patterns over time — without judgment, in a short ritual you can actually stick to.",
-      bullets: [
-        "Fast emotional check-ins, even when you have almost no time",
-        "An AI mentor that remembers how you feel and asks better questions",
-        "Insights and trends that help you notice your patterns",
-      ],
-      ctaTitle:
-        "Join the early access list to be among the first to try MyndSelf.ai.",
-      ctaNote: "No spam, only important updates about the launch.",
-    },
-    how: {
-      title: "How MyndSelf.ai works",
-      subtitle:
-        "A light emotional ritual, built around three key moments.",
-      cards: [
-        {
-          title: "1. Quick check-in",
-          body: "Every day, in under a minute, you capture how you feel with a few taps and words.",
-        },
-        {
-          title: "2. AI mentor",
-          body: "A gentle AI asks you questions, gives you perspective and summarises what’s going on inside.",
-        },
-        {
-          title: "3. Insights over time",
-          body: "Week after week, you start seeing patterns, recurring themes and small changes you’d normally miss.",
-        },
-      ],
-    },
-    mentor: {
-      title: "Your AI mentor, shaped around you",
-      subtitle:
-        "Not a generic chatbot, but an ally that adapts to you and your emotional states.",
-      body: [
-        "MyndSelf.ai learns from how you describe your days, from the emotions that keep coming back and from how you answer its questions. It’s not there to judge you, but to help you see things more clearly.",
-      ],
-      bullets: [
-        "Gentle, direct dialogue without being intrusive",
-        "Short questions that help you put things in order",
-        "Weekly emotional summaries that give you the bigger picture",
-        "Memory of your patterns, without repeating the same advice",
-      ],
-      disclaimer:
-        "MyndSelf.ai doesn’t replace professional help, but it can become a daily space where you take care of yourself with continuity.",
-      exampleLabel: "Example of a moment with the mentor",
-    },
-    insight: {
-      title: "Insights that give you back the storyline",
-      subtitle:
-        "Not only venting, but a clearer view of how you move through time.",
-      trendTitle: "Weekly trends",
-      trendBody:
-        "MyndSelf.ai creates short summaries of your emotional week, highlighting what changed, what keeps showing up and where you’re building new inner habits.",
-      trendList: [
-        "Moments when you feel more drained or overwhelmed",
-        "Themes that keep coming back in your words",
-        "Small progress you would otherwise overlook",
-      ],
-      graphTitle: "A graph that talks about you, not just numbers",
-      graphBody:
-        "As you log your reflections, MyndSelf.ai builds a map of the emotions you go through. Not to judge you, but to help you know when it’s time to slow down, reach out or celebrate.",
-      graphNote:
-        "The beta will focus on a few essential indicators, so your emotional life doesn’t turn into just another KPI dashboard.",
-    },
-
-beta: {
+  header: {
+    how: "How it works",
+    mentor: "AI Mentor",
+    insight: "Insights",
+    faq: "FAQ",
+    openApp: "Open the app",
+    betaBadge: "Pre-launch • Early access",
+  },
+  hero: {
+    pill: "A tiny emotional check-in, every day",
+    title: "Emotional clarity in 60 seconds, with a gentle AI mentor.",
+    subtitle:
+      "Capture how you feel, let the AI help you make sense of it, and start seeing your emotional patterns over time — without judgment, in a short ritual you can actually stick to.",
+    bullets: [
+      "Fast emotional check-ins, even when you barely have time",
+      "An AI mentor that remembers how you feel and asks better questions",
+      "Insights and trends that help you notice your patterns",
+    ],
+    ctaTitle:
+      "Join the early access list to be among the first to try MyndSelf.ai.",
+    ctaNote: "No spam, only important updates about the launch.",
+  },
+  how: {
+    title: "How MyndSelf.ai works",
+    subtitle: "A light emotional ritual, built around three key moments.",
+    cards: [
+      {
+        title: "1. Quick check-in",
+        body:
+          "Every day, in under a minute, you capture how you feel with a few taps and a couple of words.",
+      },
+      {
+        title: "2. AI mentor",
+        body:
+          "A gentle AI asks you short questions, gives you perspective, and summarises what’s going on inside.",
+      },
+      {
+        title: "3. Insights over time",
+        body:
+          "Week after week, you start seeing patterns, recurring themes, and small changes you’d normally miss.",
+      },
+    ],
+  },
+  mentor: {
+    title: "Your AI mentor, shaped around you",
+    subtitle:
+      "Not a generic chatbot, but an ally that adapts to you and your emotional states.",
+    body: [
+      "MyndSelf.ai learns from how you describe your days, from the emotions that keep coming back, and from how you answer its questions. It’s not there to judge you, but to help you see things more clearly.",
+    ],
+    bullets: [
+      "Gentle, direct dialogue without being intrusive",
+      "Short questions that help you put things in order",
+      "Weekly emotional summaries that give you the bigger picture",
+      "Memory of your patterns, without repeating the same advice",
+    ],
+    disclaimer:
+      "MyndSelf.ai doesn’t replace professional help, but it can become a daily space where you take care of yourself with continuity.",
+    exampleLabel: "Example of a moment with the mentor",
+  },
+  insight: {
+    title: "Insights that give you back the storyline",
+    subtitle:
+      "Not only venting, but a clearer view of how you move through time.",
+    trendTitle: "Weekly trends",
+    trendBody:
+      "MyndSelf.ai creates short summaries of your emotional week, highlighting what changed, what keeps showing up, and where you’re building new inner habits.",
+    trendList: [
+      "Moments when you feel more drained or overwhelmed",
+      "Themes that keep coming back in your words",
+      "Small progress you would otherwise overlook",
+    ],
+    graphTitle: "A graph that talks about you, not just numbers",
+    graphBody:
+      "As you log your reflections, MyndSelf.ai builds a map of the emotions you go through. Not to judge you, but to help you know when it’s time to slow down, reach out, or celebrate.",
+    graphNote:
+      "The beta focuses on a few essential indicators, so your emotional life doesn’t turn into just another KPI dashboard.",
+  },
+  beta: {
     title: "What you’ll find in the beta",
     subtitle:
       "The private beta focuses on a few essential pieces that are already useful to see if MyndSelf is a fit for you.",
@@ -234,7 +235,7 @@ beta: {
       {
         title: "Early versions of the AI mentor",
         body:
-          "A gentle mentor that asks short questions, gives you a small reflection back and starts noticing your emotional patterns.",
+          "A gentle mentor that asks short questions, gives you a small reflection back, and starts noticing your emotional patterns.",
       },
       {
         title: "Basic insights and trends",
@@ -243,39 +244,43 @@ beta: {
       },
     ],
   },
-    cta: {
-      title: "Want to be among the first to build this ritual with MyndSelf.ai?",
-      body:
-        "We’re preparing a private beta with a small group of people who want to care for their emotions in a gentle but structured way. If that resonates with you, leave your email.",
-      note:
-        "We’ll co-create the product together and tune the AI mentor on real-life situations.",
-      label: "Early access · Limited seats",
-    },
-    faq: {
-      title: "Frequently asked questions",
-      items: [
-        {
-          q: "Does MyndSelf.ai replace therapy?",
-          a: "No. MyndSelf.ai can be a daily ally to gain clarity, but it does not replace a professional. It can, however, help you arrive in therapy with more awareness of what you feel.",
-        },
-        {
-          q: "How much time does it take each day?",
-          a: "The goal is to stay under one minute for the daily check-in, with the option to go deeper only when you want to.",
-        },
-        {
-          q: "Are my data safe?",
-          a: "Your reflections are stored securely and only used to generate insights for you. We don’t sell your data and we don’t use them for advertising.",
-        },
-        {
-          q: "When will the beta start?",
-          a: "We’re working on a closed beta in the next few months. People on the waitlist will receive the invite before the public launch.",
-        },
-      ],
-    },
-    footer: {
-      tagline: "A safe space for your emotions.",
-    },
+  cta: {
+    title: "Want to be among the first to build this ritual with MyndSelf.ai?",
+    body:
+      "We’re preparing a private beta with a small group of people who want to care for their emotions in a gentle but structured way. If that resonates with you, leave your email.",
+    note:
+      "We’ll co-create the product together and tune the AI mentor on real-life situations.",
+    label: "Early access · Limited seats",
   },
+  faq: {
+    title: "Frequently asked questions",
+    items: [
+      {
+        q: "Does MyndSelf.ai replace therapy?",
+        a:
+          "No. MyndSelf.ai can be a daily ally to gain clarity, but it does not replace a professional. It can, however, help you arrive in therapy with more awareness of what you feel.",
+      },
+      {
+        q: "How much time does it take each day?",
+        a:
+          "The goal is to stay under one minute for the daily check-in, with the option to go deeper only when you want to.",
+      },
+      {
+        q: "Are my data safe?",
+        a:
+          "Your reflections are stored securely and only used to generate insights for you. We don’t sell your data and we don’t use them for advertising.",
+      },
+      {
+        q: "When will the beta start?",
+        a:
+          "We’re working on a closed beta in the next few months. People on the waitlist will receive the invite before the public launch.",
+      },
+    ],
+  },
+  footer: {
+    tagline: "A safe space for your emotions.",
+  },
+},
 } as const
 
 

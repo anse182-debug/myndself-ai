@@ -229,13 +229,24 @@ export default function App() {
     })()
   }, [session])
 
-  const handleLogin = async () => {
-    const email = prompt("Inserisci la tua email")
-    if (!email) return
-    const { error } = await supabase.auth.signInWithOtp({ email })
-    if (error) showToast(error.message, "error")
-    else showToast("Ti ho mandato un link magico via email ✉️", "success")
+ const handleLogin = async () => {
+  const email = prompt("Inserisci la tua email")
+  if (!email) return
+
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: `${window.location.origin}/app`
+    },
+  })
+
+  if (error) {
+    showToast(error.message, "error")
+  } else {
+    showToast("Ti ho mandato un link magico via email ✉️", "success")
   }
+}
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

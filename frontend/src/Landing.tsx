@@ -177,10 +177,9 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto px-6 pb-14 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-center">
           <div className="space-y-4 text-sm text-mist/85">
             <p>
-              MyndSelf.ai impara gradualmente dal modo in cui descrivi le tue
-              giornate, dalle emozioni che ricorrono e da come rispondi alle
-              domande. Il suo obiettivo non è giudicarti, ma aiutarti a vedere
-              più chiaramente.
+              MyndSelf.ai impara dal modo in cui descrivi le tue giornate, dalle emozioni che 
+              ricorrono e da come rispondi alle domande. Non è lì per giudicarti, ma per aiutarti a 
+              vedere più chiaramente cosa sta succedendo dentro di te.
             </p>
             <ul className="space-y-2">
               <li>• Stile di dialogo gentile, diretto ma non invadente</li>

@@ -21,7 +21,7 @@ const copy = {
       pill: "Una pausa emotiva di un minuto, ogni giorno",
       title: "Chiarezza emotiva in 60 secondi, con un Mentor AI gentile.",
       subtitle:
-        "Registra come stai, e l’AI ti aiuta a mettere ordine dentro: riconosci i tuoi pattern emotivi nel tempo, senza giudicarti e senza perdere tempo.",
+        "Registra come stai, l’AI ti aiuta a mettere ordine dentro: riconosci i tuoi pattern emotivi nel tempo, senza giudicarti e senza perdere tempo.",
       bullets: [
         "Check-in emotivi rapidissimi, anche nelle giornate piene",
         "Un Mentor AI che ricorda come ti senti e ti fa le domande giuste",

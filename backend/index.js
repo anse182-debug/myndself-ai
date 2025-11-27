@@ -515,7 +515,10 @@ app.get("/api/analytics/tags", async (req, reply) => {
 })
 
 // =============================================================
-//  CHAT (con G3, ACT/CBT, memoria + contesto corto)
+//  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
+// =============================================================
+// =============================================================
+//  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
 // =============================================================
 app.post("/api/chat", async (req, reply) => {
   const { user_id, messages } = req.body || {}
@@ -524,7 +527,9 @@ app.post("/api/chat", async (req, reply) => {
 
   try {
     // prendo l'ultimo messaggio dell'utente per la memoria
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")
+    const lastUserMessage = [...messages].reverse().find(
+      (m) => m.role === "user"
+    )
     const userText = lastUserMessage?.content || ""
 
     // profilo emozioni
@@ -558,37 +563,49 @@ app.post("/api/chat", async (req, reply) => {
     const memoryText =
       similarMemories.length > 0
         ? similarMemories.map((m) => `• ${m.content}`).join("\n")
-        : "No similar past reflections."
+        : "Nessuna riflessione passata particolarmente simile."
 
-    // mantengo il contesto corto
+    // mantengo il contesto corto (ultimi scambi)
     const shortContext = messages.slice(-10)
 
-    const fullSystemPrompt = `
-${SYSTEM_PROMPT}
+    // prompt di contesto aggiuntivo per il Mentor
+    const contextPrompt = `
+Contesto aggiuntivo su questo utente:
 
-Additional context for this user:
-- Dominant emotional tags: ${profile?.dominant_tags?.join(", ") || "none"}
-- Recent moods/notes:
-${recentText || "no recent entries"}
-- Related past reflections:
+- Tag emotivi dominanti (se presenti): ${
+      profile?.dominant_tags?.join(", ") || "nessuno"
+    }
+- Ultimi mood/annotazioni:
+${recentText || "nessuna registrazione recente"}
+- Riflessioni passate simili:
 ${memoryText}
-`
+
+Usa queste informazioni solo per dare più profondità alla risposta,
+senza elencarle esplicitamente e senza fare diagnosi.
+`.trim()
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [{ role: "system", content: fullSystemPrompt }, ...shortContext],
-      temperature: 0.75,
+      messages: [
+        { role: "system", content: MENTOR_SYSTEM_PROMPT },
+        { role: "system", content: contextPrompt },
+        ...shortContext,
+      ],
+      temperature: 0.6,
       max_tokens: 280,
     })
 
     const replyText =
-      completion.choices[0]?.message?.content?.trim() ||
+      completion.choices?.[0]?.message?.content?.trim() ||
       "Ti ho ascoltato. Possiamo restare un momento con quello che senti."
 
-    // salvataggi
-    await saveToMemory({ user_id, content: userText, source: "chat" })
+    // salvataggi memoria
+    if (userText) {
+      await saveToMemory({ user_id, content: userText, source: "chat" })
+    }
     await saveToMemory({ user_id, content: replyText, source: "chat_reply" })
 
+    // salvataggio sessione chat
     await supabase.from("chat_sessions").insert({
       user_id,
       messages,
@@ -602,6 +619,7 @@ ${memoryText}
     reply.code(500).send({ error: err.message })
   }
 })
+
 
 // =============================================================
 //  CHAT HISTORY
@@ -728,23 +746,31 @@ app.post("/api/guided-reflection", async (req, reply) => {
     const shortContext = Array.isArray(messages) ? messages.slice(-8) : []
 
     // prompt dedicato H1 (CBT/ACT, domande progressive)
-    const GUIDED_PROMPT = `
-You are MyndSelf.ai, a calm CBT/ACT-inspired reflection guide.
-Run a short guided session of 3–4 turns:
-- Ask one gentle, open question per turn.
-- Validate the user's feeling before asking.
-- Keep replies short (2–3 sentences), Italian if the user is Italian.
-- Never diagnose; be kind and non-judgmental.
+    // prompt dedicato per la sessione guidata, allineato al Mentor
+const GUIDED_PROMPT = `
+Sei MyndSelf Mentor, una guida emotiva gentile.
 
-Session logic:
-- Steps 1–3: ask ONE next question that deepens awareness (thoughts ↔ emotions ↔ body ↔ values).
-- Step 4 (final): do NOT ask a question. Offer a concise, compassionate summary + one tiny mindful suggestion (no imperative tone).
-`
+OBIETTIVO
+Guidare una breve sessione guidata in 3–4 scambi, aiutando l'utente a osservare con più chiarezza cosa prova.
 
-    // Istruzione additiva in base allo step
-    const turnInstruction = isFinal
-      ? "FINAL STEP: Provide a brief compassionate summary and one gentle mindful suggestion. No questions."
-      : "NON-FINAL STEP: Validate briefly, then ask ONE open question to go a bit deeper."
+REGOLE GENERALI
+- Non dai consigli pratici, non prescrivi soluzioni, non fai diagnosi.
+- Non usi termini clinici e non citi terapie o farmaci.
+- Non minimizzi e non amplifichi il dolore dell'utente.
+- Usi frasi brevi (2–3 frasi) e un tono calmo, concreto, gentile.
+- Scrivi sempre in italiano.
+- Validi sempre brevemente ciò che l'utente prova prima di fare una domanda.
+
+LOGICA DELLA SESSIONE
+- Step 1–3: fai UNA sola domanda aperta che aiuti a esplorare il collegamento tra pensieri, emozioni, corpo, bisogni o valori.
+- Step 4 (finale): NON fare domande. Offri una sintesi compassionevole di ciò che è emerso e una piccola proposta di gesto di cura o attenzione verso di sé, formulata in modo gentile (es. "Potrebbe aiutare..." invece di "Devi...").
+`.trim()
+
+
+   const turnInstruction = isFinal
+  ? "STEP FINALE: Offri una breve sintesi compassionevole di ciò che è emerso e una sola piccola proposta di gesto di cura verso di sé. Non fare domande."
+  : "STEP NON FINALE: Valida brevemente ciò che l'utente prova e poi fai UNA sola domanda aperta per andare un po' più in profondità."
+
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",

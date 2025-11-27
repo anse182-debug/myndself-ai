@@ -71,8 +71,9 @@ export default function App() {
 
   const [session, setSession] = useState<any>(null)
 
-  // journaling & insights
+// journaling & insights
   const [mood, setMood] = useState("")
+  const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
   const [weeklyInsight, setWeeklyInsight] = useState("")
@@ -266,8 +267,10 @@ export default function App() {
       const dailyJson = await dailyRes.json()
       if (dailyJson?.ok) setDailyData(dailyJson.items || [])
 
-      setMood("")
-      setNote("")
+     setMood("")
+     setSelectedMoods([])
+     setNote("")
+
     } catch (e) {
       console.error("reflection error:", e)
       showToast("Errore durante la riflessione", "error")
@@ -628,27 +631,49 @@ export default function App() {
                     Usala a fine giornata per decomprimere, chiarire cosa senti e
                     lasciare andare ciò che pesa.
                   </p>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {MOOD_PRESETS.map((m) => (
-                      <button
-                        key={m.label}
-                        onClick={() => setMood(m.value)}
-                        className={`px-3 py-1.5 rounded-full text-xs border transition ${
-                          mood === m.value
-                            ? "bg-emerald-400 text-gray-950 border-emerald-400"
-                            : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    value={mood}
-                    onChange={(e) => setMood(e.target.value)}
-                    placeholder="Come ti senti oggi?"
-                    className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-                  />
+                 <div className="flex flex-wrap gap-2 mb-3">
+  {MOOD_PRESETS.map((m) => {
+    const isActive = selectedMoods.includes(m.value)
+    return (
+      <button
+        key={m.label}
+        onClick={() => {
+          setSelectedMoods((prev) => {
+            let next: string[]
+            if (prev.includes(m.value)) {
+              // se già selezionato → lo tolgo
+              next = prev.filter((v) => v !== m.value)
+            } else {
+              // altrimenti lo aggiungo
+              next = [...prev, m.value]
+            }
+            // aggiorno il campo mood come stringa unita (es. "Calmo / centrato, Grato")
+            setMood(next.join(", "))
+            return next
+          })
+        }}
+        className={`px-3 py-1.5 rounded-full text-xs border transition ${
+          isActive
+            ? "bg-emerald-400 text-gray-950 border-emerald-400"
+            : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
+        }`}
+      >
+        {m.label}
+      </button>
+    )
+  })}
+</div>
+
+                 <input
+  value={mood}
+  onChange={(e) => {
+    setMood(e.target.value)
+    setSelectedMoods([]) // se scrive a mano, le chips si deselezionano
+  }}
+  placeholder="Come ti senti oggi?"
+  className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+/>
+
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}

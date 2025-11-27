@@ -40,6 +40,31 @@ Principles:
 - If you detect recurring topics and the user mentions them again, you can say that you remember or that it makes sense this comes back.
 - Be kind and non-judgmental.
 `
+// ====== MENTOR SYSTEM PROMPT (Reflection v2) ======
+const MENTOR_SYSTEM_PROMPT = `
+Tu sei MyndSelf Mentor, un alleato emotivo gentile.
+
+OBIETTIVO GENERALE
+Aiutare l'utente a vedere più chiaramente cosa sente e cosa si ripete nel tempo, senza dare consigli o diagnosi.
+
+REGOLE
+- Non dai consigli pratici, non prescrivi soluzioni, non diagnostichi.
+- Non usi termini clinici (es. disturbo, depressione, trauma, ansia clinica).
+- Non citi farmaci, terapie o percorsi sanitari.
+- Non minimizzi e non amplifichi il dolore dell’utente.
+- Usi frasi brevi (massimo 3 frasi) e un tono calmo, concreto, gentile.
+- Fai al massimo UNA domanda aperta alla fine della risposta.
+- Scrivi sempre in italiano.
+
+STRUTTURA IDEALE DELLA RISPOSTA
+1) Una frase che riconosce e normalizza ciò che l'utente sta provando.
+2) Una frase che collega o approfondisce leggermente la sensazione.
+3) Una domanda aperta che invita a proseguire la riflessione.
+
+RICORDA
+L’utente non deve trovare la risposta giusta, ma la sua.
+Tu sei al suo fianco, non sopra di lui.
+`.trim()
 
 // ====== HELPERS ======
 async function saveToMemory({ user_id, content, source = "chat" }) {
@@ -91,6 +116,90 @@ async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
     console.warn("⚠️ getSimilarMemory failed:", err.message)
     return []
   }
+}
+// ---- MENTOR: gruppi emozionali + domande seme ----
+
+// Parole chiave grezze per capire il "cluster" emotivo dal mood testuale
+const GROUP3_KEYWORDS = [
+  "stress",
+  "stressato",
+  "sovraccaric",
+  "ansia",
+  "ansioso",
+  "allerta",
+  "in colpa",
+]
+const GROUP2_KEYWORDS = ["confus", "giù", "meh", "svuotat", "scarico"]
+const GROUP4_KEYWORDS = ["carico", "motivato", "ispirat", "chiaro", "deciso", "energ"]
+
+// 20 domande seme, divise per gruppo 1..4
+const SEED_QUESTIONS = {
+  1: [
+    "Cosa rende questo momento stabile per te oggi?",
+    "C’è qualcosa che oggi è più semplice del solito?",
+    "Se potessi dare un titolo alla tua giornata fin qui, quale sarebbe?",
+    "Quale sensazione nel corpo accompagna questo stare bene?",
+    "C’è un dettaglio piccolo che non vuoi perdere di vista?",
+  ],
+  2: [
+    "Cosa senti che è un po’ diverso dal solito oggi?",
+    "Se questa sensazione avesse un colore, quale sarebbe?",
+    "Quando è iniziata, più o meno?",
+    "È una cosa che torna o sembra nuova?",
+    "C’è qualcosa che vorresti capire meglio di quello che provi?",
+  ],
+  3: [
+    "Qual è la parte della tua giornata che ti pesa di più in questo momento?",
+    "Cosa ti chiede più energia, secondo te?",
+    "C’è un pensiero che torna spesso oggi?",
+    "Questa sensazione ti sorprende o te l’aspettavi?",
+    "Ti va di descrivere cosa succede nel corpo quando la vivi?",
+  ],
+  4: [
+    "Cosa ti ha dato questa energia oggi?",
+    "Dove la senti più forte, nella mente o nel corpo?",
+    "È qualcosa che vuoi portare anche domani?",
+    "C’è una scelta che questa energia ti sta facilitando?",
+    "Qual è la parte di te che senti più presente ora?",
+  ],
+}
+
+// Decide il gruppo 1–4 partendo dal testo "mood"
+function detectGroupFromMood(moodRaw = "") {
+  const mood = (moodRaw || "").toLowerCase()
+  const hasAny = (keywords) => keywords.some((k) => mood.includes(k))
+
+  if (hasAny(GROUP3_KEYWORDS)) return 3
+  if (hasAny(GROUP2_KEYWORDS)) return 2
+  if (hasAny(GROUP4_KEYWORDS)) return 4
+  return 1 // default: zona "ok / neutro"
+}
+
+// Memoria minimale in RAM per non ripetere sempre la stessa domanda
+const seedHistory = {
+  1: [],
+  2: [],
+  3: [],
+  4: [],
+}
+
+function pickSeedQuestion(group) {
+  const all = SEED_QUESTIONS[group]
+  if (!all || all.length === 0) {
+    return "Cosa senti più chiaramente in questo momento?"
+  }
+
+  const used = seedHistory[group] || []
+  const pool = all.filter((q) => !used.includes(q))
+  const list = pool.length > 0 ? pool : all
+
+  const idx = Math.floor(Math.random() * list.length)
+  const chosen = list[idx]
+
+  // aggiorno la storia (semplice, non per utente, solo per evitare ripetizioni continue)
+  seedHistory[group] = [...used, chosen].slice(-all.length)
+
+  return chosen
 }
 
 function extractTags(text) {
@@ -153,31 +262,72 @@ async function updateEmotionProfile(user_id) {
 // =============================================================
 //  REFLECTION
 // =============================================================
+// =============================================================
+//  REFLECTION (Mentor v2)
+// =============================================================
 async function handleReflection(req, reply) {
   const { mood, note, user_id } = req.body || {}
   if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
 
   try {
+    // 1) decidi gruppo emotivo + domanda seme
+    const group = detectGroupFromMood(mood || "")
+    const seedQuestion = pickSeedQuestion(group)
+
+    // 2) normalizza i testi
+    const safeMood =
+      mood && String(mood).trim().length > 0
+        ? String(mood).trim()
+        : "non specificato"
+    const safeNote =
+      note && String(note).trim().length > 0
+        ? String(note).trim()
+        : "nessuna nota aggiuntiva"
+
+    // 3) costruisci il prompt utente per il Mentor
+    const userPrompt = `
+L'utente ha appena registrato una "Riflessione del giorno" in MyndSelf.ai.
+
+DATI DI OGGI
+- Come si sente: "${safeMood}"
+- Nota aggiuntiva: "${safeNote}"
+
+OBIETTIVO DELLA RISPOSTA
+Restituisci una breve riflessione che lo aiuti a vedere con più chiarezza cosa sta provando, senza dare consigli e senza parlare di terapie o professionisti.
+
+STRUTTURA DA SEGUIRE
+- Prima frase: riconosci e normalizza l'emozione o il vissuto descritto.
+- Seconda frase: aiuta a mettere a fuoco un aspetto importante di ciò che prova (senza interpretazioni pesanti).
+- Terza frase: fai una domanda aperta che inviti a proseguire la riflessione.
+
+DOMANDA FINALE OBBLIGATORIA
+Chiudi la risposta usando *esattamente* questa domanda (puoi solo adattare genere/numero se serve):
+
+"${seedQuestion}"
+
+ALTRI VINCOLI
+- Non numerare le frasi.
+- Non aggiungere spiegazioni meta (non dire che sei un'AI, non citare “MyndSelf”).
+- Non superare le 3 frasi brevi.
+    `.trim()
+
+    // 4) chiama il modello con il prompt del Mentor
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o-mini", // stesso modello che già usi altrove
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `User mood: ${mood || "not specified"}\nUser note: ${
-            note || "none"
-          }\nGive a short, validating reflection.`,
-        },
+        { role: "system", content: MENTOR_SYSTEM_PROMPT },
+        { role: "user", content: userPrompt },
       ],
-      temperature: 0.8,
-      max_tokens: 200,
+      temperature: 0.6,
+      max_tokens: 220,
     })
 
     const reflection =
-      completion.choices[0]?.message?.content?.trim() ||
-      "Thanks for sharing. Keep observing your emotions."
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
     const tags = extractTags(reflection)
 
+    // 5) salva nel DB come prima
     await supabase.from("mood_entries").insert({
       user_id,
       mood,
@@ -194,8 +344,10 @@ async function handleReflection(req, reply) {
   } catch (err) {
     console.error("❌ Reflection error:", err)
     reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: err.message })
   }
 }
+
 
 app.post("/api/reflection", handleReflection)
 app.post("/api/reflect", handleReflection) // alias compatibilità

@@ -447,7 +447,7 @@ useEffect(() => {
 
   // 1) dati ultimi 30 giorni da Supabase
 const thirtyDaysAgo = new Date()
-thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 6)
 
 const { data, error } = await supabase
   .from("mood_entries")
@@ -688,51 +688,55 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
 
       {/* Mood trend */}
       <section className="space-y-3">
-        <h3 className="text-sm font-semibold">
-          Come ti sei sentito negli ultimi giorni
-        </h3>
-        <div className="flex items-end gap-2 text-xs">
-          {moodSeries.map((d) => (
-            <div key={d.date} className="flex flex-col items-center gap-1">
-              <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10">
-                {d.label || "—"}
-              </span>
-              <span className="text-[10px] text-gray-500">
-                {d.date.slice(5)}{/* MM-DD */}
-              </span>
-            </div>
-          ))}
+  <h3 className="text-sm font-semibold">
+    Come ti sei sentito negli ultimi giorni
+  </h3>
+
+  <div className="w-full overflow-x-auto">
+    <div className="flex items-end gap-2 text-xs pb-1">
+      {moodSeries.map((d) => (
+        <div key={d.date} className="flex flex-col items-center gap-1">
+          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 whitespace-nowrap">
+            {d.label || "—"}
+          </span>
+          <span className="text-[10px] text-gray-500">
+            {formatDateLabel(d.date)}
+          </span>
         </div>
-        <p className="text-xs text-gray-400">
-          Le etichette sono come le hai scritte tu: non devono essere perfette,
-          servono solo a non perdere di vista come ti sei sentito.
-        </p>
-      </section>
+      ))}
+    </div>
+  </div>
+
+  <p className="text-xs text-gray-400">
+    Le etichette sono come le hai scritte tu: non devono essere perfette,
+    servono solo a non perdere di vista come ti sei sentito.
+  </p>
+</section>
+
 
       {/* Tag cloud */}
       {topTags.length > 0 && (
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold">
-            Le emozioni che hai nominato più spesso
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {topTags.map((t, idx) => {
-              const weight =
-                t.count >= 3 ? "text-sm px-3 py-1.5" : "text-xs px-2.5 py-1"
-              const opacity =
-                idx === 0
-                  ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
-                  : "bg-white/5 border-white/10 text-gray-200"
-              return (
-                <span
-                  key={t.tag}
-                  className={`rounded-full border ${weight} ${opacity}`}
-                >
-                  {t.tag}
-                </span>
-              )
-            })}
-          </div>
+       <section className="space-y-3">
+  <h3 className="text-sm font-semibold">
+    Le emozioni che hai nominato più spesso
+  </h3>
+
+  <div className="w-full overflow-x-auto">
+    <div className="flex flex-wrap gap-2 pb-1">
+      {topTags.map((t, idx) => (
+        <span
+          key={t.tag}
+          className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs ${
+            idx === 0
+              ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
+              : "bg-white/5 border-white/10 text-gray-200"
+          }`}
+        >
+          {t.tag}
+        </span>
+      ))}
+    </div>
+  </div>
           <p className="text-xs text-gray-400">
             Queste parole mostrano cosa sta occupando più spesso il tuo spazio
             emotivo in questo periodo.

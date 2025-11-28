@@ -670,24 +670,18 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
   // stato "non ancora abbastanza dati"
   if (!moodSeries.length) {
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
       <p>
         Per vedere i tuoi insight serve almeno{" "}
         <span className="font-semibold">una riflessione</span>.
       </p>
-      <button
-        onClick={onStartReflection}
-        className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
-      >
-        Inizia una riflessione
-      </button>
+      ...
     </div>
   )
 }
 
-
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* Header */}
       <div>
         <h2 className="text-lg font-semibold mb-1">
@@ -699,7 +693,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
       </div>
 
       {/* Mood trend */}
-      <section className="space-y-3">
+     <section className="space-y-3">
   <h3 className="text-sm font-semibold">
     Come ti sei sentito negli ultimi giorni
   </h3>
@@ -708,7 +702,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
     <div className="flex items-end gap-2 text-xs pb-1">
       {moodSeries.map((d) => (
         <div key={d.date} className="flex flex-col items-center gap-1">
-          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 whitespace-nowrap">
+          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-white/5 border border-white/10 whitespace-nowrap">
             {d.label || "—"}
           </span>
           <span className="text-[10px] text-gray-500">
@@ -728,7 +722,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
 
       {/* Tag cloud */}
       {topTags.length > 0 && (
-       <section className="space-y-3">
+      <section className="space-y-3">
   <h3 className="text-sm font-semibold">
     Le emozioni che hai nominato più spesso
   </h3>
@@ -749,11 +743,12 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
       ))}
     </div>
   </div>
-          <p className="text-xs text-gray-400">
-            Queste parole mostrano cosa sta occupando più spesso il tuo spazio
-            emotivo in questo periodo.
-          </p>
-        </section>
+
+  <p className="text-xs text-gray-400">
+    Queste parole mostrano cosa sta occupando più spesso il tuo spazio
+    emotivo in questo periodo.
+  </p>
+</section>
       )}
 
       {/* Mentor insight */}

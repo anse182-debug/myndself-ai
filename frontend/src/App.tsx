@@ -104,6 +104,18 @@ export default function App() {
   const [emotionalExpanded, setEmotionalExpanded] = useState(false)
   const [emotionalTags, setEmotionalTags] = useState<string[]>([])
 
+  // insights
+const [insightsLoading, setInsightsLoading] = useState(false)
+const [insightsError, setInsightsError] = useState<string | null>(null)
+const [insightsMoodSeries, setInsightsMoodSeries] = useState<
+  { date: string; label: string }[]
+>([])
+const [insightsTopTags, setInsightsTopTags] = useState<
+  { tag: string; count: number }[]
+>([])
+const [mentorInsight, setMentorInsight] = useState<string | null>(null)
+
+
   // tab / viste
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
 
@@ -216,7 +228,14 @@ export default function App() {
       }
     })()
   }, [session])
+useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid) return
+    if (currentTab !== "insight") return
 
+    loadInsights(uid)
+  }, [currentTab, session?.user?.id])
+  
  const handleLogin = async () => {
   const email = prompt("Inserisci la tua email")
   if (!email) return
@@ -421,6 +440,93 @@ export default function App() {
     setGuidedInput("")
   }
 
+  async function loadInsights(userId: string) {
+  try {
+    setInsightsLoading(true)
+    setInsightsError(null)
+
+    // 1) dati ultimi 7 giorni da Supabase
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6) // inclusi oggi + 6 indietro
+
+    const { data, error } = await supabase
+      .from("mood_entries")
+      .select("mood, tags, at")
+      .eq("user_id", userId)
+      .gte("at", sevenDaysAgo.toISOString())
+      .order("at", { ascending: true })
+
+    if (error) throw error
+
+    const entries = data || []
+
+    // se meno di 3 riflessioni → schermata “vuota”
+    if (entries.length < 3) {
+      setInsightsMoodSeries([])
+      setInsightsTopTags([])
+      setMentorInsight(null)
+      setInsightsLoading(false)
+      return
+    }
+
+    // 1a) serie giornaliera (semplificata: prendiamo il primo mood del giorno)
+    const byDay = new Map<string, string>()
+    for (const e of entries) {
+      const d = new Date(e.at)
+      const key = d.toISOString().slice(0, 10) // YYYY-MM-DD
+      if (!byDay.has(key)) {
+        byDay.set(key, e.mood || "")
+      }
+    }
+    const moodSeries = Array.from(byDay.entries()).map(([date, label]) => ({
+      date,
+      label,
+    }))
+    setInsightsMoodSeries(moodSeries)
+
+    // 1b) tag cloud – contiamo i tag
+    const tagCount = new Map<string, number>()
+    for (const e of entries) {
+      if (Array.isArray(e.tags)) {
+        for (const t of e.tags) {
+          const key = String(t).toLowerCase()
+          tagCount.set(key, (tagCount.get(key) || 0) + 1)
+        }
+      }
+    }
+
+    const topTags = Array.from(tagCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([tag, count]) => ({ tag, count }))
+
+    setInsightsTopTags(topTags)
+
+    // 2) insight del Mentor → /api/summary (riassunto settimanale)
+    const res = await fetch(`${API_BASE}/summary`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId }),
+    })
+
+    if (res.ok) {
+      const json = await res.json()
+      // adatta a come risponde il tuo endpoint (summary / text / ecc.)
+      const text = json.summary || json.text || null
+      setMentorInsight(text)
+    } else {
+      setMentorInsight(null)
+    }
+
+    setInsightsLoading(false)
+  } catch (err: any) {
+    console.error("loadInsights error", err)
+    setInsightsError("Non sono riuscito a caricare gli insight.")
+    setInsightsLoading(false)
+  }
+}
+
+
   // ---------- CHART DATA ----------
   const chartData = useMemo(
     () => (dailyData || []).map((d) => ({ day: d.day, entries: d.entries })),
@@ -517,6 +623,148 @@ export default function App() {
       </nav>
     )
   }
+type InsightsTabProps = {
+  loading: boolean
+  error: string | null
+  moodSeries: { date: string; label: string }[]
+  topTags: { tag: string; count: number }[]
+  mentorInsight: string | null
+  onStartReflection: () => void
+}
+
+const InsightsTab: React.FC<InsightsTabProps> = ({
+  loading,
+  error,
+  moodSeries,
+  topTags,
+  mentorInsight,
+  onStartReflection,
+}) => {
+  if (loading) {
+    return (
+      <div className="py-8 text-sm text-gray-400">
+        Sto preparando i tuoi insight…
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="py-8 text-sm text-red-300">
+        {error}
+      </div>
+    )
+  }
+
+  // stato "non ancora abbastanza dati"
+  if (!moodSeries.length || moodSeries.length < 3) {
+    return (
+      <div className="py-8 space-y-4 text-sm text-gray-300">
+        <p>
+          Per vedere i tuoi insight servono almeno{" "}
+          <span className="font-semibold">3 riflessioni</span>.
+        </p>
+        <button
+          onClick={onStartReflection}
+          className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
+        >
+          Inizia una riflessione
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-8 py-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold mb-1">
+          I tuoi ultimi 7 giorni
+        </h2>
+        <p className="text-xs text-gray-400">
+          Uno sguardo leggero su come ti sei mosso emotivamente di recente.
+        </p>
+      </div>
+
+      {/* Mood trend */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">
+          Come ti sei sentito negli ultimi giorni
+        </h3>
+        <div className="flex items-end gap-2 text-xs">
+          {moodSeries.map((d) => (
+            <div key={d.date} className="flex flex-col items-center gap-1">
+              <span className="px-2 py-1 rounded-full bg-white/5 border border-white/10">
+                {d.label || "—"}
+              </span>
+              <span className="text-[10px] text-gray-500">
+                {d.date.slice(5)}{/* MM-DD */}
+              </span>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400">
+          Le etichette sono come le hai scritte tu: non devono essere perfette,
+          servono solo a non perdere di vista come ti sei sentito.
+        </p>
+      </section>
+
+      {/* Tag cloud */}
+      {topTags.length > 0 && (
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold">
+            Le emozioni che hai nominato più spesso
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {topTags.map((t, idx) => {
+              const weight =
+                t.count >= 3 ? "text-sm px-3 py-1.5" : "text-xs px-2.5 py-1"
+              const opacity =
+                idx === 0
+                  ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
+                  : "bg-white/5 border-white/10 text-gray-200"
+              return (
+                <span
+                  key={t.tag}
+                  className={`rounded-full border ${weight} ${opacity}`}
+                >
+                  {t.tag}
+                </span>
+              )
+            })}
+          </div>
+          <p className="text-xs text-gray-400">
+            Queste parole mostrano cosa sta occupando più spesso il tuo spazio
+            emotivo in questo periodo.
+          </p>
+        </section>
+      )}
+
+      {/* Mentor insight */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold">
+          Uno sguardo del Mentor
+        </h3>
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
+          {mentorInsight ? (
+            <p>{mentorInsight}</p>
+          ) : (
+            <p className="text-gray-300">
+              Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
+              restituirà qui una breve sintesi dei pattern che emergono.
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onStartReflection}
+          className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
+        >
+          Riflettiamo insieme ora →
+        </button>
+      </section>
+    </div>
+  )
+}
 
   // ---------- RENDER ----------
   return (
@@ -699,167 +947,15 @@ export default function App() {
             </>
           )}
 
-          {currentTab === "insight" && (
-            <>
-              <EmotionalBanner />
-
-              {/* Sintesi + Insights */}
-              <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-2">
-                {/* Sintesi della settimana */}
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col">
-                  <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-                    Sintesi della settimana
-                  </h2>
-                  <p className="text-xs text-gray-400 mb-4">
-                    Un breve sguardo ai tuoi stati emotivi degli ultimi giorni.
-                    Usala nel weekend per cogliere i tuoi pattern e ritrovare
-                    equilibrio.
-                  </p>
-                  <button
-                    onClick={handleSummary}
-                    disabled={isSummarizing}
-                    className="bg-emerald-500/90 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 mb-4 disabled:opacity-50 w-fit"
-                  >
-                    {isSummarizing && <Spinner />}
-                    {isSummarizing
-                      ? "Sto creando la sintesi..."
-                      : "Genera sintesi settimanale"}
-                  </button>
-                  {weeklyInsight && (
-                    <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-                      {weeklyInsight}
-                    </div>
-                  )}
-                  <div className="mt-4">
-                    <h3 className="text-sm font-semibold text-emerald-100 mb-2">
-                      Sintesi salvate
-                    </h3>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {summaryHistory.length === 0 ? (
-                        <p className="text-xs text-gray-500">
-                          Non hai ancora salvato nessuna sintesi. Generane una dopo
-                          alcuni giorni di utilizzo.
-                        </p>
-                      ) : (
-                        summaryHistory.map((item) => (
-                          <div
-                            key={item.id || item.created_at}
-                            className="bg-white/0 border border-white/5 rounded p-2 text-xs text-gray-100 whitespace-pre-wrap"
-                          >
-                            <div className="text-[10px] text-gray-500 mb-1">
-                              {new Date(item.created_at).toLocaleString()}
-                            </div>
-                            {item.summary}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Evoluzione emotiva */}
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-                  <h2 className="text-sm font-semibold text-emerald-200 mb-2">
-                    Evoluzione emotiva
-                  </h2>
-                  <p className="text-xs text-gray-400 mb-3">
-                    Uno sguardo d’insieme su come le tue emozioni si sono mosse negli
-                    ultimi giorni.
-                  </p>
-                  {emotionalFull ? (
-                    <div className="bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-                      {emotionalFull}
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-500">
-                      Quando avrai registrato qualche riflessione in più, qui vedrai
-                      una sintesi dell’evoluzione emotiva recente.
-                    </p>
-                  )}
-                </div>
-              </section>
-
-              {/* Analytics: percorso + emozioni ricorrenti */}
-              <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-6 mt-8 pb-16">
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-                  <h2 className="text-sm font-semibold text-emerald-200 mb-1">
-                    Percorso emotivo
-                  </h2>
-                  <p className="text-xs text-gray-400 mb-3">
-                    La tua evoluzione nel tempo: alti, bassi e nuovi equilibri che
-                    emergono.
-                  </p>
-                  {chartData.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      Il grafico si riempirà man mano che registri le tue emozioni.
-                    </p>
-                  ) : (
-                    <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={chartData}>
-                          <XAxis dataKey="day" stroke="#94a3b8" fontSize={10} />
-                          <YAxis stroke="#94a3b8" fontSize={10} />
-                          <Tooltip
-                            contentStyle={{
-                              background: "#020617",
-                              border: "1px solid rgba(16,185,129,0.4)",
-                              borderRadius: "0.5rem",
-                              fontSize: "0.7rem",
-                            }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="entries"
-                            stroke="#10b981"
-                            strokeWidth={2}
-                            dot={{ r: 3 }}
-                            activeDot={{ r: 5 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-                  <h2 className="text-sm font-semibold text-emerald-200 mb-1">
-                    Emozioni ricorrenti
-                  </h2>
-                  <p className="text-xs text-gray-400 mb-3">
-                    Le emozioni che si presentano più spesso nel tuo diario.
-                  </p>
-                  {tagData.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      Ancora nessun dato: compila qualche riflessione per vedere i
-                      primi pattern.
-                    </p>
-                  ) : (
-                    <div className="h-56">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={tagData}>
-                          <CartesianGrid
-                            strokeDasharray="3 3"
-                            stroke="rgba(148,163,184,0.1)"
-                          />
-                          <XAxis dataKey="tag" stroke="#94a3b8" fontSize={10} />
-                          <YAxis stroke="#94a3b8" fontSize={10} />
-                          <Tooltip
-                            contentStyle={{
-                              background: "#020617",
-                              border: "1px solid rgba(16,185,129,0.4)",
-                              borderRadius: "0.5rem",
-                              fontSize: "0.7rem",
-                            }}
-                          />
-                          <Legend />
-                          <Bar dataKey="tag_count" fill="#38bdf8" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </>
+                   {currentTab === "insight" && (
+            <InsightsTab
+              loading={insightsLoading}
+              error={insightsError}
+              moodSeries={insightsMoodSeries}
+              topTags={insightsTopTags}
+              mentorInsight={mentorInsight}
+              onStartReflection={() => setCurrentTab("oggi")}
+            />
           )}
 
           {currentTab === "guidata" && (

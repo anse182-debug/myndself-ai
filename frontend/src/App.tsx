@@ -445,29 +445,28 @@ useEffect(() => {
     setInsightsLoading(true)
     setInsightsError(null)
 
-    // 1) dati ultimi 7 giorni da Supabase
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6) // inclusi oggi + 6 indietro
+  // 1) dati ultimi 30 giorni da Supabase
+const thirtyDaysAgo = new Date()
+thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29)
 
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .select("mood, tags, at")
-      .eq("user_id", userId)
-      .gte("at", sevenDaysAgo.toISOString())
-      .order("at", { ascending: true })
+const { data, error } = await supabase
+  .from("mood_entries")
+  .select("mood, tags, at")
+  .eq("user_id", userId)
+  .gte("at", thirtyDaysAgo.toISOString())
+  .order("at", { ascending: true })
 
-    if (error) throw error
+const entries = data || []
 
-    const entries = data || []
+// se non ci sono proprio dati → schermata “vuota”
+if (!entries.length) {
+  setInsightsMoodSeries([])
+  setInsightsTopTags([])
+  setMentorInsight(null)
+  setInsightsLoading(false)
+  return
+}
 
-    // se meno di 3 riflessioni → schermata “vuota”
-    if (entries.length < 3) {
-      setInsightsMoodSeries([])
-      setInsightsTopTags([])
-      setMentorInsight(null)
-      setInsightsLoading(false)
-      return
-    }
 
     // 1a) serie giornaliera (semplificata: prendiamo il primo mood del giorno)
     const byDay = new Map<string, string>()
@@ -657,25 +656,26 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
   }
 
   // stato "non ancora abbastanza dati"
-  if (!moodSeries.length || moodSeries.length < 3) {
-    return (
-      <div className="py-8 space-y-4 text-sm text-gray-300">
-        <p>
-          Per vedere i tuoi insight servono almeno{" "}
-          <span className="font-semibold">3 riflessioni</span>.
-        </p>
-        <button
-          onClick={onStartReflection}
-          className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
-        >
-          Inizia una riflessione
-        </button>
-      </div>
-    )
-  }
+  if (!moodSeries.length) {
+  return (
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
+      <p>
+        Per vedere i tuoi insight serve almeno{" "}
+        <span className="font-semibold">una riflessione</span>.
+      </p>
+      <button
+        onClick={onStartReflection}
+        className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
+      >
+        Inizia una riflessione
+      </button>
+    </div>
+  )
+}
+
 
   return (
-    <div className="space-y-8 py-4">
+    <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* Header */}
       <div>
         <h2 className="text-lg font-semibold mb-1">

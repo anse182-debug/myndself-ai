@@ -397,23 +397,51 @@ app.get("/api/summary", async (req, reply) => {
       .eq("user_id", user_id)
       .order("at", { ascending: false })
       .limit(10)
+    
+    if (!data || data.length === 0) {
+      return reply.send({
+        summary:
+          "Per ora hai registrato poche riflessioni. Quando ne avrai qualcuna in più, potrò restituirti una piccola sintesi dei pattern emotivi che emergono.",
+      })
+    }
+        const joined = data
+      .map(
+        (e, idx) =>
+          `Check-in ${idx + 1}:\nMood: ${e.mood || ""}\nNote: ${
+            e.note || ""
+          }\nReflection: ${e.reflection || ""}`
+      )
+      .join("\n\n")
 
-    const joined = (data || [])
-      .map((e) => `${e.mood || ""} · ${e.note || ""}\n${e.reflection || ""}`)
-      .join("\n")
 
-    const completion = await openai.chat.completions.create({
+        const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
           role: "user",
-          content: `Here are the user's recent reflections and moods:\n${joined}\nCreate a short weekly emotional insight.`,
+          content: `
+The following are the user's most recent emotional check-ins (mood, note, reflection):
+
+${joined}
+
+Based on these entries, write a brief emotional insight about how this recent period seems to feel for the user.
+
+Guidelines:
+- Reply in the same language used in the entries (Italian if the text is Italian).
+- Use 3–5 sentences in a single, compact paragraph.
+- Start with a gentle summary of the overall emotional tone of this period.
+- Highlight 1–2 recurring emotional patterns or themes you notice (without sounding certain or clinical).
+- End with one soft reflective question the user could ask themselves today.
+- Do not give advice, instructions or a to-do list; keep it reflective and kind.
+- Speak directly to the user using second person singular ("tu").
+          `,
         },
       ],
-      max_tokens: 250,
+      max_tokens: 220,
       temperature: 0.7,
     })
+
 
     const summary =
       completion.choices[0]?.message?.content?.trim() ||

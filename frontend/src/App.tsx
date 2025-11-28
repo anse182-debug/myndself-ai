@@ -446,26 +446,27 @@ useEffect(() => {
     setInsightsError(null)
 
   // 1) dati ultimi 30 giorni da Supabase
-const thirtyDaysAgo = new Date()
-thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 6)
+    // 1) dati ultimi 7 giorni da Supabase
+    const sevenDaysAgo = new Date()
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
 
-const { data, error } = await supabase
-  .from("mood_entries")
-  .select("mood, tags, at")
-  .eq("user_id", userId)
-  .gte("at", thirtyDaysAgo.toISOString())
-  .order("at", { ascending: true })
+    const { data, error } = await supabase
+      .from("mood_entries")
+      .select("mood, tags, at")
+      .eq("user_id", userId)
+      .gte("at", sevenDaysAgo.toISOString())
+      .order("at", { ascending: true })
 
-const entries = data || []
+    const entries = data || []
 
-// se non ci sono proprio dati → schermata “vuota”
-if (!entries.length) {
-  setInsightsMoodSeries([])
-  setInsightsTopTags([])
-  setMentorInsight(null)
-  setInsightsLoading(false)
-  return
-}
+    // se non ci sono proprio dati → schermata “vuota”
+    if (!entries.length) {
+      setInsightsMoodSeries([])
+      setInsightsTopTags([])
+      setMentorInsight(null)
+      setInsightsLoading(false)
+      return
+    }
 
 
     // 1a) serie giornaliera (semplificata: prendiamo il primo mood del giorno)
@@ -502,7 +503,7 @@ if (!entries.length) {
     setInsightsTopTags(topTags)
 
     // 2) insight del Mentor → /api/summary (riassunto settimanale)
-    const res = await fetch(`${API_BASE}/summary`, {
+    const res = await fetch(`${API_BASE}/api/summary`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ user_id: userId }),
@@ -622,6 +623,17 @@ if (!entries.length) {
       </nav>
     )
   }
+
+  function formatDateLabel(iso: string) {
+  const d = new Date(iso)
+  return d
+    .toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+    })
+    .replace("/", "-") // es: 07-11
+}
+
 type InsightsTabProps = {
   loading: boolean
   error: string | null

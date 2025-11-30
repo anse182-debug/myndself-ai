@@ -249,6 +249,24 @@ const [mentorInsight, setMentorInsight] = useState<string | null>(null)
       }
     })()
   }, [session])
+    // welcome email: chiama il backend che la manda solo se serve
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid) return
+
+    ;(async () => {
+      try {
+        await fetch(`${API_BASE}/api/send-welcome-if-needed`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: uid }),
+        })
+      } catch (err) {
+        console.error("welcome email call failed:", err)
+      }
+    })()
+  }, [session?.user?.id])
+
 useEffect(() => {
     const uid = session?.user?.id
     if (!uid) return

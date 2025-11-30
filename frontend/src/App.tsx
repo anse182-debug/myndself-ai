@@ -183,6 +183,13 @@ const [insightsTopTags, setInsightsTopTags] = useState<
   { tag: string; count: number }[]
 >([])
 const [mentorInsight, setMentorInsight] = useState<string | null>(null)
+const [weeklyRitual, setWeeklyRitual] = useState<string | null>(null)
+const [weeklyRitualRange, setWeeklyRitualRange] = useState<{
+  from: string
+  to: string
+} | null>(null)
+const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(null)
+
 
 
   // tab / viste
@@ -550,6 +557,46 @@ useEffect(() => {
       .order("at", { ascending: true })
 
     const entries = data || []
+        // 3) Rituale settimanale
+    try {
+      const resRitual = await fetch(
+        `${API_BASE}/api/weekly-ritual?user_id=${encodeURIComponent(userId)}`
+      )
+
+      if (resRitual.ok) {
+        const json = await resRitual.json()
+
+        if (json.ritual) {
+          setWeeklyRitual(json.ritual)
+          setWeeklyRitualRange(
+            json.from && json.to
+              ? { from: json.from, to: json.to }
+              : null
+          )
+          setWeeklyRitualError(null)
+        } else if (json.reason === "no_entries") {
+          setWeeklyRitual(null)
+          setWeeklyRitualRange(null)
+          setWeeklyRitualError(
+            "Per vedere il rituale settimanale servono ancora alcune riflessioni."
+          )
+        } else {
+          setWeeklyRitual(null)
+          setWeeklyRitualRange(null)
+          setWeeklyRitualError(null)
+        }
+      } else {
+        setWeeklyRitual(null)
+        setWeeklyRitualRange(null)
+        setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
+      }
+    } catch (err) {
+      console.error("weekly ritual error", err)
+      setWeeklyRitual(null)
+      setWeeklyRitualRange(null)
+      setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
+    }
+
 
     // se non ci sono proprio dati → schermata “vuota”
     if (!entries.length) {
@@ -728,6 +775,9 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
   moodSeries,
   topTags,
   mentorInsight,
+  weeklyRitual,
+  weeklyRitualRange,
+  weeklyRitualError,
   onStartReflection,
 }) => {
   if (loading) {
@@ -859,6 +909,54 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
         </button>
       </section>
     </div>
+    {/* Rituale della settimana */}
+<section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
+  <div>
+    <h2 className="text-sm font-semibold text-emerald-200">
+      Rituale della settimana
+    </h2>
+
+    {weeklyRitualRange && (
+      <p className="text-[11px] text-gray-400 mt-0.5">
+        Ultimi 7 giorni ·{" "}
+        {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+        })}{" "}
+        –{" "}
+        {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+        })}
+      </p>
+    )}
+  </div>
+
+  {weeklyRitualError && (
+    <p className="text-xs text-gray-400">{weeklyRitualError}</p>
+  )}
+
+  {weeklyRitual && !weeklyRitualError && (
+    <p className="text-sm text-gray-200 whitespace-pre-wrap">
+      {weeklyRitual}
+    </p>
+  )}
+
+  {!weeklyRitual && !weeklyRitualError && (
+    <p className="text-xs text-gray-400">
+      Quando avrai qualche giorno di riflessioni alle spalle, qui troverai
+      una piccola lettura settimanale del tuo Mentor.
+    </p>
+  )}
+
+  <button
+    onClick={onStartReflection}
+    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition"
+  >
+    Fai una riflessione ora
+  </button>
+</section>
+
   )
 }
 
@@ -1112,15 +1210,19 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
           )}
 
           {currentTab === "insight" && (
-            <InsightsTab
-              loading={insightsLoading}
-              error={insightsError}
-              moodSeries={insightsMoodSeries}
-              topTags={insightsTopTags}
-              mentorInsight={mentorInsight}
-              onStartReflection={() => setCurrentTab("oggi")}
-            />
-          )}
+  <InsightsTab
+    loading={insightsLoading}
+    error={insightsError}
+    moodSeries={insightsMoodSeries}
+    topTags={insightsTopTags}
+    mentorInsight={mentorInsight}
+    weeklyRitual={weeklyRitual}
+    weeklyRitualRange={weeklyRitualRange}
+    weeklyRitualError={weeklyRitualError}
+    onStartReflection={() => setCurrentTab("oggi")}
+  />
+)}
+
 
 
 

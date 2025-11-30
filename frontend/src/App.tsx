@@ -761,28 +761,6 @@ export default function App() {
       )
     }
 
-    if (
-      !moodSeries.length &&
-      !topTags.length &&
-      !mentorInsight &&
-      !weeklyRitual
-    ) {
-      return (
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
-          <p>
-            Per vedere i tuoi insight serve almeno{" "}
-            <span className="font-semibold">una riflessione</span>.
-          </p>
-          <button
-            onClick={onStartReflection}
-            className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
-          >
-            Inizia una riflessione
-          </button>
-        </div>
-      )
-    }
-
     return (
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
         {/* Header */}

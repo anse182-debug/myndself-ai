@@ -68,8 +68,28 @@ export default function App() {
     setHasCompletedOnboarding(done)
   }, [])
 
+    // mostra banner beta solo se utente loggato e non l'ha già chiuso
+  useEffect(() => {
+    if (!session?.user?.id) return
+    if (typeof window === "undefined") return
+
+    const dismissed = window.localStorage.getItem(BETA_BANNER_KEY)
+    if (!dismissed) {
+      setShowBetaBanner(true)
+    }
+  }, [session])
+  
+  const dismissBetaBanner = () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(BETA_BANNER_KEY, "true")
+    }
+    setShowBetaBanner(false)
+  }
+
 
   const [session, setSession] = useState<any>(null)
+  const BETA_BANNER_KEY = "myndself_beta_banner_dismissed"
+  const [showBetaBanner, setShowBetaBanner] = useState(false)
 
 // journaling & insights
   const [mood, setMood] = useState("")
@@ -872,12 +892,34 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
       )}
 
       {/* SE LOGGATO → TABS + CONTENUTO */}
-      {session && (
-        <>
-          <TabsNav />
+      {currentTab === "oggi" && (
+      <>
+        {showBetaBanner && (
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-4">
+            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs sm:text-sm text-emerald-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div>
+                <p className="font-semibold mb-1">
+                  Stai usando la beta privata di MyndSelf.ai 🌿
+                </p>
+                <p className="text-emerald-100/90">
+                  Alcune parti sono ancora in evoluzione. Se qualcosa non ti è chiaro
+                  o non funziona come ti aspetti, puoi scrivermi a{" "}
+                  <span className="font-mono underline">
+                    info@myndself.ai
+                  </span>
+                  . Il tuo feedback è oro.
+                </p>
+              </div>
+              <button
+                onClick={dismissBetaBanner}
+                className="self-end sm:self-start text-[11px] sm:text-xs text-emerald-100/80 hover:text-emerald-50"
+              >
+                Ho capito
+              </button>
+            </div>
+          </div>
+        )}
 
-          {currentTab === "oggi" && (
-            <>
               <EmotionalBanner />
 
               <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-2">

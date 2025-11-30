@@ -1173,7 +1173,6 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
             © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le
             tue emozioni
           </footer>
-        </>
       )}
     </main>
   )

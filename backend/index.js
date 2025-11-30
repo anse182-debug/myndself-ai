@@ -1028,6 +1028,106 @@ app.post("/api/send-welcome-if-needed", async (req, reply) => {
   }
 })
 
+app.get("/api/weekly-ritual", async (req, reply) => {
+  const { user_id } = req.query || {}
+
+  if (!user_id) {
+    return reply.code(400).send({ error: "Missing user_id" })
+  }
+
+  try {
+    // calcolo finestra ultimi 7 giorni (incluso oggi)
+    const now = new Date()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    const fromIso = sevenDaysAgo.toISOString()
+    const toIso = now.toISOString()
+
+    // prendi le entry dell'utente negli ultimi 7 giorni
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("mood, note, reflection, tags, at")
+      .eq("user_id", user_id)
+      .gte("at", fromIso)
+      .lte("at", toIso)
+      .order("at", { ascending: true })
+
+    if (error) throw error
+
+    if (!entries || entries.length === 0) {
+      return reply.send({
+        ritual: null,
+        reason: "no_entries",
+        entries_count: 0,
+      })
+    }
+
+    // limitiamo a massimo 15 per non esplodere il prompt
+    const limited = entries.slice(-15)
+
+    const historyText = limited
+      .map((e) => {
+        const date = e.at
+        const mood = e.mood || "non specificato"
+        const note = e.note || ""
+        const refl = e.reflection || ""
+        return `- [${date}] Mood: ${mood} | Nota: ${note} | Riflessione: ${refl}`
+      })
+      .join("\n")
+
+    const userPrompt = `
+Stai preparando un piccolo rituale settimanale per una persona che tiene un diario emotivo.
+
+Qui sotto trovi una lista in ordine cronologico delle sue ultime annotazioni (negli ultimi 7 giorni):
+
+${historyText}
+
+Il tuo compito è scrivere ESATTAMENTE un solo paragrafo (3–5 frasi) che:
+- Nomina un unico pattern emotivo che sembra emergere questa settimana (es. "una alternanza tra stanchezza e speranza").
+- Riconosce almeno una risorsa o qualità di cui la persona già dispone (es. momenti di gratitudine, piccoli spazi di respiro, relazioni di supporto).
+- Termina con una sola domanda aperta, breve e gentile, che inizi con "Che cosa..." oppure "Qual è..." e la inviti a guardare la settimana con più curiosità.
+
+Regole importanti:
+- Scrivi in italiano.
+- Dai del "tu".
+- Non dare consigli pratici, non proporre esercizi, non usare frasi imperative ("dovresti", "prova a", "fai").
+- Non parlare di "dati", "voci", "lista" o "registrazioni". Parla semplicemente della sua settimana.
+`
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "Sei un mentor emotivo molto gentile. Offri solo riflessioni e domande, mai consigli o istruzioni.",
+        },
+        {
+          role: "user",
+          content: userPrompt,
+        },
+      ],
+      temperature: 0.7,
+      max_tokens: 300,
+    })
+
+    const ritualText =
+      completion.choices[0]?.message?.content?.trim() ||
+      "Questa settimana hai attraversato emozioni diverse. Concediti un momento per riconoscere ciò che hai sentito. Che cosa ti colpisce di più se ripensi agli ultimi giorni?"
+
+    return reply.send({
+      ritual: ritualText,
+      from: fromIso,
+      to: toIso,
+      entries_count: entries.length,
+    })
+  } catch (err) {
+    console.error("❌ weekly-ritual error:", err)
+    return reply.code(500).send({ error: err.message })
+  }
+})
+
+
 // =============================================================
 //  START
 // =============================================================

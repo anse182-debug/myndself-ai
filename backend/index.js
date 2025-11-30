@@ -413,11 +413,19 @@ app.get("/api/summary", async (req, reply) => {
       )
       .join("\n\n")
 
-
-        const completion = await openai.chat.completions.create({
+            const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
+        // prompt generale dell'app
         { role: "system", content: SYSTEM_PROMPT },
+        // prompt specifico SOLO per questa sintesi settimanale
+        {
+          role: "system",
+          content: `
+In this task you are NOT a coach and you should not give advice, suggestions or action plans.
+You are a gentle emotional mirror. You only describe patterns you notice and ask one soft reflective question.
+Please do not use imperative forms like "prova a", "dovresti", "ti consiglio" or "fai".`,
+        },
         {
           role: "user",
           content: `
@@ -432,20 +440,32 @@ Guidelines:
 - Use 3–5 sentences in a single, compact paragraph.
 - Start with a gentle summary of the overall emotional tone of this period.
 - Highlight 1–2 recurring emotional patterns or themes you notice (without sounding certain or clinical).
-- End with one soft reflective question the user could ask themselves today.
-- Do not give advice, instructions or a to-do list; keep it reflective and kind.
-- Speak directly to the user using second person singular ("tu").
-          `,
+- Do NOT give advice, instructions or a to-do list; keep it reflective, descriptive and kind.
+- Ask exactly ONE soft reflective question at the very end (e.g. starting with "Che cosa", "C'è qualcosa", "In che modo").
+- Speak directly to the user using second person singular ("tu").`,
         },
       ],
       max_tokens: 220,
-      temperature: 0.7,
+      temperature: 0.7, 
     })
 
+        let summary =
+      completion.choices[0]?.message?.content?.trim() || ""
 
-    const summary =
-      completion.choices[0]?.message?.content?.trim() ||
-      "Questa settimana hai mantenuto consapevolezza emotiva. Continua così."
+    // fallback di base se il modello non ha restituito nulla
+    if (!summary) {
+      summary =
+        "In questo periodo sembri stare ascoltando con attenzione quello che provi. " +
+        "C'è qualcosa che ti andrebbe di esplorare un po' meglio oggi?"
+    }
+
+    // Se non termina con un punto di domanda, aggiungiamo una domanda gentile.
+    if (!/[?？]\s*$/.test(summary)) {
+      // togliamo eventuali punti/finale spazi
+      summary = summary.replace(/[\.\s]*$/, "")
+      summary +=
+        ". C'è qualcosa che ti andrebbe di guardare con un po' più di gentilezza oggi?"
+    }
 
     if (save === "true") {
       await supabase.from("summary_entries").insert({

@@ -57,6 +57,52 @@ function Spinner() {
   )
 }
 
+const ReflectionSuccess = ({
+  moods,
+  onShowInsights,
+  onDismiss,
+}: {
+  moods: string[]
+  onShowInsights: () => void
+  onDismiss: () => void
+}) => {
+  return (
+    <div className="mt-4 bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 text-sm text-gray-200 space-y-3 fade-in">
+      <div className="flex items-center gap-2">
+        <span className="text-xl">✨</span>
+        <p className="font-semibold">Riflessione registrata</p>
+      </div>
+      {moods.length > 0 && (
+        <p className="text-xs text-gray-400">
+          Oggi hai parlato di{" "}
+          <span className="text-emerald-300 font-semibold">
+            {moods.join(", ")}
+          </span>
+          .
+        </p>
+      )}
+      <p className="text-xs">
+        Vuoi vedere come queste emozioni si collegano ai tuoi insight?
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={onShowInsights}
+          className="px-3 py-2 bg-emerald-400 text-gray-950 rounded-lg text-xs font-semibold hover:bg-emerald-300 transition"
+        >
+          Mostrami
+        </button>
+        <button
+          onClick={onDismiss}
+          className="px-3 py-2 bg-white/10 text-gray-300 rounded-lg text-xs hover:bg-white/20 transition"
+        >
+          Non ora
+        </button>
+      </div>
+    </div>
+  )
+}
+
+
 type TabId = "oggi" | "insight" | "guidata" | "chat"
 
 export default function App() {
@@ -118,6 +164,8 @@ export default function App() {
   // loading generici
   const [isReflecting, setIsReflecting] = useState(false)
   const [isSummarizing, setIsSummarizing] = useState(false)
+  const [showReflectionDone, setShowReflectionDone] = useState(false)
+
 
   // emotional profile / banner
   const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
@@ -317,6 +365,7 @@ useEffect(() => {
       })
       const data = await res.json()
       setReflection(data.reflection || "")
+      setShowReflectionDone(true)
       showToast("Riflessione salvata ✅", "success")
 
       const dailyRes = await fetch(
@@ -1033,15 +1082,23 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                     {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
                   </button>
 
-                  {reflection && (
-                    <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-                      {reflection}
-                    </div>
-                  )}
-                </div>
-              </section>
-            </>
-          )}
+                  {reflection && !showReflectionDone && (
+  <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+    {reflection}
+  </div>
+)}
+
+{showReflectionDone && (
+  <ReflectionSuccess
+    moods={selectedMoods}
+    onShowInsights={() => {
+      setShowReflectionDone(false)
+      setCurrentTab("insight")
+    }}
+    onDismiss={() => setShowReflectionDone(false)}
+  />
+)}
+
 
           {currentTab === "insight" && (
             <InsightsTab

@@ -329,7 +329,7 @@ async function updateEmotionProfile(user_id) {
 //  REFLECTION (Mentor v2)
 // =============================================================
 async function handleReflection(req, reply) {
-  const { mood, note, user_id } = req.body || {}
+    const { mood, note, user_id, goal } = req.body || {}
   if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
 
   try {
@@ -375,15 +375,34 @@ ALTRI VINCOLI
     `.trim()
 
     // 4) chiama il modello con il prompt del Mentor
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini", // stesso modello che già usi altrove
+        const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: MENTOR_SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: `
+User is doing emotional journaling.
+
+Today's data:
+- Mood: ${mood || "not specified"}
+- Note: ${note || "none"}
+- Stated intention for the next weeks: "${goal || "not provided"}"
+
+Your task:
+- Offer a brief, kind reflection on what the user is experiencing today.
+- When it feels natural, gently connect what you say to the stated intention (without forcing it).
+- Do NOT give practical advice or instructions; do not tell the user what to do.
+- Avoid imperative forms like "you should", "try to", "do this".
+- Use at most 4 sentences in a single paragraph.
+- Always end with one open question that invites the user to look at themself with a bit more curiosity.
+`,
+        },
       ],
-      temperature: 0.6,
-      max_tokens: 220,
+      temperature: 0.8,
+      max_tokens: 200,
     })
+
 
     const reflection =
       completion.choices?.[0]?.message?.content?.trim() ||

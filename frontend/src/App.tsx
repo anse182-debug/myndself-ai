@@ -61,6 +61,9 @@ type TabId = "oggi" | "insight" | "guidata" | "chat"
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
+  const [session, setSession] = useState<any>(null)
+  const BETA_BANNER_KEY = "myndself_beta_banner_dismissed"
+  const [showBetaBanner, setShowBetaBanner] = useState(false)
 
   useEffect(() => {
     if (typeof window === "undefined") return
@@ -87,9 +90,7 @@ export default function App() {
   }
 
 
-  const [session, setSession] = useState<any>(null)
-  const BETA_BANNER_KEY = "myndself_beta_banner_dismissed"
-  const [showBetaBanner, setShowBetaBanner] = useState(false)
+
 
 // journaling & insights
   const [mood, setMood] = useState("")
@@ -607,18 +608,6 @@ useEffect(() => {
       { id: "chat", label: "Chat" },
     ]
     // ---------- RENDER ----------
-  if (!hasCompletedOnboarding) {
-    return (
-      <Onboarding
-        onFinish={() => {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(ONBOARDING_KEY, "true")
-          }
-          setHasCompletedOnboarding(true)
-        }}
-      />
-    )
-  }
     return (
       <nav className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
         <div className="flex justify-between sm:justify-start sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
@@ -687,17 +676,23 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
   }
 
   // stato "non ancora abbastanza dati"
-  if (!moodSeries.length) {
-  return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
-      <p>
-        Per vedere i tuoi insight serve almeno{" "}
-        <span className="font-semibold">una riflessione</span>.
-      </p>
-      ...
-    </div>
-  )
-}
+   if (!moodSeries.length) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
+        <p>
+          Per vedere i tuoi insight serve almeno{" "}
+          <span className="font-semibold">una riflessione</span>.
+        </p>
+        <button
+          onClick={onStartReflection}
+          className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
+        >
+          Inizia una riflessione
+        </button>
+      </div>
+    )
+  }
+
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
@@ -797,6 +792,20 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
 }
 
   // ---------- RENDER ----------
+    // se non ha completato l'onboarding, mostra solo quello
+  if (!hasCompletedOnboarding) {
+    return (
+      <Onboarding
+        onFinish={() => {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(ONBOARDING_KEY, "true")
+          }
+          setHasCompletedOnboarding(true)
+        }}
+      />
+    )
+  }
+
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
     

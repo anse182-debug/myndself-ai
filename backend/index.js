@@ -13,6 +13,9 @@ const PORT = process.env.PORT || 8080
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_KEY
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+const WELCOME_FROM_EMAIL =
+  process.env.WELCOME_FROM_EMAIL || "MyndSelf.ai <info@myndself.ai>"
 
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY")
 if (!SUPABASE_URL || !SUPABASE_KEY)
@@ -118,6 +121,66 @@ async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
   }
 }
 // ---- MENTOR: gruppi emozionali + domande seme ----
+
+async function sendWelcomeEmail({ to, name }) {
+  if (!RESEND_API_KEY) {
+    console.warn("⚠️ RESEND_API_KEY non impostata, salto welcome email")
+    return
+  }
+
+  const subject = "Benvenuto su MyndSelf.ai 🌿"
+
+  const plainText = `Ciao${name ? " " + name : ""},
+
+hai appena attivato il tuo spazio su MyndSelf.ai.
+
+Il prossimo passo è semplice: fai la tua prima "Riflessione del giorno".
+Ti aiuterà a scaricare un po' la testa e a darmi un minimo di contesto su come ti senti in questo periodo.
+
+Quando hai un momento tranquillo, entra qui:
+https://myndself.ai/app/
+
+Io sarò lì ad ascoltare.
+
+A presto,
+Il tuo Mentor AI`
+
+  const html = `
+  <p>Ciao${name ? " " + name : ""},</p>
+  <p>hai appena attivato il tuo spazio su <strong>MyndSelf.ai</strong>.</p>
+  <p>Il prossimo passo è semplice: fai la tua prima <strong>“Riflessione del giorno”</strong>.<br/>
+  Ti aiuterà a scaricare un po' la testa e a darmi un minimo di contesto su come ti senti in questo periodo.</p>
+  <p>Quando hai un momento tranquillo, entra qui:<br/>
+  <a href="https://myndself.ai/app/">Apri MyndSelf.ai</a></p>
+  <p>Io sarò lì ad ascoltare.</p>
+  <p>A presto,<br/>Il tuo Mentor AI 🌿</p>
+  `
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: WELCOME_FROM_EMAIL,
+        to,
+        subject,
+        text: plainText,
+        html,
+      }),
+    })
+
+    if (!res.ok) {
+      const body = await res.text()
+      console.warn("⚠️ sendWelcomeEmail failed:", res.status, body)
+    }
+  } catch (err) {
+    console.warn("⚠️ sendWelcomeEmail error:", err.message)
+  }
+}
+
 
 // Parole chiave grezze per capire il "cluster" emotivo dal mood testuale
 const GROUP3_KEYWORDS = [
@@ -890,6 +953,58 @@ try {
     reply.send({ reply: replyText, isFinal })
   } catch (err) {
     console.error("❌ Guided reflection error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
+app.post("/api/send-welcome-if-needed", async (req, reply) => {
+  const { user_id } = req.body || {}
+  if (!user_id) {
+    return reply.code(400).send({ error: "Missing user_id" })
+  }
+
+  try {
+    // 1) controlla se l'abbiamo già mandata
+    const { data: flagRow, error: flagErr } = await supabase
+      .from("user_flags")
+      .select("welcome_sent")
+      .eq("user_id", user_id)
+      .maybeSingle()
+
+    if (flagErr) throw flagErr
+
+    if (flagRow?.welcome_sent) {
+      return reply.send({ sent: false, reason: "already_sent" })
+    }
+
+    // 2) recupera l'email dall'auth di Supabase
+    const { data: userData, error: userErr } =
+      await supabase.auth.admin.getUserById(user_id)
+
+    if (userErr) throw userErr
+
+    const email = userData?.user?.email || userData?.email
+    const name =
+      userData?.user?.user_metadata?.full_name ||
+      userData?.user?.user_metadata?.name ||
+      null
+
+    if (!email) {
+      console.warn("⚠️ Nessuna email trovata per user_id", user_id)
+      return reply.send({ sent: false, reason: "no_email" })
+    }
+
+    // 3) invia welcome email
+    await sendWelcomeEmail({ to: email, name })
+
+    // 4) marca come inviata
+    await supabase.from("user_flags").upsert({
+      user_id,
+      welcome_sent: true,
+    })
+
+    reply.send({ sent: true })
+  } catch (err) {
+    console.error("❌ send-welcome-if-needed error:", err)
     reply.code(500).send({ error: err.message })
   }
 })

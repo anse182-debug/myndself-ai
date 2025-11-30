@@ -426,7 +426,6 @@ Your task:
   } catch (err) {
     console.error("❌ Reflection error:", err)
     reply.code(500).send({ error: err.message })
-    reply.code(500).send({ error: err.message })
   }
 }
 
@@ -1132,9 +1131,6 @@ app.get("/api/weekly-ritual", async (req, reply) => {
   try {
     const result = await buildWeeklyRitualForUser(user_id)
     return reply.send(result)
-  } catch (err) {
-    console.error("❌ weekly-ritual error:", err)
-    return reply.code(500).send({ error: err.message })
   } catch (err) {
     console.error("❌ weekly-ritual error:", err)
     return reply.code(500).send({ error: err.message })

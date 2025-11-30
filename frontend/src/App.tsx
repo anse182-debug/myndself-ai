@@ -358,10 +358,14 @@ useEffect(() => {
     setIsReflecting(true)
     setReflection("")
     try {
+      const goal =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
+        : ""
       const res = await fetch(`${API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, mood, note }),
+        body: JSON.stringify({ user_id: uid, mood, note, goal }),
       })
       const data = await res.json()
       setReflection(data.reflection || "")

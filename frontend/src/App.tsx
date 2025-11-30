@@ -891,34 +891,38 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
         </>
       )}
 
-      {/* SE LOGGATO → TABS + CONTENUTO */}
-      {currentTab === "oggi" && (
-      <>
-        {showBetaBanner && (
-          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-4">
-            <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs sm:text-sm text-emerald-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-              <div>
-                <p className="font-semibold mb-1">
-                  Stai usando la beta privata di MyndSelf.ai 🌿
-                </p>
-                <p className="text-emerald-100/90">
-                  Alcune parti sono ancora in evoluzione. Se qualcosa non ti è chiaro
-                  o non funziona come ti aspetti, puoi scrivermi a{" "}
-                  <span className="font-mono underline">
-                    info@myndself.ai
-                  </span>
-                  . Il tuo feedback è oro.
-                </p>
-              </div>
-              <button
-                onClick={dismissBetaBanner}
-                className="self-end sm:self-start text-[11px] sm:text-xs text-emerald-100/80 hover:text-emerald-50"
-              >
-                Ho capito
-              </button>
-            </div>
-          </div>
-        )}
+    {/* SE LOGGATO → TABS + CONTENUTO */}
+      {session && (
+        <>
+          <TabsNav />
+
+          {currentTab === "oggi" && (
+            <>
+              {showBetaBanner && (
+                <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-4">
+                  <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs sm:text-sm text-emerald-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div>
+                      <p className="font-semibold mb-1">
+                        Stai usando la beta privata di MyndSelf.ai 🌿
+                      </p>
+                      <p className="text-emerald-100/90">
+                        Alcune parti sono ancora in evoluzione. Se qualcosa non ti è chiaro
+                        o non funziona come ti aspetti, puoi scrivermi a{" "}
+                        <span className="font-mono underline">
+                          info@myndself.ai
+                        </span>
+                        . Il tuo feedback è oro.
+                      </p>
+                    </div>
+                    <button
+                      onClick={dismissBetaBanner}
+                      className="self-end sm:self-start text-[11px] sm:text-xs text-emerald-100/80 hover:text-emerald-50"
+                    >
+                      Ho capito
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <EmotionalBanner />
 
@@ -931,48 +935,46 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                     Usala a fine giornata per decomprimere, chiarire cosa senti e
                     lasciare andare ciò che pesa.
                   </p>
-                 <div className="flex flex-wrap gap-2 mb-3">
-  {MOOD_PRESETS.map((m) => {
-    const isActive = selectedMoods.includes(m.value)
-    return (
-      <button
-        key={m.label}
-        onClick={() => {
-          setSelectedMoods((prev) => {
-            let next: string[]
-            if (prev.includes(m.value)) {
-              // se già selezionato → lo tolgo
-              next = prev.filter((v) => v !== m.value)
-            } else {
-              // altrimenti lo aggiungo
-              next = [...prev, m.value]
-            }
-            // aggiorno il campo mood come stringa unita (es. "Calmo / centrato, Grato")
-            setMood(next.join(", "))
-            return next
-          })
-        }}
-        className={`px-3 py-1.5 rounded-full text-xs border transition ${
-          isActive
-            ? "bg-emerald-400 text-gray-950 border-emerald-400"
-            : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
-        }`}
-      >
-        {m.label}
-      </button>
-    )
-  })}
-</div>
 
-                 <input
-  value={mood}
-  onChange={(e) => {
-    setMood(e.target.value)
-    setSelectedMoods([]) // se scrive a mano, le chips si deselezionano
-  }}
-  placeholder="Come ti senti oggi?"
-  className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-/>
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {MOOD_PRESETS.map((m) => {
+                      const isActive = selectedMoods.includes(m.value)
+                      return (
+                        <button
+                          key={m.label}
+                          onClick={() => {
+                            setSelectedMoods((prev) => {
+                              let next: string[]
+                              if (prev.includes(m.value)) {
+                                next = prev.filter((v) => v !== m.value)
+                              } else {
+                                next = [...prev, m.value]
+                              }
+                              setMood(next.join(", "))
+                              return next
+                            })
+                          }}
+                          className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                            isActive
+                              ? "bg-emerald-400 text-gray-950 border-emerald-400"
+                              : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
+                          }`}
+                        >
+                          {m.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  <input
+                    value={mood}
+                    onChange={(e) => {
+                      setMood(e.target.value)
+                      setSelectedMoods([]) // se scrive a mano, le chips si deselezionano
+                    }}
+                    placeholder="Come ti senti oggi?"
+                    className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+                  />
 
                   <textarea
                     value={note}
@@ -980,6 +982,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                     placeholder="Vuoi aggiungere una nota su ciò che è successo o su come ti senti?"
                     className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
                   />
+
                   <button
                     onClick={handleReflection}
                     disabled={isReflecting}
@@ -999,7 +1002,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
             </>
           )}
 
-                   {currentTab === "insight" && (
+          {currentTab === "insight" && (
             <InsightsTab
               loading={insightsLoading}
               error={insightsError}
@@ -1009,6 +1012,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
               onStartReflection={() => setCurrentTab("oggi")}
             />
           )}
+
 
           {currentTab === "guidata" && (
             <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
@@ -1173,6 +1177,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
             © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le
             tue emozioni
           </footer>
+          </>
       )}
     </main>
   )

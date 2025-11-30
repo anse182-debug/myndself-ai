@@ -503,20 +503,19 @@ useEffect(() => {
     setInsightsTopTags(topTags)
 
     // 2) insight del Mentor → /api/summary (riassunto settimanale)
-    const res = await fetch(`${API_BASE}/api/summary`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: userId }),
-    })
+        // 2) insight del Mentor → /api/summary (riassunto recente)
+    const res = await fetch(
+      `${API_BASE}/api/summary?user_id=${encodeURIComponent(userId)}`
+    )
 
     if (res.ok) {
       const json = await res.json()
-      // adatta a come risponde il tuo endpoint (summary / text / ecc.)
       const text = json.summary || json.text || null
       setMentorInsight(text)
     } else {
       setMentorInsight(null)
     }
+
 
     setInsightsLoading(false)
   } catch (err: any) {

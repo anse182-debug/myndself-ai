@@ -930,7 +930,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
         })}
       </p>
     )}
-  </div>
+
 
   {weeklyRitualError && (
     <p className="text-xs text-gray-400">{weeklyRitualError}</p>
@@ -956,7 +956,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
     Fai una riflessione ora
   </button>
 </section>
-
+  </div>
   )
 }
 

@@ -735,23 +735,36 @@ app.get("/api/emotional-profile", async (req, reply) => {
 
     // 2️⃣ Prompt a GPT per analisi emotiva
     const prompt = `
-    Sei un assistente psicologico gentile che analizza journaling emozionale.
-    Questi sono gli ultimi stati e riflessioni dell'utente:
+Sei un assistente emotivo molto gentile che analizza journaling emozionale.
+Questi sono gli ultimi stati e riflessioni dell'utente:
 
-    ${lastReflections.slice(0, 3000)}
+${lastReflections.slice(0, 3000)}
 
-    Elabora in 3 brevi paragrafi:
-    1. Emozioni predominanti o ricorrenti.
-    2. Come sembra evolvere il tono emotivo nel tempo (più calmo, più stanco, più sereno...).
-    3. Un suggerimento mindful, basato su compassione e accettazione.
-    Rispondi in italiano, tono empatico e sintetico.
-    `
+Elabora in 3 brevi paragrafi, tono calmo e sintetico:
+1. Descrivi le emozioni predominanti o ricorrenti che emergono, senza giudizio.
+2. Spiega in modo leggero come sembra evolvere il tono emotivo nel tempo (più calmo, più stanco, più sereno...).
+3. Concludi con una breve riflessione che aiuti la persona a guardarsi con più gentilezza, terminando con UNA domanda aperta.
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.8,
-    })
+Regole importanti:
+- Non dare consigli, non proporre esercizi, non usare imperativi come "prova a", "fai", "ti invito a", "dovresti".
+- Non scrivere una lista di passi o azioni.
+- Parla direttamente alla persona dando del "tu".
+- Rispondi in italiano.
+`
+
+const response = await openai.chat.completions.create({
+  model: "gpt-4o-mini",
+  messages: [
+    {
+      role: "system",
+      content:
+        "In questo compito non sei un coach e non dai consigli. Descrivi soltanto i pattern emotivi e chiudi con una domanda gentile.",
+    },
+    { role: "user", content: prompt },
+  ],
+  temperature: 0.7,
+})
+
 
     const profileText =
       response.choices?.[0]?.message?.content?.trim() ||

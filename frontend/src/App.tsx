@@ -11,6 +11,7 @@ import {
 } from "recharts"
 import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 const ONBOARDING_KEY = "myndself_onboarding_v1_done"
 

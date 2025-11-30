@@ -950,6 +950,20 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                   </div>
                 </div>
               )}
+{/* HERO – Benvenuto nell'app */}
+<div className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-6 mb-4">
+  <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
+    <h2 className="text-xl sm:text-2xl font-semibold text-emerald-300 mb-2">
+      Benvenuto su MyndSelf.ai 🌿
+    </h2>
+    <p className="text-sm text-gray-300 leading-relaxed">
+      Qui le tue emozioni trovano spazio. Ogni giorno puoi registrare come stai,
+      osservare cosa cambia nel tempo e scoprire i pattern che influenzano il tuo benessere.
+      Inizia dalla <span className="text-emerald-300 font-semibold">Riflessione del giorno</span>:
+      poche parole possono già fare chiarezza.
+    </p>
+  </div>
+</div>
 
               <EmotionalBanner />
 

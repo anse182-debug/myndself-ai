@@ -1090,7 +1090,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                     {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
                   </button>
 
-                  {reflection && !showReflectionDone && (
+                  {reflection && (
                     <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
                       {reflection}
                     </div>

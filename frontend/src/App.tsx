@@ -11,7 +11,6 @@ import {
 } from "recharts"
 import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
-
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 const ONBOARDING_KEY = "myndself_onboarding_v1_done"
 
@@ -26,83 +25,90 @@ const MOOD_PRESETS = [
   { label: "Calmo", value: "Calmo / centrato" },
   { label: "Grato", value: "Grato" },
   { label: "Stressato", value: "Stressato" },
-  { label: "Stanco", value: "Stanco" },
-  { label: "Speranzoso", value: "Speranzoso" },
+  { label: "Stanco", value: "Stanco / scarico" },
+  { label: "Ansioso", value: "Ansioso / in allerta" },
+  { label: "Triste", value: "Triste" },
   { label: "Sovraccarico", value: "Sovraccarico" },
 ]
 
-const EMOTION_LABELS_IT: Record<string, string> = {
-  calm: "calma",
-  calmness: "calma",
-  stressed: "stress",
-  stress: "stress",
-  tired: "stanchezza",
-  fatigue: "stanchezza",
-  hopeful: "speranza",
-  hope: "speranza",
-  overwhelmed: "sovraccarico",
-  anxiety: "ansia",
-  anxious: "ansia",
-  gratitude: "gratitudine",
-  grateful: "gratitudine",
-  joy: "gioia",
-  happy: "felicità",
-  happiness: "felicità",
-  sadness: "tristezza",
-  sad: "tristezza",
+const MOOD_EMOJI: Record<string, string> = {
+  "Calmo / centrato": "🧘‍♀️",
+  Grato: "🙏",
+  Stressato: "😣",
+  "Stanco / scarico": "😴",
+  "Ansioso / in allerta": "😰",
+  Triste: "😔",
+  Sovraccarico: "💥",
 }
 
-function Spinner() {
-  return (
-    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-  )
-}
+const QUICK_TAGS = [
+  "Stanchezza mentale",
+  "Stanchezza fisica",
+  "Senso di colpa",
+  "Ansia a bassa intensità",
+  "Ansia forte",
+  "Confusione",
+  "Speranza",
+  "Motivazione",
+  "Serenità",
+  "Frustrazione",
+  "Sovraccarico",
+  "Apprezzamento",
+]
 
-const ReflectionSuccess = ({
-  moods,
-  onShowInsights,
-  onDismiss,
-}: {
-  moods: string[]
-  onShowInsights: () => void
-  onDismiss: () => void
-}) => {
-  return (
-    <div className="mt-4 bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 text-sm text-gray-200 space-y-3 fade-in">
-      <div className="flex items-center gap-2">
-        <span className="text-xl">✨</span>
-        <p className="font-semibold">Riflessione registrata</p>
-      </div>
-      {moods.length > 0 && (
-        <p className="text-xs text-gray-400">
-          Oggi hai parlato di{" "}
-          <span className="text-emerald-300 font-semibold">
-            {moods.join(", ")}
-          </span>
-          .
-        </p>
-      )}
-      <p className="text-xs">
-        Vuoi vedere come queste emozioni si collegano ai tuoi insight?
-      </p>
-      <div className="flex gap-3">
-        <button
-          onClick={onShowInsights}
-          className="px-3 py-2 bg-emerald-400 text-gray-950 rounded-lg text-xs font-semibold hover:bg-emerald-300 transition"
-        >
-          Mostrami
-        </button>
-        <button
-          onClick={onDismiss}
-          className="px-3 py-2 bg-white/10 text-gray-300 rounded-lg text-xs hover:bg-white/20 transition"
-        >
-          Non ora
-        </button>
-      </div>
-    </div>
-  )
-}
+const GUIDED_PROMPTS = [
+  "Se dovessi descrivere la tua giornata come una scena di un film, cosa vedresti?",
+  "C'è stata un'emozione piccola ma insistente oggi, anche solo sullo sfondo?",
+  "In quale momento della giornata hai sentito più chiaramente il tuo corpo parlarti?",
+  "Se dovessi ringraziare qualcosa o qualcuno di oggi, chi o cosa sarebbe?",
+  "C'è stata una situazione in cui ti sei sorpreso/a della tua reazione?",
+]
 
+const EMOTIONAL_TONES = [
+  {
+    id: "calma",
+    label: "Più calma",
+    description: "MomentI di respiro, centratura, presenza.",
+  },
+  {
+    id: "intensità",
+    label: "Più intensità",
+    description: "Picchi emotivi, tensioni, nervosismo.",
+  },
+  {
+    id: "stanchezza",
+    label: "Più stanchezza",
+    description: "Sovraccarico, esaurimento, poca energia.",
+  },
+  {
+    id: "gratitudine",
+    label: "Più gratitudine",
+    description: "Momenti in cui noti ciò che funziona.",
+  },
+]
+
+const BANNER_NOTES = [
+  {
+    id: "start",
+    title: "Uno spazio sicuro, non una performance",
+    body: "Qui non devi essere brillante o interessante. Puoi anche scrivere solo due righe sconnesse: valgono comunque come un atto di cura verso di te.",
+  },
+  {
+    id: "tiny",
+    title: "Un minuto alla volta",
+    body: "Non serve recuperare tutto il passato. Ti basta guardare oggi: come ti sei svegliato, cosa ti ha punto, cosa ti ha fatto respirare meglio.",
+  },
+  {
+    id: "soft",
+    title: "Puoi cambiare idea tra una riflessione e l’altra",
+    body: "Non devi essere coerente con quello che hai scritto ieri. Le emozioni non lo sono quasi mai, e va bene così.",
+  },
+]
+
+// piccolo spinner
+const Spinner = () => (
+  <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
+)
 
 type TabId = "oggi" | "insight" | "guidata" | "chat"
 
@@ -118,80 +124,54 @@ export default function App() {
     setHasCompletedOnboarding(done)
   }, [])
 
-    // mostra banner beta solo se utente loggato e non l'ha già chiuso
+  // mostra banner beta solo se utente loggato e non l'ha già chiuso
   useEffect(() => {
     if (!session?.user?.id) return
     if (typeof window === "undefined") return
 
-    const dismissed = window.localStorage.getItem(BETA_BANNER_KEY)
+    const dismissed = window.localStorage.getItem(BETA_BANNER_KEY) === "true"
     if (!dismissed) {
       setShowBetaBanner(true)
     }
-  }, [session])
-  
-  const dismissBetaBanner = () => {
+  }, [session?.user?.id])
+
+  const handleDismissBetaBanner = () => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(BETA_BANNER_KEY, "true")
     }
     setShowBetaBanner(false)
   }
 
-
-
-
-// journaling & insights
+  // journaling & insights
   const [mood, setMood] = useState("")
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
   const [weeklyInsight, setWeeklyInsight] = useState("")
   const [summaryHistory, setSummaryHistory] = useState<SummaryEntry[]>([])
-  const [dailyData, setDailyData] = useState<DailyItem[]>([])
-  const [tagData, setTagData] = useState<TagItem[]>([])
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightsError, setInsightsError] = useState<string | null>(null)
+  const [insightsMoodSeries, setInsightsMoodSeries] = useState<
+    { date: string; label: string }[]
+  >([])
+  const [insightsTopTags, setInsightsTopTags] = useState<
+    { tag: string; count: number }[]
+  >([])
+  const [mentorInsight, setMentorInsight] = useState<string | null>(null)
+  const [weeklyRitual, setWeeklyRitual] = useState<string | null>(null)
+  const [weeklyRitualRange, setWeeklyRitualRange] = useState<{
+    from: string
+    to: string
+  } | null>(null)
+  const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(
+    null
+  )
 
-  // chat libera
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [chatInput, setChatInput] = useState("")
-  const [isChatLoading, setIsChatLoading] = useState(false)
-
-  // riflessione guidata
-  const [guidedActive, setGuidedActive] = useState(false)
-  const [guidedStep, setGuidedStep] = useState<number>(0) // 0 = non iniziata, 1..4
-  const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
-  const [guidedInput, setGuidedInput] = useState("")
-  const [guidedLoading, setGuidedLoading] = useState(false)
-  const [guidedFinal, setGuidedFinal] = useState(false)
-
-  // loading generici
-  const [isReflecting, setIsReflecting] = useState(false)
-  const [isSummarizing, setIsSummarizing] = useState(false)
-  const [showReflectionDone, setShowReflectionDone] = useState(false)
-
-
-  // emotional profile / banner
-  const [emotionalWelcome, setEmotionalWelcome] = useState<string | null>(null)
+  // emotional profile
+  const [emotionalShort, setEmotionalShort] = useState<string | null>(null)
   const [emotionalFull, setEmotionalFull] = useState<string | null>(null)
   const [emotionalExpanded, setEmotionalExpanded] = useState(false)
   const [emotionalTags, setEmotionalTags] = useState<string[]>([])
-
-  // insights
-const [insightsLoading, setInsightsLoading] = useState(false)
-const [insightsError, setInsightsError] = useState<string | null>(null)
-const [insightsMoodSeries, setInsightsMoodSeries] = useState<
-  { date: string; label: string }[]
->([])
-const [insightsTopTags, setInsightsTopTags] = useState<
-  { tag: string; count: number }[]
->([])
-const [mentorInsight, setMentorInsight] = useState<string | null>(null)
-const [weeklyRitual, setWeeklyRitual] = useState<string | null>(null)
-const [weeklyRitualRange, setWeeklyRitualRange] = useState<{
-  from: string
-  to: string
-} | null>(null)
-const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(null)
-
-
 
   // tab / viste
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
@@ -209,40 +189,364 @@ const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(null)
 
   // ---------- AUTH ----------
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setSession(data.session)
+    ;(async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (session?.user) {
+        setSession(session)
+      }
+    })()
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
     })
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
-    return () => data.subscription.unsubscribe()
+
+    return () => {
+      subscription.unsubscribe()
+    }
   }, [])
 
-  // fetch iniziale dati (solo se loggato)
+  const [magicLinkEmail, setMagicLinkEmail] = useState("")
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [authLoading, setAuthLoading] = useState(false)
+
+  const handleLogin = async () => {
+    setAuthError(null)
+    if (!magicLinkEmail) {
+      setAuthError("Inserisci una email per continuare.")
+      return
+    }
+
+    setAuthLoading(true)
+    try {
+      const redirectTo =
+        window.location.origin +
+        (window.location.pathname.includes("/app") ? "/app/#" : "/app/#")
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: magicLinkEmail,
+        options: {
+          emailRedirectTo: redirectTo,
+        },
+      })
+
+      if (error) {
+        throw error
+      }
+
+      showToast("Ti ho mandato un link magico via email ✉️", "success")
+      setAuthError(null)
+    } catch (error: any) {
+      console.error("auth error", error)
+      setAuthError(error.message || "Errore durante l'invio del link magico.")
+      showToast(error.message, "error")
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    setSession(null)
+    showToast("Sei uscito dall'account", "info")
+  }
+
+  // ---------- RIFLESSIONE DEL GIORNO ----------
+  const [isReflecting, setIsReflecting] = useState(false)
+  const [showReflectionDone, setShowReflectionDone] = useState(false)
+  const [emotionProfileLoading, setEmotionProfileLoading] = useState(false)
+
+  const handleReflection = async () => {
+    const uid = session?.user?.id
+    if (!uid)
+      return showToast("Accedi prima per salvare le riflessioni", "error")
+    if (!mood && !note)
+      return showToast(
+        "Scrivi almeno come ti senti o una breve nota 💭",
+        "error"
+      )
+
+    setIsReflecting(true)
+    setReflection("")
+    try {
+      const goal =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
+          : ""
+
+      const res = await fetch(`${API_BASE}/api/reflection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid, mood, note, goal }),
+      })
+      const data = await res.json()
+      setReflection(data.reflection || "")
+      showToast("Riflessione salvata ✅", "success")
+      setMood("")
+      setSelectedMoods([])
+      setNote("")
+      setShowReflectionDone(true)
+
+      // refresh dati per Insight
+      await loadInsights(uid)
+      await refreshEmotionalProfile(uid)
+    } catch (err: any) {
+      console.error(err)
+      showToast(
+        "Non sono riuscito a salvare la riflessione. Riprova tra poco.",
+        "error"
+      )
+    } finally {
+      setIsReflecting(false)
+    }
+  }
+
+  // ---------- INSIGHT & PROFILO EMOTIVO ----------
+  async function refreshEmotionalProfile(userId: string) {
+    try {
+      setEmotionProfileLoading(true)
+      const res = await fetch(
+        `${API_BASE}/api/emotional-profile?user_id=${userId}`
+      )
+      const data = await res.json()
+
+      if (data?.ok && typeof data.profileText === "string") {
+        const raw = data.profileText.trim()
+        setEmotionalFull(raw)
+        setEmotionalExpanded(false)
+        setEmotionalTags(Array.isArray(data.topTags) ? data.topTags : [])
+
+        const sentences = raw
+          .split(/(?<=[.!?])\s+/)
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+
+        if (sentences.length > 2) {
+          const firstTwo = sentences.slice(0, 2).join(" ")
+          setEmotionalShort(firstTwo)
+        } else {
+          setEmotionalShort(raw)
+        }
+      }
+    } catch (err) {
+      console.error("emotional profile error", err)
+    } finally {
+      setEmotionProfileLoading(false)
+    }
+  }
+
+  async function loadInsights(userId: string) {
+    setInsightsLoading(true)
+    setInsightsError(null)
+    try {
+      // 1) dataset grezzo
+      const url = `${API_BASE}/api/insights?user_id=${userId}`
+      const res = await fetch(url)
+      if (!res.ok) throw new Error("Non riesco a caricare gli insight")
+      const json = await res.json()
+
+      const moodSeries: { date: string; label: string }[] =
+        json.moods?.map((item: any) => ({
+          date: item.date,
+          label: item.mood || "",
+        })) ?? []
+
+      const topTags =
+        json.top_tags?.map((t: any) => ({
+          tag: t.tag,
+          count: t.tag_count || 0,
+        })) ?? []
+
+      setInsightsMoodSeries(moodSeries)
+      setInsightsTopTags(topTags)
+
+      // 2) mentor summary
+      if (json.mentor_insight && typeof json.mentor_insight === "string") {
+        setMentorInsight(json.mentor_insight.trim())
+      } else {
+        setMentorInsight(null)
+      }
+
+      // 3) rituale settimanale
+      try {
+        const resRitual = await fetch(
+          `${API_BASE}/api/weekly-ritual?user_id=${encodeURIComponent(userId)}`
+        )
+
+        if (resRitual.ok) {
+          const ritualJson = await resRitual.json()
+          if (ritualJson.ritual) {
+            setWeeklyRitual(ritualJson.ritual)
+            setWeeklyRitualRange(
+              ritualJson.from && ritualJson.to
+                ? { from: ritualJson.from, to: ritualJson.to }
+                : null
+            )
+            setWeeklyRitualError(null)
+          } else if (ritualJson.reason === "no_entries") {
+            setWeeklyRitual(null)
+            setWeeklyRitualRange(null)
+            setWeeklyRitualError(
+              "Per vedere il rituale settimanale servono ancora alcune riflessioni."
+            )
+          } else {
+            setWeeklyRitual(null)
+            setWeeklyRitualRange(null)
+            setWeeklyRitualError(null)
+          }
+        } else {
+          setWeeklyRitual(null)
+          setWeeklyRitualRange(null)
+          setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
+        }
+      } catch (err) {
+        console.error("weekly ritual error", err)
+        setWeeklyRitual(null)
+        setWeeklyRitualRange(null)
+        setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
+      }
+    } catch (err: any) {
+      console.error(err)
+      setInsightsError(
+        "Non sono riuscito a preparare i tuoi insight. Riprova più tardi."
+      )
+    } finally {
+      setInsightsLoading(false)
+    }
+  }
+
   useEffect(() => {
     const uid = session?.user?.id
     if (!uid) return
 
     ;(async () => {
       try {
-        const [sumRes, dailyRes, tagRes, chatRes] = await Promise.all([
-          fetch(`${API_BASE}/api/summary/history?user_id=${uid}`),
-          fetch(`${API_BASE}/api/analytics/daily?user_id=${uid}`),
-          fetch(`${API_BASE}/api/analytics/tags?user_id=${uid}`),
-          fetch(`${API_BASE}/api/chat/history?user_id=${uid}`),
-        ])
-        const [sumJson, dailyJson, tagJson, chatJson] = await Promise.all([
-          sumRes.json(),
-          dailyRes.json(),
-          tagRes.json(),
-          chatRes.json(),
-        ])
+        const res = await fetch(
+          `${API_BASE}/api/summary-history?user_id=${uid}`
+        )
+        const json = await res.json()
+        const items = Array.isArray(json.items) ? json.items : []
+        const typed: SummaryEntry[] = items.map((x: any) => ({
+          id: x.id,
+          summary: x.summary,
+          created_at: x.created_at,
+        }))
+        setSummaryHistory(typed)
+      } catch (e) {
+        console.error("summary history error", e)
+      }
+    })()
+  }, [session?.user?.id])
 
-        if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-        if (dailyJson?.ok) setDailyData(dailyJson.items || [])
-        if (tagJson?.ok) setTagData(tagJson.items || [])
-        if (chatJson?.ok && chatJson.items?.length > 0) {
-          const last = chatJson.items[0]
+  // ---------- GUIDED REFLECTION ----------
+  const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
+  const [guidedInput, setGuidedInput] = useState("")
+  const [guidedLoading, setGuidedLoading] = useState(false)
+
+  const startGuidedReflection = async () => {
+    const uid = session?.user?.id
+    if (!uid) {
+      showToast("Accedi prima per iniziare una riflessione guidata", "error")
+      return
+    }
+
+    setGuidedLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: uid, message: "" }),
+      })
+      const data = await res.json()
+      const firstMessage: GuidedMsg = {
+        role: "assistant",
+        content:
+          data.reply ||
+          "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
+      }
+      setGuidedMessages([firstMessage])
+      showToast("Ho preparato qualche domanda per te 🌱", "info")
+    } catch (err) {
+      console.error("guided reflection error", err)
+      showToast(
+        "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
+        "error"
+      )
+    } finally {
+      setGuidedLoading(false)
+    }
+  }
+
+  const continueGuidedReflection = async () => {
+    const uid = session?.user?.id
+    if (!uid) {
+      showToast("Accedi prima per continuare la riflessione guidata", "error")
+      return
+    }
+    if (!guidedInput.trim()) return
+
+    const newUserMsg: GuidedMsg = {
+      role: "user",
+      content: guidedInput.trim(),
+    }
+    setGuidedMessages((prev) => [...prev, newUserMsg])
+    setGuidedInput("")
+
+    setGuidedLoading(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: uid,
+          message: guidedInput.trim(),
+        }),
+      })
+      const data = await res.json()
+      const next: GuidedMsg = {
+        role: "assistant",
+        content:
+          data.reply ||
+          "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
+      }
+      setGuidedMessages((prev) => [...prev, next])
+    } catch (err) {
+      console.error("guided reflection continue error", err)
+      showToast(
+        "Non sono riuscito a continuare la riflessione guidata. Riprova tra poco.",
+        "error"
+      )
+    } finally {
+      setGuidedLoading(false)
+    }
+  }
+
+  // ---------- MENTOR CHAT ----------
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState("")
+  const [isChatLoading, setIsChatLoading] = useState(false)
+
+  useEffect(() => {
+    const uid = session?.user?.id
+    if (!uid) return
+
+    ;(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE}/api/mentor-history?user_id=${uid}`
+        )
+        if (!res.ok) return
+        const data = await res.json()
+        if (Array.isArray(data.items) && data.items.length > 0) {
+          const last = data.items[0]
           const restored: ChatMessage[] = [
-            ...(last.messages || []),
+            { role: "assistant", content: last.opening || "" },
+            ...(last.exchange && Array.isArray(last.exchange)
+              ? last.exchange
+              : []),
             ...(last.reply ? [{ role: "assistant", content: last.reply }] : []),
           ]
           setChatMessages(restored)
@@ -253,472 +557,117 @@ const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(null)
     })()
   }, [session])
 
-  // fetch profilo emotivo (solo se loggato)
-  useEffect(() => {
-    const uid = session?.user?.id
-    if (!uid) return
-
-    ;(async () => {
-      try {
-        const res = await fetch(
-          `${API_BASE}/api/emotional-profile?user_id=${uid}`
-        )
-        const data = await res.json()
-
-        if (data?.ok && typeof data.profileText === "string") {
-          const raw = data.profileText.trim()
-          setEmotionalFull(raw)
-          setEmotionalExpanded(false)
-          setEmotionalTags(Array.isArray(data.topTags) ? data.topTags : [])
-
-          const sentences = raw
-            .split(/(?<=[.!?])\s+/)
-            .map((s: string) => s.trim())
-            .filter((s: string) => s.length > 0)
-
-          if (sentences.length === 0) {
-            setEmotionalWelcome(null)
-            return
-          }
-
-          const clean = (s: string) =>
-            s.replace(/^[\-\u2022]*\s*(\d+[\.\)]\s*)?/, "").trim()
-
-          let result = clean(sentences[0])
-          if (result.length < 80 && sentences.length > 1) {
-            result += " " + clean(sentences[1])
-          }
-
-          setEmotionalWelcome(result)
-        } else {
-          setEmotionalWelcome(null)
-          setEmotionalFull(null)
-          setEmotionalTags([])
-          setEmotionalExpanded(false)
-        }
-      } catch (err) {
-        console.error("welcome emotional-profile error:", err)
-        setEmotionalWelcome(null)
-        setEmotionalFull(null)
-        setEmotionalTags([])
-        setEmotionalExpanded(false)
-      }
-    })()
-  }, [session])
-    // welcome email: chiama il backend che la manda solo se serve
-  useEffect(() => {
-    const uid = session?.user?.id
-    if (!uid) return
-
-    ;(async () => {
-      try {
-        await fetch(`${API_BASE}/api/send-welcome-if-needed`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: uid }),
-        })
-      } catch (err) {
-        console.error("welcome email call failed:", err)
-      }
-    })()
-  }, [session?.user?.id])
-
-useEffect(() => {
-    const uid = session?.user?.id
-    if (!uid) return
-    if (currentTab !== "insight") return
-
-    loadInsights(uid)
-  }, [currentTab, session?.user?.id])
-  
- const handleLogin = async () => {
-  const email = prompt("Inserisci la tua email")
-  if (!email) return
-
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${window.location.origin}/app`
-    },
-  })
-
-  if (error) {
-    showToast(error.message, "error")
-  } else {
-    showToast("Ti ho mandato un link magico via email ✉️", "success")
-  }
-}
-
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    setSession(null)
-    showToast("Sei uscito dall'account", "info")
-  }
-
-  // ---------- RIFLESSIONE DEL GIORNO ----------
-  const handleReflection = async () => {
-    const uid = session?.user?.id
-    if (!uid) return showToast("Accedi prima per salvare le riflessioni", "error")
-    if (!mood && !note)
-      return showToast("Scrivi almeno come ti senti o una breve nota 💭", "error")
-
-    setIsReflecting(true)
-    setReflection("")
-    try {
-      const goal =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
-        : ""
-      const res = await fetch(`${API_BASE}/api/reflection`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, mood, note, goal }),
-      })
-      const data = await res.json()
-      setReflection(data.reflection || "")
-      setShowReflectionDone(true)
-      showToast("Riflessione salvata ✅", "success")
-
-      const dailyRes = await fetch(
-        `${API_BASE}/api/analytics/daily?user_id=${uid}`
-      )
-      const dailyJson = await dailyRes.json()
-      if (dailyJson?.ok) setDailyData(dailyJson.items || [])
-
-     setMood("")
-     setSelectedMoods([])
-     setNote("")
-
-    } catch (e) {
-      console.error("reflection error:", e)
-      showToast("Errore durante la riflessione", "error")
-    } finally {
-      setIsReflecting(false)
-    }
-  }
-
-  // ---------- SINTESI DELLA SETTIMANA ----------
-  const handleSummary = async () => {
-    const uid = session?.user?.id
-    if (!uid)
-      return showToast("Accedi prima per generare una sintesi", "error")
-    setIsSummarizing(true)
-    try {
-      const res = await fetch(
-        `${API_BASE}/api/summary?user_id=${uid}&save=true`
-      )
-      const data = await res.json()
-      setWeeklyInsight(data.summary || "")
-      showToast("Sintesi salvata ✅", "success")
-
-      const sumRes = await fetch(
-        `${API_BASE}/api/summary/history?user_id=${uid}`
-      )
-      const sumJson = await sumRes.json()
-      if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-    } catch (e) {
-      console.error("summary error:", e)
-      showToast("Errore durante la sintesi", "error")
-    } finally {
-      setIsSummarizing(false)
-    }
-  }
-
-  // ---------- CHAT RIFLESSIVA ----------
   const handleChatSend = async () => {
     const uid = session?.user?.id
-    if (!uid)
-      return showToast("Accedi prima per usare la chat riflessiva", "error")
+    if (!uid) {
+      showToast("Accedi prima per parlare con il Mentor", "error")
+      return
+    }
     if (!chatInput.trim()) return
 
-    const newMessages = [...chatMessages, { role: "user", content: chatInput }]
-    setChatMessages(newMessages)
+    const newMsg: ChatMessage = { role: "user", content: chatInput.trim() }
+    setChatMessages((prev) => [...prev, newMsg])
     setChatInput("")
     setIsChatLoading(true)
+
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await fetch(`${API_BASE}/api/mentor-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, messages: newMessages }),
+        body: JSON.stringify({
+          user_id: uid,
+          message: newMsg.content,
+        }),
       })
       const data = await res.json()
-      if (data.reply) {
-        setChatMessages([
-          ...newMessages,
-          { role: "assistant", content: data.reply },
-        ])
-      }
-    } catch (e) {
-      console.error("chat error:", e)
-      showToast("Errore nella chat riflessiva", "error")
+      const replyText =
+        data.reply ||
+        "Ti ringrazio per quello che hai condiviso. Che cosa ti colpisce di più di ciò che hai appena scritto?"
+
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: replyText },
+      ])
+    } catch (err) {
+      console.error("mentor chat error", err)
+      showToast(
+        "Non riesco a rispondere in questo momento. Riprova tra poco.",
+        "error"
+      )
     } finally {
       setIsChatLoading(false)
     }
   }
 
-  // ---------- RIFLESSIONE GUIDATA ----------
-  async function startGuidedSession() {
+  // ---------- QUICK METRICS ----------
+  const [dailyItems, setDailyItems] = useState<DailyItem[]>([])
+  const [tagItems, setTagItems] = useState<TagItem[]>([])
+
+  useEffect(() => {
     const uid = session?.user?.id
-    if (!uid)
-      return showToast("Accedi prima per avviare una riflessione guidata", "error")
+    if (!uid) return
 
-    setGuidedActive(true)
-    setGuidedFinal(false)
-    setGuidedStep(1)
-    setGuidedMessages([
-      {
-        role: "assistant",
-        content:
-          "Ti va di fare una breve riflessione insieme? In poche parole, cosa sta succedendo dentro di te adesso?",
-      },
-    ])
-  }
+    ;(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/metrics?user_id=${uid}`)
+        const data = await res.json()
 
-  async function sendGuidedTurn() {
-    const uid = session?.user?.id
-    if (!uid)
-      return showToast("Accedi prima per continuare la riflessione guidata", "error")
+        const days: DailyItem[] = Array.isArray(data.by_day)
+          ? data.by_day.map((d: any) => ({
+              day: d.day,
+              entries: d.entries,
+            }))
+          : []
 
-    if (!guidedActive) return startGuidedSession()
-    if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
-      return showToast("Scrivi una breve risposta per continuare 💭", "info")
-    }
+        const tags: TagItem[] = Array.isArray(data.top_tags)
+          ? data.top_tags.map((t: any) => ({
+              tag: t.tag,
+              tag_count: t.tag_count,
+            }))
+          : []
 
-    let msgs = guidedMessages
-    if (guidedInput.trim()) {
-      msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
-      setGuidedMessages(msgs)
-      setGuidedInput("")
-    }
-
-    setGuidedLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, messages: msgs, step: guidedStep || 1 }),
-      })
-      const data = await res.json()
-      const reply =
-        data?.reply ||
-        "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
-      const isFinal = Boolean(data?.isFinal)
-
-      setGuidedMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: reply },
-      ])
-      setGuidedFinal(isFinal)
-      setGuidedStep((prev) => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
-
-      if (isFinal) {
-        showToast("Riflessione guidata salvata tra le sintesi ✅", "success")
-        try {
-          const sumRes = await fetch(
-            `${API_BASE}/api/summary/history?user_id=${uid}`
-          )
-          const sumJson = await sumRes.json()
-          if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-        } catch (e) {
-          console.error("refresh insights error:", e)
-        }
+        setDailyItems(days)
+        setTagItems(tags)
+      } catch (err) {
+        console.error("metrics error", err)
       }
-    } catch (e) {
-      console.error("guided error:", e)
-      showToast("Errore nella riflessione guidata", "error")
-    } finally {
-      setGuidedLoading(false)
-    }
-  }
+    })()
+  }, [session?.user?.id])
 
-  function resetGuided() {
-    setGuidedActive(false)
-    setGuidedFinal(false)
-    setGuidedStep(0)
-    setGuidedMessages([])
-    setGuidedInput("")
-  }
-
-  async function loadInsights(userId: string) {
-  try {
-    setInsightsLoading(true)
-    setInsightsError(null)
-
-  // 1) dati ultimi 30 giorni da Supabase
-    // 1) dati ultimi 7 giorni da Supabase
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-
-    const { data, error } = await supabase
-      .from("mood_entries")
-      .select("mood, tags, at")
-      .eq("user_id", userId)
-      .gte("at", sevenDaysAgo.toISOString())
-      .order("at", { ascending: true })
-
-    const entries = data || []
-        // 3) Rituale settimanale
-    try {
-      const resRitual = await fetch(
-        `${API_BASE}/api/weekly-ritual?user_id=${encodeURIComponent(userId)}`
-      )
-
-      if (resRitual.ok) {
-        const json = await resRitual.json()
-
-        if (json.ritual) {
-          setWeeklyRitual(json.ritual)
-          setWeeklyRitualRange(
-            json.from && json.to
-              ? { from: json.from, to: json.to }
-              : null
-          )
-          setWeeklyRitualError(null)
-        } else if (json.reason === "no_entries") {
-          setWeeklyRitual(null)
-          setWeeklyRitualRange(null)
-          setWeeklyRitualError(
-            "Per vedere il rituale settimanale servono ancora alcune riflessioni."
-          )
-        } else {
-          setWeeklyRitual(null)
-          setWeeklyRitualRange(null)
-          setWeeklyRitualError(null)
-        }
-      } else {
-        setWeeklyRitual(null)
-        setWeeklyRitualRange(null)
-        setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
-      }
-    } catch (err) {
-      console.error("weekly ritual error", err)
-      setWeeklyRitual(null)
-      setWeeklyRitualRange(null)
-      setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
-    }
-
-
-    // se non ci sono proprio dati → schermata “vuota”
-    if (!entries.length) {
-      setInsightsMoodSeries([])
-      setInsightsTopTags([])
-      setMentorInsight(null)
-      setInsightsLoading(false)
-      return
-    }
-
-
-    // 1a) serie giornaliera (semplificata: prendiamo il primo mood del giorno)
-    const byDay = new Map<string, string>()
-    for (const e of entries) {
-      const d = new Date(e.at)
-      const key = d.toISOString().slice(0, 10) // YYYY-MM-DD
-      if (!byDay.has(key)) {
-        byDay.set(key, e.mood || "")
-      }
-    }
-    const moodSeries = Array.from(byDay.entries()).map(([date, label]) => ({
-      date,
-      label,
-    }))
-    setInsightsMoodSeries(moodSeries)
-
-    // 1b) tag cloud – contiamo i tag
-    const tagCount = new Map<string, number>()
-    for (const e of entries) {
-      if (Array.isArray(e.tags)) {
-        for (const t of e.tags) {
-          const key = String(t).toLowerCase()
-          tagCount.set(key, (tagCount.get(key) || 0) + 1)
-        }
-      }
-    }
-
-    const topTags = Array.from(tagCount.entries())
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 10)
-      .map(([tag, count]) => ({ tag, count }))
-
-    setInsightsTopTags(topTags)
-
-    // 2) insight del Mentor → /api/summary (riassunto settimanale)
-        // 2) insight del Mentor → /api/summary (riassunto recente)
-    const res = await fetch(
-      `${API_BASE}/api/summary?user_id=${encodeURIComponent(userId)}`
-    )
-
-    if (res.ok) {
-      const json = await res.json()
-      const text = json.summary || json.text || null
-      setMentorInsight(text)
-    } else {
-      setMentorInsight(null)
-    }
-
-
-    setInsightsLoading(false)
-  } catch (err: any) {
-    console.error("loadInsights error", err)
-    setInsightsError("Non sono riuscito a caricare gli insight.")
-    setInsightsLoading(false)
-  }
-}
-
-
-  // ---------- CHART DATA ----------
-  const chartData = useMemo(
-    () => (dailyData || []).map((d) => ({ day: d.day, entries: d.entries })),
-    [dailyData]
+  const dailyChartData = useMemo(
+    () =>
+      dailyItems.map((d) => ({
+        ...d,
+        label: new Date(d.day).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+        }),
+      })),
+    [dailyItems]
   )
 
-  // ---------- COMPONENTI UI INTERNI ----------
+  const tagChartData = useMemo(
+    () =>
+      tagItems.map((t) => ({
+        ...t,
+        label: t.tag,
+      })),
+    [tagItems]
+  )
 
-  const EmotionalBanner = () =>
-    emotionalWelcome ? (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="mb-4 bg-gradient-to-r from-emerald-500/15 via-emerald-400/10 to-cyan-500/10 border border-emerald-400/40 rounded-2xl px-4 py-3 flex items-start gap-3 text-xs sm:text-sm text-emerald-50 shadow-[0_0_40px_rgba(16,185,129,0.15)]">
-          <div className="mt-0.5 flex-shrink-0">
-            <div className="w-7 h-7 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-400/40">
-              <span className="text-emerald-200 text-sm">🪷</span>
-            </div>
-          </div>
-          <div className="flex-1">
-            <span className="font-semibold mr-1">Nota emotiva:</span>
-            <span className="align-middle">
-              {emotionalExpanded && emotionalFull
-                ? emotionalFull
-                : emotionalWelcome}
-            </span>
-            {emotionalTags.length > 0 && (
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {emotionalTags.map((tag, idx) => {
-                  const key = tag.toLowerCase().trim()
-                  const label = EMOTION_LABELS_IT[key] || tag
-                  return (
-                    <span
-                      key={idx}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-400/40 text-emerald-100"
-                    >
-                      {label}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-          </div>
-          {emotionalFull && emotionalFull !== emotionalWelcome && (
-            <button
-              onClick={() => setEmotionalExpanded((prev) => !prev)}
-              className="ml-3 text-[11px] sm:text-xs px-2 py-1 rounded-full border border-emerald-300/60 bg-emerald-500/10 hover:bg-emerald-500/20 whitespace-nowrap"
-            >
-              {emotionalExpanded ? "Mostra meno" : "Mostra di più"}
-            </button>
-          )}
-        </div>
-      </div>
-    ) : null
+  // ---------- BANNER EMOTIVO ----------
+  const [emotionalNoteIndex, setEmotionalNoteIndex] = useState(0)
+  const currentBanner = BANNER_NOTES[emotionalNoteIndex]
 
+  useEffect(() => {
+    if (!BANNER_NOTES.length) return
+    const id = setInterval(() => {
+      setEmotionalNoteIndex((prev) => (prev + 1) % BANNER_NOTES.length)
+    }, 20000)
+    return () => clearInterval(id)
+  }, [])
+
+  // ---------- TABS ----------
   const TabsNav = () => {
     const tabs: { id: TabId; label: string }[] = [
       { id: "oggi", label: "Oggi" },
@@ -729,240 +678,258 @@ useEffect(() => {
     // ---------- RENDER ----------
     return (
       <nav className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
-        <div className="flex justify-between sm:justify-start sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
-          {tabs.map((t) => {
-            const active = currentTab === t.id
-            return (
-              <button
-                key={t.id}
-                onClick={() => setCurrentTab(t.id)}
-                className={`flex-1 sm:flex-none px-3 sm:px-4 py-1.5 rounded-full text-xs sm:text-sm transition ${
-                  active
-                    ? "bg-emerald-400 text-gray-950 font-semibold"
-                    : "text-gray-300 hover:bg-white/5"
-                }`}
-              >
-                {t.label}
-              </button>
-            )
-          })}
+        <div className="flex justify-between sm:justify-start items-center gap-2 sm:gap-3">
+          <div className="inline-flex items-center gap-1 sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
+            {tabs.map((t) => {
+              const active = currentTab === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setCurrentTab(t.id)}
+                  className={`px-3 sm:px-4 py-1 rounded-full text-xs sm:text-sm transition-colors ${
+                    active
+                      ? "bg-emerald-400 text-gray-950 font-semibold"
+                      : "text-gray-300 hover:bg-white/5"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+
+          {currentTab === "insight" && (
+            <button
+              onClick={() => setCurrentTab("oggi")}
+              className="hidden sm:inline-flex items-center text-xs text-gray-400 hover:text-emerald-300"
+            >
+              + Aggiungi una riflessione
+            </button>
+          )}
         </div>
       </nav>
     )
   }
 
-  function formatDateLabel(iso: string) {
-  const d = new Date(iso)
-  return d
-    .toLocaleDateString("it-IT", {
-      day: "2-digit",
-      month: "2-digit",
-    })
-    .replace("/", "-") // es: 07-11
-}
-
-type InsightsTabProps = {
-  loading: boolean
-  error: string | null
-  moodSeries: { date: string; label: string }[]
-  topTags: { tag: string; count: number }[]
-  mentorInsight: string | null
-  onStartReflection: () => void
-}
-
-const InsightsTab: React.FC<InsightsTabProps> = ({
-  loading,
-  error,
-  moodSeries,
-  topTags,
-  mentorInsight,
-  weeklyRitual,
-  weeklyRitualRange,
-  weeklyRitualError,
-  onStartReflection,
-}) => {
-  if (loading) {
-    return (
-      <div className="py-8 text-sm text-gray-400">
-        Sto preparando i tuoi insight…
-      </div>
-    )
+  const formatDateLabel = (iso: string) => {
+    const d = new Date(iso)
+    if (Number.isNaN(d.getTime())) return iso
+    return d
+      .toLocaleDateString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+      })
+      .replace("/", "-")
   }
 
-  if (error) {
-    return (
-      <div className="py-8 text-sm text-red-300">
-        {error}
-      </div>
-    )
+  type InsightsTabProps = {
+    loading: boolean
+    error: string | null
+    moodSeries: { date: string; label: string }[]
+    topTags: { tag: string; count: number }[]
+    mentorInsight: string | null
+    weeklyRitual: string | null
+    weeklyRitualRange: { from: string; to: string } | null
+    weeklyRitualError: string | null
+    onStartReflection: () => void
   }
 
-  // stato "non ancora abbastanza dati"
-   if (!moodSeries.length) {
-    return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
-        <p>
-          Per vedere i tuoi insight serve almeno{" "}
-          <span className="font-semibold">una riflessione</span>.
-        </p>
-        <button
-          onClick={onStartReflection}
-          className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
-        >
-          Inizia una riflessione
-        </button>
-      </div>
-    )
-  }
-
-
-  return (
-    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-lg font-semibold mb-1">
-          I tuoi ultimi 7 giorni
-        </h2>
-        <p className="text-xs text-gray-400">
-          Uno sguardo leggero su come ti sei mosso emotivamente di recente.
-        </p>
-      </div>
-
-      {/* Mood trend */}
-     <section className="space-y-3">
-  <h3 className="text-sm font-semibold">
-    Come ti sei sentito negli ultimi giorni
-  </h3>
-
-  <div className="w-full overflow-x-auto">
-    <div className="flex items-end gap-2 text-xs pb-1">
-      {moodSeries.map((d) => (
-        <div key={d.date} className="flex flex-col items-center gap-1">
-          <span className="inline-flex items-center justify-center px-3 py-1 rounded-full bg-white/5 border border-white/10 whitespace-nowrap">
-            {d.label || "—"}
-          </span>
-          <span className="text-[10px] text-gray-500">
-            {formatDateLabel(d.date)}
-          </span>
+  const InsightsTab: React.FC<InsightsTabProps> = ({
+    loading,
+    error,
+    moodSeries,
+    topTags,
+    mentorInsight,
+    weeklyRitual,
+    weeklyRitualRange,
+    weeklyRitualError,
+    onStartReflection,
+  }) => {
+    if (loading) {
+      return (
+        <div className="py-8 text-sm text-gray-400">
+          Sto preparando i tuoi insight…
         </div>
-      ))}
-    </div>
-  </div>
+      )
+    }
 
-  <p className="text-xs text-gray-400">
-    Le etichette sono come le hai scritte tu: non devono essere perfette,
-    servono solo a non perdere di vista come ti sei sentito.
-  </p>
-</section>
+    if (error) {
+      return (
+        <div className="py-8 text-sm text-red-300">
+          {error}
+        </div>
+      )
+    }
 
+    if (
+      !moodSeries.length &&
+      !topTags.length &&
+      !mentorInsight &&
+      !weeklyRitual
+    ) {
+      return (
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4 text-sm text-gray-300">
+          <p>
+            Per vedere i tuoi insight serve almeno{" "}
+            <span className="font-semibold">una riflessione</span>.
+          </p>
+          <button
+            onClick={onStartReflection}
+            className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-400 text-gray-950 text-sm font-medium hover:bg-emerald-300 transition-colors"
+          >
+            Inizia una riflessione
+          </button>
+        </div>
+      )
+    }
 
-      {/* Tag cloud */}
-      {topTags.length > 0 && (
-      <section className="space-y-3">
-  <h3 className="text-sm font-semibold">
-    Le emozioni che hai nominato più spesso
-  </h3>
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+        {/* Header */}
+        <div>
+          <h2 className="text-lg font-semibold mb-1">
+            I tuoi ultimi 7 giorni
+          </h2>
+          <p className="text-xs text-gray-400">
+            Uno sguardo leggero su come ti sei mosso emotivamente di recente.
+          </p>
+        </div>
 
-  <div className="w-full overflow-x-auto">
-    <div className="flex flex-wrap gap-2 pb-1">
-      {topTags.map((t, idx) => (
-        <span
-          key={t.tag}
-          className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs ${
-            idx === 0
-              ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
-              : "bg-white/5 border-white/10 text-gray-200"
-          }`}
-        >
-          {t.tag}
-        </span>
-      ))}
-    </div>
-  </div>
+        {/* Mood trend */}
+        {moodSeries.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">
+              Come ti sei sentito negli ultimi giorni
+            </h3>
+            <div className="w-full overflow-x-auto">
+              <div className="flex flex-wrap gap-2 pb-1">
+                {moodSeries.map((d) => (
+                  <div
+                    key={d.date}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    <span className="inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 px-3 py-1 text-xs text-gray-100 whitespace-nowrap">
+                      {d.label || "—"}
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      {formatDateLabel(d.date)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              Le etichette sono come le hai scritte tu: servono solo a non
+              perdere di vista come ti sei sentito, non devono essere perfette.
+            </p>
+          </section>
+        )}
 
-  <p className="text-xs text-gray-400">
-    Queste parole mostrano cosa sta occupando più spesso il tuo spazio
-    emotivo in questo periodo.
-  </p>
-</section>
-      )}
+        {/* Tag cloud */}
+        {topTags.length > 0 && (
+          <section className="space-y-3">
+            <h3 className="text-sm font-semibold">
+              Le emozioni che hai nominato più spesso
+            </h3>
+            <div className="w-full overflow-x-auto">
+              <div className="flex flex-wrap gap-2 pb-1">
+                {topTags.map((t, idx) => (
+                  <span
+                    key={t.tag}
+                    className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs ${
+                      idx === 0
+                        ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
+                        : "bg-white/5 border-white/10 text-gray-200"
+                    }`}
+                  >
+                    {t.tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <p className="text-xs text-gray-400">
+              Queste parole mostrano cosa sta occupando più spesso il tuo
+              spazio emotivo in questo periodo.
+            </p>
+          </section>
+        )}
 
-      {/* Mentor insight */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-semibold">
-          Uno sguardo del Mentor
-        </h3>
-        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
-          {mentorInsight ? (
-            <p>{mentorInsight}</p>
-          ) : (
-            <p className="text-gray-300">
-              Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
-              restituirà qui una breve sintesi dei pattern che emergono.
+        {/* Mentor insight */}
+        <section className="space-y-3">
+          <h3 className="text-sm font-semibold">
+            Uno sguardo del Mentor
+          </h3>
+          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
+            {mentorInsight ? (
+              <p>{mentorInsight}</p>
+            ) : (
+              <p className="text-gray-300">
+                Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
+                restituirà qui una breve sintesi dei pattern che emergono.
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onStartReflection}
+            className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
+          >
+            Riflettiamo insieme ora →
+          </button>
+        </section>
+
+        {/* Rituale della settimana */}
+        <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold text-emerald-200">
+              Rituale della settimana
+            </h2>
+
+            {weeklyRitualRange && (
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Ultimi 7 giorni ·{" "}
+                {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
+                  day: "2-digit",
+                  month: "2-digit",
+                })}{" "}
+                –{" "}
+                {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
+                  day: "2-digit",
+                  month: "2-digit",
+                })}
+              </p>
+            )}
+          </div>
+
+          {weeklyRitualError && (
+            <p className="text-xs text-gray-400">{weeklyRitualError}</p>
+          )}
+
+          {weeklyRitual && !weeklyRitualError && (
+            <p className="text-sm text-gray-200 whitespace-pre-wrap">
+              {weeklyRitual}
             </p>
           )}
-        </div>
-        <button
-          onClick={onStartReflection}
-          className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
-        >
-          Riflettiamo insieme ora →
-        </button>
-      </section>
-    </div>
-    {/* Rituale della settimana */}
-<section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
-  <div>
-    <h2 className="text-sm font-semibold text-emerald-200">
-      Rituale della settimana
-    </h2>
 
-    {weeklyRitualRange && (
-      <p className="text-[11px] text-gray-400 mt-0.5">
-        Ultimi 7 giorni ·{" "}
-        {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
-          day: "2-digit",
-          month: "2-digit",
-        })}{" "}
-        –{" "}
-        {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
-          day: "2-digit",
-          month: "2-digit",
-        })}
-      </p>
-    )}
+          {!weeklyRitual && !weeklyRitualError && (
+            <p className="text-xs text-gray-400">
+              Quando avrai qualche giorno di riflessioni alle spalle, qui
+              troverai una piccola lettura settimanale del tuo Mentor.
+            </p>
+          )}
 
-
-  {weeklyRitualError && (
-    <p className="text-xs text-gray-400">{weeklyRitualError}</p>
-  )}
-
-  {weeklyRitual && !weeklyRitualError && (
-    <p className="text-sm text-gray-200 whitespace-pre-wrap">
-      {weeklyRitual}
-    </p>
-  )}
-
-  {!weeklyRitual && !weeklyRitualError && (
-    <p className="text-xs text-gray-400">
-      Quando avrai qualche giorno di riflessioni alle spalle, qui troverai
-      una piccola lettura settimanale del tuo Mentor.
-    </p>
-  )}
-
-  <button
-    onClick={onStartReflection}
-    className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition"
-  >
-    Fai una riflessione ora
-  </button>
-</section>
-  </div>
-  )
-}
+          <button
+            onClick={onStartReflection}
+            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition"
+          >
+            Fai una riflessione ora
+          </button>
+        </section>
+      </div>
+    )
+  }
 
   // ---------- RENDER ----------
-    // se non ha completato l'onboarding, mostra solo quello
+  // se non ha completato l'onboarding, mostra solo quello
   if (!hasCompletedOnboarding) {
     return (
       <Onboarding
@@ -978,16 +945,14 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
 
   return (
     <main className="min-h-screen bg-gray-950 text-gray-50">
-    
-
-      {/* TOASTS - spostati IN BASSO A DESTRA */}
+      {/* TOASTS - in basso a destra */}
       <div className="fixed bottom-4 right-4 z-50 space-y-2 w-[calc(100%-2rem)] sm:w-80">
         {toasts.map((t) => (
           <div
             key={t.id}
             className={`px-4 py-3 rounded-lg text-sm border ${
               t.type === "error"
-                ? "bg-red-500/10 border-red-400/40 text-red-100"
+                ? "bg-red-500/10 border-red-400/40 text-red-50"
                 : t.type === "success"
                 ? "bg-emerald-500/10 border-emerald-400/40 text-emerald-50"
                 : "bg-white/10 border-white/20 text-white"
@@ -1003,395 +968,677 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
         <div className="flex items-center gap-3">
           <img src="/logo.svg" alt="MyndSelf.ai" className="h-9" />
           <div>
-            <h1 className="text-lg font-semibold text-emerald-200">
+            <h1 className="text-lg sm:text-xl font-semibold">
               MyndSelf.ai
             </h1>
             <p className="text-xs text-gray-400">
-              Intelligenza emotiva supportata dall'AI
+              Un diario emotivo che ti aiuta a osservarti con gentilezza.
             </p>
           </div>
         </div>
-        {session ? (
-          <button
-            onClick={handleLogout}
-            className="text-sm bg-emerald-500/10 border border-emerald-400/40 rounded px-3 py-1.5 hover:bg-emerald-500/20 transition"
-          >
-            Esci
-          </button>
-        ) : (
-          <button
-            onClick={handleLogin}
-            className="text-sm bg-emerald-400 text-gray-950 rounded px-3 py-1.5 hover:bg-emerald-300 transition"
-          >
-            Accedi
-          </button>
-        )}
+
+        <div className="flex items-center gap-3">
+          {session && (
+            <button
+              onClick={handleLogout}
+              className="text-xs text-gray-400 hover:text-gray-200"
+            >
+              Esci
+            </button>
+          )}
+        </div>
       </header>
 
       {/* SE L’UTENTE NON È LOGGATO → HERO / CTA */}
       {!session && (
         <>
           <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
-            <div className="bg-gray-900/70 border border-white/5 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6">
-              <div className="flex-1">
-                <h2 className="text-2xl sm:text-3xl font-semibold text-emerald-200 mb-3">
-                  Un luogo gentile per guardare le tue emozioni
-                </h2>
-                <p className="text-sm text-gray-300 mb-4">
-                  MyndSelf ti aiuta a registrare come stai, vedere i tuoi pattern
-                  emotivi e parlare con un’AI allenata sulla cura di sé, senza
-                  giudizio.
+            <div className="bg-gray-900/70 border border-white/10 rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6">
+              <div className="flex-1 space-y-4">
+                <p className="inline-flex items-center text-xs font-semibold text-emerald-300 bg-emerald-500/10 border border-emerald-400/30 rounded-full px-3 py-1 w-fit">
+                  Beta privata · spazio emotivo gentile 🌿
                 </p>
-                <ul className="text-xs text-gray-400 space-y-1.5 mb-5">
-                  <li>• Riflessioni quotidiane guidate dall’AI</li>
-                  <li>• Sintesi settimanali del tuo stato emotivo</li>
-                  <li>• Grafici e insight per riconoscere i tuoi pattern</li>
-                  <li>• Chat riflessiva quando senti il bisogno di parlarne</li>
+                <h2 className="text-2xl sm:text-3xl font-semibold leading-tight">
+                  Un posto dove mettere in ordine
+                  <br className="hidden sm:block" /> quello che senti,{" "}
+                  <span className="text-emerald-300">
+                    senza giudicarti.
+                  </span>
+                </h2>
+                <p className="text-sm text-gray-300">
+                  Ogni giorno ti facciamo una sola domanda:{" "}
+                  <span className="italic">
+                    “Come ti stai muovendo, emotivamente?”
+                  </span>{" "}
+                  Da lì, MyndSelf.ai tiene traccia dei tuoi stati d’animo,
+                  nota i pattern e ti restituisce piccole letture del tuo
+                  paesaggio emotivo.
+                </p>
+                <ul className="text-xs text-gray-300 space-y-1">
+                  <li>• Riflessioni brevi, senza pressione di “fare bene”.</li>
+                  <li>• Insight settimanali su come oscillano le tue emozioni.</li>
+                  <li>• Un Mentor AI che ti restituisce domande, non giudizi.</li>
                 </ul>
+              </div>
+
+              <div className="w-full md:w-[320px] bg-gray-950/60 border border-white/10 rounded-2xl p-5 space-y-4">
+                <h3 className="text-sm font-semibold">
+                  Entra nella beta privata
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Ti mandiamo un link magico via email: niente password, niente
+                  fronzoli.
+                </p>
+                <div className="space-y-2">
+                  <label className="text-xs text-gray-300">
+                    Email
+                    <input
+                      type="email"
+                      value={magicLinkEmail}
+                      onChange={(e) => setMagicLinkEmail(e.target.value)}
+                      placeholder="nome@esempio.com"
+                      className="mt-1 w-full rounded-md bg-gray-900 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                    />
+                  </label>
+                  {authError && (
+                    <p className="text-[11px] text-red-300">{authError}</p>
+                  )}
+                </div>
                 <button
                   onClick={handleLogin}
-                  className="inline-flex items-center justify-center bg-emerald-400 text-gray-950 px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-emerald-300"
+                  disabled={authLoading}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold py-2 hover:bg-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  Inizia con la tua email
+                  {authLoading && <Spinner />}
+                  {authLoading ? "Invio in corso…" : "Ricevi il link magico"}
                 </button>
-              </div>
-              <div className="flex-1 flex items-center justify-center">
-                <div className="w-40 h-40 sm:w-48 sm:h-48 rounded-full bg-emerald-500/10 border border-emerald-400/40 flex items-center justify-center shadow-[0_0_60px_rgba(16,185,129,0.25)]">
-                  <span className="text-5xl">🧠</span>
-                </div>
+                <p className="text-[11px] text-gray-500">
+                  Nessuna newsletter automatica. Useremo il tuo contatto solo
+                  per questa beta.
+                </p>
               </div>
             </div>
           </section>
-
-          <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-xs text-gray-500 text-center">
-            © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le tue
-            emozioni
-          </footer>
         </>
       )}
 
- {/* SE LOGGATO → TABS + CONTENUTO */}
+      {/* SE L’UTENTE È LOGGATO → APP */}
       {session && (
         <>
-          <TabsNav />
-
-          {currentTab === "oggi" && (
-            <>
-              {showBetaBanner && (
-                <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-4">
-                  <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-xs sm:text-sm text-emerald-50 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                    <div>
-                      <p className="font-semibold mb-1">
-                        Stai usando la beta privata di MyndSelf.ai 🌿
-                      </p>
-                      <p className="text-emerald-100/90">
-                        Alcune parti sono ancora in evoluzione. Se qualcosa non ti è chiaro
-                        o non funziona come ti aspetti, puoi scrivermi a{" "}
-                        <span className="font-mono underline">
-                          info@myndself.ai
-                        </span>
-                        . Il tuo feedback è oro.
-                      </p>
-                    </div>
-                    <button
-                      onClick={dismissBetaBanner}
-                      className="self-end sm:self-start text-[11px] sm:text-xs text-emerald-100/80 hover:text-emerald-50"
-                    >
-                      Ho capito
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* HERO – Benvenuto nell'app */}
-              <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-6 mb-4">
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-                  <h2 className="text-xl sm:text-2xl font-semibold text-emerald-300 mb-2">
-                    Benvenuto su MyndSelf.ai 🌿
-                  </h2>
-                  <p className="text-sm text-gray-300 leading-relaxed">
-                    Qui le tue emozioni trovano spazio. Ogni giorno puoi registrare come stai,
-                    osservare cosa cambia nel tempo e scoprire i pattern che influenzano il tuo benessere.
-                    Inizia dalla{" "}
-                    <span className="text-emerald-300 font-semibold">
-                      Riflessione del giorno
-                    </span>
-                    : poche parole possono già fare chiarezza.
+          {/* Banner beta */}
+          {showBetaBanner && (
+            <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-2">
+              <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 px-4 py-3 flex items-start gap-3">
+                <div className="mt-0.5">🌱</div>
+                <div className="space-y-1 text-xs text-gray-100">
+                  <p className="font-semibold">
+                    Stai usando la beta privata di MyndSelf.ai
                   </p>
+                  <p>
+                    Potresti incontrare qualche piccola imperfezione. Ogni tua
+                    riflessione ci aiuta a rendere questo spazio emotivo più
+                    preciso e accogliente.
+                  </p>
+                  <button
+                    onClick={handleDismissBetaBanner}
+                    className="text-[11px] text-emerald-300 hover:text-emerald-200"
+                  >
+                    Capito, nascondi questo messaggio
+                  </button>
                 </div>
               </div>
-
-              <EmotionalBanner />
-
-              <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-2">
-                <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5">
-                  <h2 className="text-xl font-semibold text-emerald-200 mb-3">
-                    Riflessione del giorno
-                  </h2>
-                  <p className="text-xs text-gray-400 mb-3">
-                    Usala a fine giornata per decomprimere, chiarire cosa senti e
-                    lasciare andare ciò che pesa.
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {MOOD_PRESETS.map((m) => {
-                      const isActive = selectedMoods.includes(m.value)
-                      return (
-                        <button
-                          key={m.label}
-                          onClick={() => {
-                            setSelectedMoods((prev) => {
-                              let next: string[]
-                              if (prev.includes(m.value)) {
-                                next = prev.filter((v) => v !== m.value)
-                              } else {
-                                next = [...prev, m.value]
-                              }
-                              setMood(next.join(", "))
-                              return next
-                            })
-                          }}
-                          className={`px-3 py-1.5 rounded-full text-xs border transition ${
-                            isActive
-                              ? "bg-emerald-400 text-gray-950 border-emerald-400"
-                              : "bg-white/0 border-white/10 text-white/70 hover:bg-white/5"
-                          }`}
-                        >
-                          {m.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <input
-                    value={mood}
-                    onChange={(e) => {
-                      setMood(e.target.value)
-                      setSelectedMoods([]) // se scrive a mano, le chips si deselezionano
-                    }}
-                    placeholder="Come ti senti oggi?"
-                    className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-                  />
-
-                  <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    placeholder="Vuoi aggiungere una nota su ciò che è successo o su come ti senti?"
-                    className="w-full bg-white/5 rounded-lg px-3 py-2 mb-3 text-sm min-h-[110px] outline-none focus:ring-1 focus:ring-emerald-400/50"
-                  />
-
-                  <button
-                    onClick={handleReflection}
-                    disabled={isReflecting}
-                    className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {isReflecting && <Spinner />}
-                    {isReflecting ? "Sto riflettendo..." : "Registra la riflessione"}
-                  </button>
-
-                  {reflection && (
-                    <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
-                      {reflection}
-                    </div>
-                  )}
-
-                  {showReflectionDone && (
-                    <ReflectionSuccess
-                      moods={selectedMoods}
-                      onShowInsights={() => {
-                        setShowReflectionDone(false)
-                        setCurrentTab("insight")
-                      }}
-                      onDismiss={() => setShowReflectionDone(false)}
-                    />
-                  )}
-                </div>
-              </section>
-            </>
+            </section>
           )}
 
-          {currentTab === "insight" && (
-  <InsightsTab
-    loading={insightsLoading}
-    error={insightsError}
-    moodSeries={insightsMoodSeries}
-    topTags={insightsTopTags}
-    mentorInsight={mentorInsight}
-    weeklyRitual={weeklyRitual}
-    weeklyRitualRange={weeklyRitualRange}
-    weeklyRitualError={weeklyRitualError}
-    onStartReflection={() => setCurrentTab("oggi")}
-  />
-)}
+          {/* Tabs */}
+          <TabsNav />
 
+          {/* CONTENUTO PRINCIPALE */}
+          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">
+            {/* Banner nota emotiva (sopra le tab) */}
+            <section className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 flex gap-3 items-start">
+              <div className="mt-0.5 text-lg">💭</div>
+              <div className="flex-1">
+                <p className="text-[11px] font-semibold text-emerald-200 uppercase tracking-wide">
+                  Nota emotiva
+                </p>
+                <p className="text-xs text-gray-100 font-medium">
+                  {currentBanner.title}
+                </p>
+                <p className="text-xs text-gray-200 mt-1">
+                  {currentBanner.body}
+                </p>
+              </div>
+            </section>
 
-
-
-          {currentTab === "guidata" && (
-            <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-semibold text-emerald-200">
-                      Riflessione guidata
-                    </h2>
-                    <p className="text-xs text-gray-400">
-                      Un percorso breve di 3–4 domande per vedere meglio ciò che stai
-                      vivendo.
-                    </p>
-                    {guidedActive && (
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        Passo {guidedStep > 0 ? guidedStep : 1}/4
-                      </p>
-                    )}
-                  </div>
-                  {guidedActive ? (
-                    <button
-                      onClick={resetGuided}
-                      className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
-                    >
-                      Reset
-                    </button>
-                  ) : null}
-                </div>
-
-                {!guidedActive ? (
-                  <button
-                    onClick={startGuidedSession}
-                    className="self-start bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold"
-                  >
-                    Avvia percorso guidato
-                  </button>
-                ) : (
-                  <>
-                    <div className="min-h-[180px] max-h-[320px] overflow-y-auto space-y-3 bg-white/5 rounded-lg p-3">
-                      {guidedMessages.length === 0 ? (
-                        <p className="text-xs text-gray-500">
-                          Avvia il percorso per iniziare una riflessione passo-passo.
+            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-4 lg:gap-6 items-start">
+              {/* COLONNA SINISTRA */}
+              <div className="space-y-4">
+                {/* TAB: OGGI */}
+                {currentTab === "oggi" && (
+                  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <header className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-sm font-semibold">
+                          La riflessione di oggi
+                        </h2>
+                        <p className="text-xs text-gray-400">
+                          Non devi raccontare tutto. Parti da un punto della
+                          tua giornata che “punge” o che illumina qualcosa.
                         </p>
-                      ) : (
-                        guidedMessages.map((m, idx) => (
+                      </div>
+                    </header>
+
+                    {/* MOOD PRESET CHIPS */}
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-gray-400">
+                        Come ti senti, a grandi linee?
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {MOOD_PRESETS.map((m) => {
+                          const active = selectedMoods.includes(m.value)
+                          return (
+                            <button
+                              key={m.value}
+                              type="button"
+                              onClick={() => {
+                                setMood(m.value)
+                                setSelectedMoods((prev) => {
+                                  if (prev.includes(m.value)) {
+                                    return prev.filter((v) => v !== m.value)
+                                  }
+                                  return [...prev, m.value]
+                                })
+                              }}
+                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${
+                                active
+                                  ? "bg-emerald-400 text-gray-950 border-emerald-300"
+                                  : "bg-white/5 border-white/15 text-gray-100 hover:bg-white/10"
+                              }`}
+                            >
+                              <span>{MOOD_EMOJI[m.value] ?? "✨"}</span>
+                              <span>{m.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* NOTE + TAGS */}
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-gray-400">
+                        Se ti va, racconta con poche parole cosa ti ha colpito
+                        di oggi.
+                      </p>
+                      <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        rows={4}
+                        className="w-full rounded-md bg-gray-950/70 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                        placeholder="Ad esempio: quando mi sono svegliato ho sentito..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] text-gray-400">
+                        Se vuoi, scegli qualche parola che descrive questo
+                        momento.
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {QUICK_TAGS.map((tag) => {
+                          const active = note.includes(tag)
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                if (active) {
+                                  setNote((prev) =>
+                                    prev.replace(tag, "").replace("  ", " ")
+                                  )
+                                } else {
+                                  setNote((prev) =>
+                                    prev.length
+                                      ? `${prev.trim()} · ${tag}`
+                                      : tag
+                                  )
+                                }
+                              }}
+                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] ${
+                                active
+                                  ? "bg-emerald-500/20 border-emerald-300/60 text-emerald-100"
+                                  : "bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                              }`}
+                            >
+                              {tag}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* BOTTONI AZIONE */}
+                    <div className="flex flex-col sm:flex-row justify-between gap-3 pt-2">
+                      <div className="flex items-center gap-2 text-[11px] text-gray-400">
+                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-400/30 text-xs">
+                          ℹ️
+                        </span>
+                        <span>
+                          Una sola riflessione al giorno è più che sufficiente.
+                          Se non sai cosa dire, puoi anche scrivere solo una
+                          frase.
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={handleReflection}
+                        disabled={isReflecting}
+                        className="inline-flex items-center justify-center rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold px-4 py-2 hover:bg-emerald-300 disabled:opacity-60"
+                      >
+                        {isReflecting ? (
+                          <>
+                            <Spinner />{" "}
+                            <span className="ml-2">
+                              Sto registrando la tua riflessione…
+                            </span>
+                          </>
+                        ) : (
+                          "Salva la riflessione di oggi"
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Riflessione AI del Mentor */}
+                    {reflection && (
+                      <div className="mt-4 bg-white/5 rounded-lg p-3 text-sm text-emerald-50 whitespace-pre-wrap fade-in">
+                        {reflection}
+                      </div>
+                    )}
+
+                    {/* Reward box dopo riflessione */}
+                    {showReflectionDone && (
+                      <ReflectionSuccess
+                        moods={selectedMoods}
+                        onShowInsights={() => {
+                          setShowReflectionDone(false)
+                          setCurrentTab("insight")
+                        }}
+                        onDismiss={() => setShowReflectionDone(false)}
+                      />
+                    )}
+                  </section>
+                )}
+
+                {/* TAB: INSIGHT */}
+                {currentTab === "insight" && (
+                  <InsightsTab
+                    loading={insightsLoading}
+                    error={insightsError}
+                    moodSeries={insightsMoodSeries}
+                    topTags={insightsTopTags}
+                    mentorInsight={mentorInsight}
+                    weeklyRitual={weeklyRitual}
+                    weeklyRitualRange={weeklyRitualRange}
+                    weeklyRitualError={weeklyRitualError}
+                    onStartReflection={() => setCurrentTab("oggi")}
+                  />
+                )}
+
+                {/* TAB: GUIDATA */}
+                {currentTab === "guidata" && (
+                  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <header className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-sm font-semibold">
+                          Riflessione guidata
+                        </h2>
+                        <p className="text-xs text-gray-400">
+                          Se non sai da dove iniziare, ti accompagniamo noi con
+                          qualche domanda.
+                        </p>
+                      </div>
+                    </header>
+
+                    <div className="space-y-3">
+                      {guidedMessages.length === 0 && (
+                        <p className="text-xs text-gray-300">
+                          Quando inizi, ti farò qualche domanda alla volta. Tu
+                          puoi rispondere con parole sparse, senza dover essere
+                          lineare.
+                        </p>
+                      )}
+
+                      {guidedMessages.length > 0 && (
+                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                          {guidedMessages.map((m, idx) => (
+                            <div
+                              key={idx}
+                              className={`text-sm px-3 py-2 rounded-lg max-w-[80%] ${
+                                m.role === "assistant"
+                                  ? "bg-emerald-500/10 text-emerald-50 self-start"
+                                  : "bg-white/10 text-gray-50 self-end ml-auto"
+                              }`}
+                            >
+                              {m.content}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-2 pt-2">
+                        <textarea
+                          value={guidedInput}
+                          onChange={(e) => setGuidedInput(e.target.value)}
+                          rows={3}
+                          placeholder={
+                            guidedMessages.length === 0
+                              ? "Se ti va, dimmi solo da dove vuoi partire oggi…"
+                              : "Scrivi liberamente quello che ti viene in mente ora…"
+                          }
+                          className="w-full rounded-md bg-gray-950/70 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
+                        />
+                        <div className="flex justify-between items-center gap-2">
+                          <button
+                            onClick={
+                              guidedMessages.length === 0
+                                ? startGuidedReflection
+                                : continueGuidedReflection
+                            }
+                            disabled={guidedLoading}
+                            className="inline-flex items-center justify-center rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold px-4 py-2 hover:bg-emerald-300 disabled:opacity-60"
+                          >
+                            {guidedLoading ? (
+                              <>
+                                <Spinner />{" "}
+                                <span className="ml-2">Un attimo…</span>
+                              </>
+                            ) : guidedMessages.length === 0 ? (
+                              "Inizia la riflessione guidata"
+                            ) : (
+                              "Continua"
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                )}
+
+                {/* TAB: CHAT MENTOR */}
+                {currentTab === "chat" && (
+                  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
+                    <header className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-sm font-semibold">
+                          Parla con il Mentor
+                        </h2>
+                        <p className="text-xs text-gray-400">
+                          Qui puoi portare un pensiero specifico, un dubbio o
+                          qualcosa che non riesci a decifrare. Il Mentor non ti
+                          dirà cosa fare: ti aiuterà a guardare da un’altra
+                          angolatura.
+                        </p>
+                      </div>
+                    </header>
+
+                    <div className="space-y-3">
+                      <div className="min-h-[140px] max-h-64 overflow-y-auto space-y-2 pr-1">
+                        {chatMessages.length === 0 && (
+                          <div className="text-xs text-gray-400">
+                            Puoi iniziare dicendo cosa ti pesa di più in questo
+                            momento, o qual è la domanda che ti torna più
+                            spesso in mente.
+                          </div>
+                        )}
+                        {chatMessages.map((m, idx) => (
                           <div
                             key={idx}
-                            className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                              m.role === "user"
-                                ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                                : "bg-white/5 text-white/90 fade-in"
+                            className={`text-sm px-3 py-2 rounded-lg max-w-[80%] ${
+                              m.role === "assistant"
+                                ? "bg-emerald-500/10 text-emerald-50 self-start"
+                                : "bg-white/10 text-gray-50 self-end ml-auto"
                             }`}
                           >
                             {m.content}
                           </div>
-                        ))
-                      )}
-                      {guidedLoading && (
-                        <p className="text-xs text-gray-400 italic animate-pulse">
-                          Sto riflettendo con te per un momento...
-                        </p>
-                      )}
-                    </div>
+                        ))}
+                        {isChatLoading && (
+                          <div className="inline-flex items-center gap-2 text-xs text-gray-400">
+                            <Spinner />
+                            <span>Il Mentor sta ascoltando…</span>
+                          </div>
+                        )}
+                      </div>
 
-                    {!guidedFinal ? (
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          value={guidedInput}
-                          onChange={(e) => setGuidedInput(e.target.value)}
-                          onKeyDown={(e) => e.key === "Enter" && sendGuidedTurn()}
-                          placeholder="Scrivi cosa emerge adesso…"
-                          className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-                        />
-                        <button
-                          onClick={sendGuidedTurn}
-                          disabled={guidedLoading}
-                          className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50"
-                        >
-                          {guidedStep === 0
-                            ? "Avvia"
-                            : `Avanti (${guidedStep}/4)`}
-                        </button>
+                      <div className="space-y-2 pt-1">
+                        <div className="flex gap-2 items-center">
+                          <input
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={(e) =>
+                              e.key === "Enter" && handleChatSend()
+                            }
+                            placeholder="Scrivi cosa senti in questo momento…"
+                            className="flex-1 bg-white/5 rounded-lg border border-white/10 px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
+                          />
+                          <button
+                            onClick={handleChatSend}
+                            disabled={isChatLoading}
+                            className="bg-emerald-400 text-gray-950 rounded-lg px-3 py-2 text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {isChatLoading && <Spinner />}
+                            Invia
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-emerald-200">
-                          Sessione conclusa con gentilezza. Se vuoi, puoi ripartire
-                          quando senti che ti serve.
-                        </p>
-                        <button
-                          onClick={resetGuided}
-                          className="text-xs bg-white/10 border border-white/20 rounded px-3 py-1.5 hover:bg-white/15"
-                        >
-                          Nuova sessione
-                        </button>
-                      </div>
-                    )}
-                  </>
+                    </div>
+                  </section>
                 )}
               </div>
-            </section>
-          )}
 
-          {currentTab === "chat" && (
-            <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-4 pb-16">
-              <div className="bg-gray-900/60 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 min-h-[320px]">
-                <h2 className="text-sm font-semibold text-emerald-200">
-                  Chat riflessiva
-                </h2>
-                <p className="text-xs text-gray-400">
-                  Quando senti il bisogno di parlarne subito, anche solo per mettere
-                  ordine tra i pensieri.
-                </p>
-                <div className="flex-1 overflow-y-auto space-y-3">
-                  {chatMessages.length === 0 ? (
-                    <p className="text-xs text-gray-500">
-                      Puoi iniziare scrivendo una preoccupazione, un pensiero
-                      ricorrente o un piccolo momento positivo della tua giornata.
+              {/* COLONNA DESTRA: INSIGHT VELOCI + PROFILO EMOTIVO */}
+              <aside className="space-y-4">
+                {/* Profilo emotivo */}
+                <section className="bg-gray-900/70 border border-emerald-400/20 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <h2 className="text-sm font-semibold text-emerald-200">
+                        Uno sguardo al tuo paesaggio emotivo
+                      </h2>
+                      <p className="text-[11px] text-gray-400">
+                        Il Mentor prova a restituirti come si sta muovendo il
+                        tuo mondo interno.
+                      </p>
+                    </div>
+                    {emotionProfileLoading && <Spinner />}
+                  </div>
+
+                  {emotionalShort && (
+                    <p className="text-sm text-gray-100 whitespace-pre-wrap">
+                      {emotionalExpanded ? emotionalFull : emotionalShort}
                     </p>
-                  ) : (
-                    chatMessages.map((m, idx) => (
-                      <div
-                        key={idx}
-                        className={`max-w-[90%] sm:max-w-[70%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap ${
-                          m.role === "user"
-                            ? "bg-emerald-500/20 text-emerald-50 ml-auto"
-                            : "bg-white/5 text-white/90 fade-in"
-                        }`}
-                      >
-                        {m.content}
+                  )}
+
+                  {!emotionalShort && !emotionProfileLoading && (
+                    <p className="text-xs text-gray-400">
+                      Dopo qualche giorno di utilizzo, qui troverai una
+                      descrizione sintetica dei pattern emotivi che ricorrono
+                      più spesso nelle tue riflessioni.
+                    </p>
+                  )}
+
+                  {emotionalFull && emotionalShort && (
+                    <button
+                      onClick={() =>
+                        setEmotionalExpanded((prev) => !prev)
+                      }
+                      className="text-xs text-emerald-300 hover:text-emerald-200"
+                    >
+                      {emotionalExpanded
+                        ? "Mostra una versione più breve"
+                        : "Mostra una versione più estesa"}
+                    </button>
+                  )}
+
+                  {emotionalTags.length > 0 && (
+                    <div className="pt-2 space-y-1">
+                      <p className="text-[11px] text-gray-400">
+                        Alcune parole chiave che ricorrono spesso:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {emotionalTags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[11px] text-gray-100"
+                          >
+                            {tag}
+                          </span>
+                        ))}
                       </div>
-                    ))
+                    </div>
                   )}
-                  {isChatLoading && (
-                    <p className="text-xs text-gray-500 italic">
-                      Sto pensando a come risponderti…
+                </section>
+
+                {/* Grafico riflessioni per giorno */}
+                <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-3">
+                  <h2 className="text-sm font-semibold">
+                    La costanza delle tue riflessioni
+                  </h2>
+                  {dailyChartData.length > 0 ? (
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={dailyChartData}>
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#020617",
+                              border: "1px solid #4B5563",
+                              borderRadius: 8,
+                              fontSize: 11,
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="entries"
+                            stroke="#22C55E"
+                            strokeWidth={2}
+                            dot={{ r: 2 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-400">
+                      Appena inizierai a scrivere con una certa regolarità,
+                      vedrai qui l’andamento delle tue riflessioni.
                     </p>
                   )}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleChatSend()}
-                    placeholder="Scrivi cosa senti in questo momento…"
-                    className="flex-1 bg-white/5 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-emerald-400/50"
-                  />
-                  <button
-                    onClick={handleChatSend}
-                    disabled={isChatLoading}
-                    className="bg-emerald-400 text-gray-950 px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 disabled:opacity-50"
-                  >
-                    {isChatLoading && <Spinner />}
-                    Invia
-                  </button>
-                </div>
-              </div>
-            </section>
-          )}
+                </section>
 
-          <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10 text-xs text-gray-500 text-center">
+                {/* Top tag chart (se hai molti dati) */}
+                {tagChartData.length > 0 && (
+                  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-3">
+                    <h2 className="text-sm font-semibold">
+                      Cosa torna più spesso
+                    </h2>
+                    <div className="h-40">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={tagChartData}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="#1F2937"
+                          />
+                          <XAxis
+                            dataKey="label"
+                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: "#020617",
+                              border: "1px solid #4B5563",
+                              borderRadius: 8,
+                              fontSize: 11,
+                            }}
+                          />
+                          <Legend />
+                          <Bar dataKey="tag_count" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </section>
+                )}
+              </aside>
+            </div>
+          </section>
+
+          <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-6 pt-2 text-[10px] text-gray-500 text-center">
             © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le
             tue emozioni
           </footer>
-          </>
+        </>
       )}
     </main>
+  )
+}
+
+type ReflectionSuccessProps = {
+  moods: string[]
+  onShowInsights: () => void
+  onDismiss: () => void
+}
+
+const ReflectionSuccess: React.FC<ReflectionSuccessProps> = ({
+  moods,
+  onShowInsights,
+  onDismiss,
+}) => {
+  const emojis =
+    moods.length > 0
+      ? moods.map((m) => MOOD_EMOJI[m] ?? "✨")
+      : ["✨", "🧡", "🌿"]
+
+  return (
+    <div className="mt-3 rounded-2xl border border-emerald-400/40 bg-emerald-500/10 px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      <div className="flex items-center gap-2 text-lg">
+        {emojis.slice(0, 3).map((e, i) => (
+          <span key={i}>{e}</span>
+        ))}
+      </div>
+      <div className="flex-1 space-y-1">
+        <p className="text-sm text-emerald-50 font-medium">
+          Riflessione registrata. Ogni volta che ti fermi un attimo, stai già
+          facendo qualcosa per te.
+        </p>
+        <p className="text-xs text-emerald-100/80">
+          Se ti va, possiamo dare uno sguardo a come si sta muovendo il tuo
+          paesaggio emotivo negli ultimi giorni.
+        </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            onClick={onShowInsights}
+            className="inline-flex items-center rounded-full bg-emerald-400 text-gray-950 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-300"
+          >
+            Mostrami gli insight →
+          </button>
+          <button
+            onClick={onDismiss}
+            className="inline-flex items-center rounded-full border border-emerald-200/40 text-emerald-100 text-xs px-3 py-1.5 hover:bg-emerald-500/10"
+          >
+            Non ora
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

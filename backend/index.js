@@ -18,6 +18,8 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY
 const WELCOME_FROM_EMAIL =
   process.env.WELCOME_FROM_EMAIL || "MyndSelf.ai <info@myndself.ai>"
 const WEEKLY_RITUAL_CRON_KEY = process.env.WEEKLY_RITUAL_CRON_KEY
+const resend = new Resend(process.env.RESEND_API_KEY)
+
 
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY")
 if (!SUPABASE_URL || !SUPABASE_KEY)

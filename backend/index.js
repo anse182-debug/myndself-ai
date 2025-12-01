@@ -16,6 +16,7 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const WELCOME_FROM_EMAIL =
   process.env.WELCOME_FROM_EMAIL || "MyndSelf.ai <info@myndself.ai>"
+const WEEKLY_RITUAL_CRON_KEY = process.env.WEEKLY_RITUAL_CRON_KEY
 
 if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY")
 if (!SUPABASE_URL || !SUPABASE_KEY)
@@ -179,6 +180,52 @@ Il tuo Mentor AI`
   } catch (err) {
     console.warn("⚠️ sendWelcomeEmail error:", err.message)
   }
+}
+
+async function sendWeeklyRitualEmail({ to, ritual, from, toDate }) {
+  if (!ritual) return
+
+  const subject = "Il tuo rituale emotivo di questa settimana"
+
+  const dateRange =
+    from && toDate
+      ? `${new Date(from).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+        })} – ${new Date(toDate).toLocaleDateString("it-IT", {
+          day: "2-digit",
+          month: "2-digit",
+        })}`
+      : null
+
+  const html = `
+  <div style="font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #e5e7eb; background-color: #020617; padding: 24px;">
+    <div style="max-width: 600px; margin: 0 auto; background-color: #020617; border-radius: 16px; border: 1px solid #22c55e33; padding: 24px;">
+      <h1 style="font-size: 20px; margin-bottom: 8px; color: #a7f3d0;">Il tuo rituale emotivo di questa settimana</h1>
+      ${
+        dateRange
+          ? `<p style="font-size: 13px; color: #9ca3af; margin-top: 0; margin-bottom: 16px;">Periodo: ${dateRange}</p>`
+          : ""
+      }
+      <div style="font-size: 14px; line-height: 1.6; white-space: pre-wrap; margin-bottom: 16px;">
+        ${ritual.replace(/\n/g, "<br />")}
+      </div>
+      <p style="font-size: 12px; color: #6b7280; margin-top: 16px;">
+        Quando vuoi, puoi aggiungere nuove riflessioni da <a href="https://myndself.ai/app/#" style="color:#6ee7b7;">MyndSelf.ai</a>.
+      </p>
+    </div>
+    <p style="font-size: 11px; color: #6b7280; margin-top: 16px; text-align:center;">
+      Ricevi questa email perché stai partecipando alla beta privata di MyndSelf.ai.
+    </p>
+  </div>
+  `
+
+  await resend.emails.send({
+    from: "MyndSelf.ai <info@myndself.ai>", // 🔁 usa un sender verificato in Resend
+    to,
+    subject,
+    html,
+  })
 }
 
 
@@ -1134,6 +1181,57 @@ app.get("/api/weekly-ritual", async (req, reply) => {
   } catch (err) {
     console.error("❌ weekly-ritual error:", err)
     return reply.code(500).send({ error: err.message })
+  }
+})
+
+app.post("/tasks/send-weekly-ritual-preview", async (req, reply) => {
+  try {
+    // 1) sicurezza tramite Bearer token
+    const authHeader = req.headers["authorization"] || req.headers["Authorization"]
+    const token = authHeader?.startsWith("Bearer ")
+      ? authHeader.slice("Bearer ".length)
+      : null
+
+    if (!WEEKLY_RITUAL_CRON_KEY || token !== WEEKLY_RITUAL_CRON_KEY) {
+      return reply.code(403).send({ error: "forbidden" })
+    }
+
+    // 2) leggiamo user_id ed email dal body
+    const { user_id, email } = req.body || {}
+
+    if (!user_id || !email) {
+      return reply.code(400).send({ error: "Missing user_id or email" })
+    }
+
+    // 3) costruiamo il rituale con la funzione che hai già
+    const result = await buildWeeklyRitualForUser(user_id)
+
+    if (!result.ritual) {
+      return reply.send({
+        sent: false,
+        reason: result.reason || "no_ritual",
+        entries_count: result.entries_count ?? 0,
+      })
+    }
+
+    // 4) inviamo la mail
+    await sendWeeklyRitualEmail({
+      to: email,
+      ritual: result.ritual,
+      from: result.from,
+      toDate: result.to,
+    })
+
+    return reply.send({
+      sent: true,
+      to: email,
+      entries_count: result.entries_count,
+      from: result.from,
+      to: result.to,
+    })
+  } catch (err) {
+    console.error("weekly-ritual-preview error:", err)
+    return reply.code(500).send({ error: "weekly_ritual_preview_failed" })
   }
 })
 

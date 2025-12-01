@@ -557,47 +557,38 @@ export default function App() {
     })()
   }, [session])
 
-  const handleChatSend = async () => {
-    const uid = session?.user?.id
-    if (!uid) {
-      showToast("Accedi prima per parlare con il Mentor", "error")
-      return
-    }
-    if (!chatInput.trim()) return
+// ---------- CHAT RIFLESSIVA ----------
+const handleChatSend = async () => {
+  const uid = session?.user?.id
+  if (!uid)
+    return showToast("Accedi prima per usare la chat riflessiva", "error")
+  if (!chatInput.trim()) return
 
-    const newMsg: ChatMessage = { role: "user", content: chatInput.trim() }
-    setChatMessages((prev) => [...prev, newMsg])
-    setChatInput("")
-    setIsChatLoading(true)
-
-    try {
-      const res = await fetch(`${API_BASE}/api/mentor-chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: uid,
-          message: newMsg.content,
-        }),
-      })
-      const data = await res.json()
-      const replyText =
-        data.reply ||
-        "Ti ringrazio per quello che hai condiviso. Che cosa ti colpisce di più di ciò che hai appena scritto?"
-
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: replyText },
+  const newMessages = [...chatMessages, { role: "user", content: chatInput }]
+  setChatMessages(newMessages)
+  setChatInput("")
+  setIsChatLoading(true)
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: uid, messages: newMessages }),
+    })
+    const data = await res.json()
+    if (data.reply) {
+      setChatMessages([
+        ...newMessages,
+        { role: "assistant", content: data.reply },
       ])
-    } catch (err) {
-      console.error("mentor chat error", err)
-      showToast(
-        "Non riesco a rispondere in questo momento. Riprova tra poco.",
-        "error"
-      )
-    } finally {
-      setIsChatLoading(false)
     }
+  } catch (e) {
+    console.error("chat error:", e)
+    showToast("Errore nella chat riflessiva", "error")
+  } finally {
+    setIsChatLoading(false)
   }
+}
+
 
   // ---------- QUICK METRICS ----------
   const [dailyItems, setDailyItems] = useState<DailyItem[]>([])

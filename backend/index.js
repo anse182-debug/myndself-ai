@@ -1238,6 +1238,68 @@ app.post("/tasks/send-weekly-ritual-preview", async (req, reply) => {
   }
 })
 
+// =============================================================
+//  INSIGHTS
+//  Raccoglie mood series + top tags + mentor summary
+// =============================================================
+app.get("/api/insights", async (req, reply) => {
+  const { user_id } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
+  try {
+    // 1) Mood series (ultimi 60 giorni)
+    const { data: moods } = await supabase
+      .from("mood_entries")
+      .select("mood, at")
+      .eq("user_id", user_id)
+      .order("at", { ascending: true })
+      .limit(60)
+
+    const moodSeries = (moods || []).map((m) => ({
+      date: m.at.slice(0, 10),
+      mood: m.mood || "",
+    }))
+
+    // 2) Top tags aggregati
+    const { data: tags } = await supabase
+      .from("mood_entries")
+      .select("tags")
+      .eq("user_id", user_id)
+      .order("at", { ascending: false })
+      .limit(100)
+
+    const tagCounts = {}
+    ;(tags || []).forEach((row) => {
+      (row.tags || []).forEach((t) => {
+        tagCounts[t] = (tagCounts[t] || 0) + 1
+      })
+    })
+
+    const topTags = Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, tag_count: count }))
+      .sort((a, b) => b.tag_count - a.tag_count)
+      .slice(0, 10)
+
+    // 3) Ultimo summary salvato (mentore)
+    const { data: summaryRow } = await supabase
+      .from("summary_entries")
+      .select("summary")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    reply.send({
+      moods: moodSeries,
+      top_tags: topTags,
+      mentor_insight: summaryRow?.summary || null,
+    })
+  } catch (err) {
+    console.error("❌ Insights error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
+
 
 // =============================================================
 //  START

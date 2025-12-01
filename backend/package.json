@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.45.3",
     "dotenv": "^16.4.5",
     "fastify": "^4.27.2",
-    "openai": "^4.67.2"
+    "openai": "^4.67.2",
+    "resend": "^4.0.0"
   },
   "engines": {
     "node": ">=18.x"

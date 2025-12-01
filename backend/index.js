@@ -800,74 +800,75 @@ senza elencarle esplicitamente e senza fare diagnosi.
 })
 
 // Alias per compatibilità con il frontend: /api/mentor-chat → stessa logica di /api/chat
+// =============================================================
+//  MENTOR CHAT (alias più robusto, usato dal frontend)
+// =============================================================
 app.post("/api/mentor-chat", async (req, reply) => {
-  const { user_id, messages } = req.body || {}
-  if (!user_id || !messages)
-    return reply.code(400).send({ error: "Missing fields" })
+  const body = req.body || {}
+
+  // accettiamo sia user_id che userId, per sicurezza
+  const user_id = body.user_id || body.userId
+  const messages = Array.isArray(body.messages) ? body.messages : []
+
+  if (!user_id) {
+    console.error("mentor-chat: missing user_id", body)
+    return reply.code(400).send({ error: "Missing user_id" })
+  }
 
   try {
-    // prendo l'ultimo messaggio dell'utente per la memoria
+    // prendo ultimo messaggio dell'utente, se esiste
     const lastUserMessage = [...messages].reverse().find(
       (m) => m.role === "user"
     )
     const userText = lastUserMessage?.content || ""
 
-    // profilo emozioni
-    const { data: profile } = await supabase
-      .from("emotion_profile")
-      .select("*")
-      .eq("user_id", user_id)
-      .maybeSingle()
-
-    // contesto breve dagli ultimi messaggi
-    const shortContext = Array.isArray(messages) ? messages.slice(-10) : []
+    // usiamo un contesto corto sugli ultimi messaggi (se ci sono)
+    const shortContext = messages.slice(-10)
 
     const systemPrompt = `
 Sei MyndSelf Mentor, una guida emotiva gentile.
-Usi uno stile vicino a CBT/ACT: validi le emozioni, aiuti a notare collegamenti tra pensieri, emozioni, corpo, bisogni e valori.
+Usi uno stile vicino a CBT/ACT:
+- validi quello che la persona prova
+- aiuti a mettere in relazione pensieri, emozioni, corpo e bisogni
+- chiudi al massimo con UNA domanda aperta che invita a guardarsi dentro.
 
 Regole:
 - Risposte brevi (3–6 frasi).
 - Tono caldo, non giudicante, mai direttivo.
-- Puoi fare al massimo UNA domanda aperta alla fine.
-- Non usare emoji.
-- Non dare consigli pratici rigidi ("devi", "dovresti"), ma inviti morbidi ("potrebbe aiutare", "puoi valutare di...").
-`.trim()
-
-    const userPrompt = `
-Questa è la conversazione attuale con l'utente (messaggi recenti):
-
-${shortContext
-  .map((m) => `${m.role === "user" ? "Utente" : "Mentor"}: ${m.content}`)
-  .join("\n")}
-
-Profilo emotivo, se disponibile:
-${profile ? JSON.stringify(profile) : "Nessun profilo ancora disponibile."}
-
-Rispondi come Mentor seguendo le regole. Non menzionare mai che stai usando un profilo o dati.
+- Niente emoji.
+- Non dare consigli rigidi ("devi", "dovresti"), ma inviti morbidi.
 `.trim()
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.7,
+      temperature: 0.75,
       max_tokens: 280,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        // se non ci sono messaggi, diamo comunque un input contestuale minimo
+        ...(shortContext.length
+          ? shortContext
+          : [
+              {
+                role: "user",
+                content:
+                  "L'utente ha aperto una chat riflessiva ma non ha ancora scritto nulla di specifico. Offri una domanda morbida per iniziare.",
+              },
+            ]),
       ],
     })
 
     const replyText =
       completion.choices?.[0]?.message?.content?.trim() ||
-      "Ti ho ascoltato. Possiamo restare un momento con quello che senti."
+      "Ti ho ascoltato. Possiamo restare un momento con quello che senti?"
 
-    // memoria
+    // salviamo qualcosa in memoria, se vuoi riusarla più avanti
     if (userText) {
       await saveToMemory({ user_id, content: userText, source: "chat" })
     }
     await saveToMemory({ user_id, content: replyText, source: "chat_reply" })
 
-    // salva sessione
+    // salvataggio della sessione
     await supabase.from("chat_sessions").insert({
       user_id,
       messages,
@@ -875,12 +876,13 @@ Rispondi come Mentor seguendo le regole. Non menzionare mai che stai usando un p
       created_at: new Date().toISOString(),
     })
 
-    reply.send({ reply: replyText })
+    return reply.send({ reply: replyText })
   } catch (err) {
     console.error("❌ Mentor chat error:", err)
-    reply.code(500).send({ error: err.message })
+    return reply.code(500).send({ error: err.message })
   }
 })
+
 
 
 // =============================================================
@@ -903,6 +905,27 @@ app.get("/api/chat/history", async (req, reply) => {
     reply.code(500).send({ error: err.message })
   }
 })
+
+// Alias per la storia del Mentor, usato dal frontend
+app.get("/api/mentor-history", async (req, reply) => {
+  const { user_id } = req.query
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
+  try {
+    const { data } = await supabase
+      .from("chat_sessions")
+      .select("id,messages,reply,created_at")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: false })
+      .limit(10)
+
+    reply.send({ ok: true, items: data || [] })
+  } catch (err) {
+    console.error("❌ mentor history error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
+
 
 // =============================================================
 //  SUBSCRIBE

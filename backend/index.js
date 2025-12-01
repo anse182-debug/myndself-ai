@@ -6,6 +6,7 @@ import Fastify from "fastify"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
 import pkg from "@supabase/supabase-js"
+import { Resend } from "resend"
 const { createClient } = pkg
 
 // ====== ENV ======

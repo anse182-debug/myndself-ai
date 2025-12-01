@@ -799,6 +799,89 @@ senza elencarle esplicitamente e senza fare diagnosi.
   }
 })
 
+// Alias per compatibilità con il frontend: /api/mentor-chat → stessa logica di /api/chat
+app.post("/api/mentor-chat", async (req, reply) => {
+  const { user_id, messages } = req.body || {}
+  if (!user_id || !messages)
+    return reply.code(400).send({ error: "Missing fields" })
+
+  try {
+    // prendo l'ultimo messaggio dell'utente per la memoria
+    const lastUserMessage = [...messages].reverse().find(
+      (m) => m.role === "user"
+    )
+    const userText = lastUserMessage?.content || ""
+
+    // profilo emozioni
+    const { data: profile } = await supabase
+      .from("emotion_profile")
+      .select("*")
+      .eq("user_id", user_id)
+      .maybeSingle()
+
+    // contesto breve dagli ultimi messaggi
+    const shortContext = Array.isArray(messages) ? messages.slice(-10) : []
+
+    const systemPrompt = `
+Sei MyndSelf Mentor, una guida emotiva gentile.
+Usi uno stile vicino a CBT/ACT: validi le emozioni, aiuti a notare collegamenti tra pensieri, emozioni, corpo, bisogni e valori.
+
+Regole:
+- Risposte brevi (3–6 frasi).
+- Tono caldo, non giudicante, mai direttivo.
+- Puoi fare al massimo UNA domanda aperta alla fine.
+- Non usare emoji.
+- Non dare consigli pratici rigidi ("devi", "dovresti"), ma inviti morbidi ("potrebbe aiutare", "puoi valutare di...").
+`.trim()
+
+    const userPrompt = `
+Questa è la conversazione attuale con l'utente (messaggi recenti):
+
+${shortContext
+  .map((m) => `${m.role === "user" ? "Utente" : "Mentor"}: ${m.content}`)
+  .join("\n")}
+
+Profilo emotivo, se disponibile:
+${profile ? JSON.stringify(profile) : "Nessun profilo ancora disponibile."}
+
+Rispondi come Mentor seguendo le regole. Non menzionare mai che stai usando un profilo o dati.
+`.trim()
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0.7,
+      max_tokens: 280,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    })
+
+    const replyText =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "Ti ho ascoltato. Possiamo restare un momento con quello che senti."
+
+    // memoria
+    if (userText) {
+      await saveToMemory({ user_id, content: userText, source: "chat" })
+    }
+    await saveToMemory({ user_id, content: replyText, source: "chat_reply" })
+
+    // salva sessione
+    await supabase.from("chat_sessions").insert({
+      user_id,
+      messages,
+      reply: replyText,
+      created_at: new Date().toISOString(),
+    })
+
+    reply.send({ reply: replyText })
+  } catch (err) {
+    console.error("❌ Mentor chat error:", err)
+    reply.code(500).send({ error: err.message })
+  }
+})
+
 
 // =============================================================
 //  CHAT HISTORY

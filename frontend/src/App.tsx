@@ -1071,7 +1071,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
       </div>
     )
   }
-
+const reflectionDaysCount = moodSeries?.length ?? 0
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
       {/* 1️⃣ Calendario emotivo */}
@@ -1103,6 +1103,18 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
             onSelectDay={onSelectCalendarDay}
           />
         )}
+
+        {reflectionDaysCount > 0 && (
+  <p className="text-[11px] text-gray-400 mt-1">
+    Negli ultimi 30 giorni hai dato spazio alle tue emozioni in{" "}
+    <span className="font-semibold text-emerald-200">
+      {reflectionDaysCount} giorno
+      {reflectionDaysCount !== 1 && "i"}
+    </span>
+    .
+  </p>
+)}
+
 
         {selectedCalendarDay && (
           <div className="mt-3 rounded-xl bg-gray-900/80 border border-gray-700/60 p-3 space-y-1">
@@ -1806,48 +1818,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
                   )}
                 </section>
 
-                {/* Grafico riflessioni per giorno */}
-                <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <h2 className="text-sm font-semibold">
-                    La costanza delle tue riflessioni
-                  </h2>
-                  {dailyChartData.length > 0 ? (
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={dailyChartData}>
-                          <XAxis
-                            dataKey="label"
-                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                          />
-                          <YAxis
-                            tick={{ fontSize: 10, fill: "#9CA3AF" }}
-                            allowDecimals={false}
-                          />
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: "#020617",
-                              border: "1px solid #4B5563",
-                              borderRadius: 8,
-                              fontSize: 11,
-                            }}
-                          />
-                          <Line
-                            type="monotone"
-                            dataKey="entries"
-                            stroke="#22C55E"
-                            strokeWidth={2}
-                            dot={{ r: 2 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-gray-400">
-                      Appena inizierai a scrivere con una certa regolarità,
-                      vedrai qui l’andamento delle tue riflessioni.
-                    </p>
-                  )}
-                </section>
+                
 
 
                 {/* Top tag chart (se hai molti dati) */}

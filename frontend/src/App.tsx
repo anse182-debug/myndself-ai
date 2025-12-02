@@ -455,7 +455,7 @@ export default function App() {
 
     setGuidedLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+      const res = await fetch(`${API_BASE}/api/guided-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: uid, message: "" }),
@@ -497,7 +497,7 @@ export default function App() {
 
     setGuidedLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+      const res = await fetch(`${API_BASE}/api/guided-chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

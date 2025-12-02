@@ -1113,166 +1113,121 @@ const response = await openai.chat.completions.create({
     reply.code(500).send({ error: err.message })
   }
 })
-// Guided Reflection (H1)
-// POST /api/guided-reflection
-// Body: { user_id: string, messages: [{role,content}], step?: number }
 // =============================================================
 //  RIFLESSIONE GUIDATA – 4 PASSI PIÙ ANCORA ALLA REALTÀ
 // =============================================================
+// Guided Reflection (H1) - versione rivista
+// POST /api/guided-reflection
+// Body: { user_id: string, messages: [{role,content}], step?: number }
 app.post("/api/guided-reflection", async (req, reply) => {
-  const body = req.body || {}
-  const user_id = body.user_id || body.userId
-  const messages = Array.isArray(body.messages) ? body.messages : []
-  const stepRaw = body.step ?? 1
-  const step = Math.min(4, Math.max(1, Number(stepRaw) || 1))
-
-  if (!user_id) {
-    return reply.code(400).send({ error: "Missing user_id" })
-  }
+  const { user_id, messages = [], step } = req.body || {}
+  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
 
   try {
-    // Ultimo messaggio dell'utente (per ancorare la risposta)
-    const lastUserMessage = [...messages].reverse().find(
-      (m) => m.role === "user"
-    )
-    const lastUserText = lastUserMessage?.content || ""
+    // step server-side (fallback): 1..4
+    const currentStep = Math.max(1, Math.min(4, Number(step || 1)))
+    const isFinal = currentStep === 4
 
-    // Breve trascrizione della conversazione finora (solo per contesto)
-    const historyText = messages
-      .map((m) => `${m.role === "user" ? "Utente" : "Mentor"}: ${m.content}`)
-      .join("\n")
+    // contesto corto per ridurre i costi e mantenere la coerenza
+    const shortContext = Array.isArray(messages) ? messages.slice(-8) : []
 
-    // Profilo emotivo se disponibile (user_id → emotion_profile)
-    let profileSummary = "Nessun profilo disponibile."
-    try {
-      const { data: profile } = await supabase
-        .from("emotion_profile")
-        .select("*")
-        .eq("user_id", user_id)
-        .maybeSingle()
-      if (profile) {
-        profileSummary = JSON.stringify(profile)
-      }
-    } catch (e) {
-      console.warn("emotion_profile fetch failed (guided):", e)
-    }
+    // Prompt dedicato, solo in italiano e molto specifico
+    const GUIDED_PROMPT = `
+Sei MyndSelf Mentor, una guida emotiva molto gentile.
 
-    // Obiettivo specifico per step
-    let stepGoal = ""
-    let stepFocus = ""
+OBIETTIVO
+Guidare una breve riflessione in 4 passi, aiutando la persona a osservare con più chiarezza cosa prova, senza dare consigli.
 
-    switch (step) {
-      case 1:
-        stepGoal = `
-- Aiutare la persona ad "atterrare" sul tema di oggi.
-- Farle sentire che quello che prova ha senso.
-`
-        stepFocus = `
-- Riferisciti in modo esplicito a quello che ha scritto nell'ULTIMO messaggio.
-- Invita a descrivere un po' meglio cosa sta succedendo o cosa l'ha colpita di più.
-- Una sola domanda aperta alla fine (es. "Che cosa ti ha colpito di più di tutto questo?").
-`
-        break
-      case 2:
-        stepGoal = `
-- Esplorare le EMOZIONI e le SENSAZIONI nel corpo legate a quello che ha raccontato.
-`
-        stepFocus = `
-- Nomina 1–2 emozioni che potrebbero essere presenti, partendo da quello che ha scritto (non inventarle a caso).
-- Invita gentilmente a notare dove le sente nel corpo (es. peso allo stomaco, tensione alle spalle).
-- Una sola domanda aperta alla fine che aiuta a stare con ciò che sente nel corpo.
-`
-        break
-      case 3:
-        stepGoal = `
-- Collegare ciò che prova a BISOGNI o VALORI importanti per lei.
-`
-        stepFocus = `
-- Parti da ciò che ha raccontato finora e prova a ipotizzare 1–2 bisogni/valori (es. bisogno di riconoscimento, di riposo, di chiarezza, di libertà).
-- Non parlare in modo astratto: aggancia sempre l'esempio alle sue parole.
-- Chiudi con una domanda aperta, del tipo: "Che cosa ti sembra stia chiedendo questa emozione?".
-`
-        break
-      case 4:
-      default:
-        stepGoal = `
-- Aiutarla a portarsi via qualcosa dalla riflessione, senza dare consigli.
-`
-        stepFocus = `
-- Riconosci lo sforzo che ha fatto nello scrivere.
-- Evidenzia 1–2 cose che emergono come importanti per lei, collegandoti ai suoi messaggi.
-- Invitala a scegliere un piccolo gesto di cura o un pensiero da tenere a mente, SENZA dire tu cosa deve fare.
-- Puoi chiudere con UNA domanda molto leggera tipo: "Che cosa vuoi portare con te da questa riflessione?".
-`
-        break
-    }
+REGOLE GENERALI
+- Rispondi sempre in italiano, dando del "tu".
+- Usa risposte brevi: 2–3 frasi al massimo.
+- Valida sempre brevemente quello che la persona ha appena scritto, usando parole sue quando puoi.
+- Non dare consigli pratici, non proporre esercizi, non fare diagnosi.
+- Non usare tono imperativo ("devi", "prova a", "fai", "ti invito a").
+- Non nominare mai "step", "passo", "sessione", "domanda successiva" ecc.
 
-    const systemPrompt = `
-Sei MyndSelf Mentor, una guida emotiva gentile.
-
-Stai conducendo una riflessione guidata in 4 passi.
-Il tuo stile è:
-- concreto, ancorato alle parole reali dell'utente
-- caldo e non giudicante
-- mai direttivo (niente "devi", "dovresti", "fai così")
-- massimo 4–6 frasi per risposta.
-
-Regole generali:
-- Scrivi SEMPRE in italiano e dai del "tu".
-- Fai al massimo UNA domanda aperta alla fine (tranne nel passo finale, dove la domanda è molto leggera o puoi anche chiudere senza).
-- Non inventare traumi, diagnosi o spiegazioni complesse: resta sul quotidiano.
-- Non offrire consigli pratici o piani d'azione. Offri solo riflessioni e domande.
+STRUTTURA DEI PASSI
+- STEP 1: Aiuta a descrivere meglio che cosa sta succedendo adesso (emozioni + situazione concreta).
+- STEP 2: Esplora come questa esperienza si sente nel corpo e cosa tocca dentro di lui/lei.
+- STEP 3: Esplora bisogni, valori o desideri che stanno sotto a quello che prova.
+- STEP 4 (FINALE): Non fare domande. Offri una breve sintesi compassionevole di ciò che è emerso e chiudi con una sola frase di incoraggiamento a trattarsi con gentilezza (senza dare compiti).
 `.trim()
 
-    const userPrompt = `
-Stai rispondendo al PASSO ${step} di una riflessione guidata.
-
-Obiettivo di questo passo:
-${stepGoal}
-
-Indicazioni specifiche per questo passo:
-${stepFocus}
-
-Profilo emotivo (se disponibile):
-${profileSummary}
-
-Conversazione finora (dall'utente e dal Mentor):
-${historyText || "Nessun messaggio precedente."}
-
-L'ULTIMO messaggio dell'utente è:
-"""${lastUserText || "Non ha ancora scritto nulla di specifico."}"""
-
-Compito:
-- Riconosci esplicitamente qualcosa che emerge dall'ULTIMO messaggio (non parlare in astratto).
-- Mantieni il focus del PASSO ${step} come descritto sopra.
-- Scrivi un testo naturale, come se stessi parlando, non una lista di punti.
-`.trim()
+    // Istruzione extra per il turno corrente
+    const turnInstruction = isFinal
+      ? "Ora sei al passo finale. Non fare domande. Riassumi con dolcezza ciò che è emerso nella conversazione e chiudi con una frase che incoraggi la persona a trattarsi con gentilezza."
+      : `Ora sei al passo ${currentStep}. Valida brevemente ciò che la persona ha scritto e poi fai UNA sola domanda aperta, collegata a quello che ha appena espresso, evitando di ripetere domande già fatte.`
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.8,
-      max_tokens: 280,
+      temperature: 0.7,
+      max_tokens: 220,
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+        { role: "system", content: GUIDED_PROMPT },
+        { role: "system", content: turnInstruction },
+        ...shortContext,
       ],
     })
 
     const replyText =
       completion.choices?.[0]?.message?.content?.trim() ||
-      "Grazie per aver condiviso quello che stai vivendo. Possiamo restare un momento con ciò che senti adesso."
+      (isFinal
+        ? "Grazie per aver condiviso. Onora quello che provi e concediti, se puoi, un piccolo gesto di gentilezza verso di te."
+        : "Ti ho ascoltato. Che cosa ti colpisce di più di quello che stai vivendo in questo momento?")
 
-    const isFinal = step >= 4
+    // Salva la sessione guidata (separata dalla chat libera)
+    try {
+      await supabase.from("chat_sessions").insert({
+        user_id,
+        messages,
+        reply: replyText,
+        type: "guided", // assicurati che la colonna 'type' esista
+        step: currentStep,
+        created_at: new Date().toISOString(),
+      })
+    } catch (e) {
+      console.warn("⚠️ guided session insert failed:", e.message)
+    }
 
-    return reply.send({
-      reply: replyText,
-      isFinal,
-    })
+    // Se è l’ultimo passo, salviamo anche come sintesi negli insight
+    try {
+      if (isFinal) {
+        await supabase.from("summary_entries").insert({
+          user_id,
+          summary: replyText,
+          created_at: new Date().toISOString(),
+        })
+      }
+    } catch (e) {
+      console.warn("⚠️ save guided summary failed:", e.message)
+    }
+
+    // Memoria semantica minimale
+    try {
+      const lastUser = [...messages].reverse().find((m) => m.role === "user")
+      if (lastUser?.content) {
+        await saveToMemory({
+          user_id,
+          content: lastUser.content,
+          source: "guided_user",
+        })
+      }
+      await saveToMemory({
+        user_id,
+        content: replyText,
+        source: "guided_reply",
+      })
+    } catch (_) {
+      // memoria best-effort, non blocca la risposta
+    }
+
+    return reply.send({ reply: replyText, isFinal })
   } catch (err) {
-    console.error("❌ guided-reflection error:", err)
+    console.error("❌ Guided reflection error:", err)
     return reply.code(500).send({ error: err.message })
   }
 })
+
 
 app.post("/api/send-welcome-if-needed", async (req, reply) => {
   const { user_id } = req.body || {}

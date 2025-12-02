@@ -490,7 +490,7 @@ async function continueGuidedReflection() {
     const res = await fetch(`${API_BASE}/api/guided-chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: uid, message: userText }),
+      body: JSON.stringify({ user_id: uid, message: userText, history: guidedMessages, }),
     })
 
     const data = await res.json()

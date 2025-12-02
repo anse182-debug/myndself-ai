@@ -828,7 +828,7 @@ const handleChatSend = async () => {
         {/* Header */}
         <div>
           <h2 className="text-lg font-semibold mb-1">
-            I tuoi ultimi 7 giorni
+            I tuoi ultimi 30 giorni
           </h2>
           <p className="text-xs text-gray-400">
             Uno sguardo leggero su come ti sei mosso emotivamente di recente.

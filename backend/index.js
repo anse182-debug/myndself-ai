@@ -1132,31 +1132,38 @@ app.post("/api/guided-reflection", async (req, reply) => {
     const shortContext = Array.isArray(messages) ? messages.slice(-8) : []
 
     // Prompt dedicato, solo in italiano e molto specifico
-    const GUIDED_PROMPT = `
-Sei MyndSelf Mentor, una guida emotiva molto gentile.
+    const GUIDED_PROMPT = `Sei MyndSelf Mentor, una guida emotiva gentile.
 
 OBIETTIVO
-Guidare una breve riflessione in 4 passi, aiutando la persona a osservare con più chiarezza cosa prova, senza dare consigli.
+Guidare una breve sessione guidata in 3–4 scambi, aiutando l'utente a osservare con più chiarezza cosa prova.
 
 REGOLE GENERALI
-- Rispondi sempre in italiano, dando del "tu".
-- Usa risposte brevi: 2–3 frasi al massimo.
-- Valida sempre brevemente quello che la persona ha appena scritto, usando parole sue quando puoi.
-- Non dare consigli pratici, non proporre esercizi, non fare diagnosi.
-- Non usare tono imperativo ("devi", "prova a", "fai", "ti invito a").
-- Non nominare mai "step", "passo", "sessione", "domanda successiva" ecc.
+- Non dai consigli pratici, non prescrivi soluzioni, non fai diagnosi.
+- Non usi termini clinici e non citi terapie o farmaci.
+- Non minimizzi e non amplifichi il dolore dell'utente.
+- Usi frasi brevi (2–3 frasi) e un tono calmo, concreto, gentile.
+- Scrivi sempre in italiano.
+- Validi sempre brevemente ciò che l'utente prova prima di fare una domanda.
 
-STRUTTURA DEI PASSI
-- STEP 1: Aiuta a descrivere meglio che cosa sta succedendo adesso (emozioni + situazione concreta).
-- STEP 2: Esplora come questa esperienza si sente nel corpo e cosa tocca dentro di lui/lei.
-- STEP 3: Esplora bisogni, valori o desideri che stanno sotto a quello che prova.
-- STEP 4 (FINALE): Non fare domande. Offri una breve sintesi compassionevole di ciò che è emerso e chiudi con una sola frase di incoraggiamento a trattarsi con gentilezza (senza dare compiti).
-`.trim()
+STRUTTURA DELLA SESSIONE
+- STEP 1–3 (non finali):
+  - Riconosci brevemente ciò che l'utente sta vivendo.
+  - Fai SOLO UNA domanda aperta, molto semplice, per andare un po' più in profondità
+    (per es. pensieri, emozioni, sensazioni corporee, bisogni, valori).
+  - Usa una sola domanda per turno.
+
+- STEP 4 (FINALE):
+  - NON fare domande.
+  - NON usare il punto interrogativo.
+  - NON iniziare frasi con "Che cosa", "Cosa", "Qual è", "Quale", ecc.
+  - Offri una breve sintesi di ciò che è emerso nella sessione (2–3 frasi).
+  - Concludi con una frase di chiusura gentile, per es.:
+    "Possiamo fermarci qui per oggi, grazie per esserti fermato con te stesso."`.trim()
 
     // Istruzione extra per il turno corrente
-    const turnInstruction = isFinal
-      ? "Ora sei al passo finale. Non fare domande. Riassumi con dolcezza ciò che è emerso nella conversazione e chiudi con una frase che incoraggi la persona a trattarsi con gentilezza."
-      : `Ora sei al passo ${currentStep}. Valida brevemente ciò che la persona ha scritto e poi fai UNA sola domanda aperta, collegata a quello che ha appena espresso, evitando di ripetere domande già fatte.`
+   const turnInstruction = isFinal
+  ? "STEP FINALE: non fare nessuna domanda, non usare punto interrogativo, non usare formule come 'Che cosa', 'Cosa', 'Qual è'. Offri solo una breve sintesi compassionevole di ciò che è emerso e una frase di chiusura gentile."
+  : "STEP NON FINALE: valida brevemente ciò che l'utente prova e poi fai UNA sola domanda aperta, semplice, per andare un po' più in profondità."
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -1169,11 +1176,17 @@ STRUTTURA DEI PASSI
       ],
     })
 
-    const replyText =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      (isFinal
-        ? "Grazie per aver condiviso. Onora quello che provi e concediti, se puoi, un piccolo gesto di gentilezza verso di te."
-        : "Ti ho ascoltato. Che cosa ti colpisce di più di quello che stai vivendo in questo momento?")
+    let replyText =
+  completion.choices?.[0]?.message?.content?.trim() ||
+  (isFinal
+    ? "Grazie per aver condiviso. Onora quello che provi e concediti un piccolo gesto di gentilezza. Possiamo fermarci qui per oggi."
+    : "Ti va di restare un attimo con ciò che senti? Cosa emerge di più in questo momento?")
+
+// Se è lo step finale, assicuriamoci che non restino domande
+if (isFinal) {
+  // rimuovi eventuali punti interrogativi residui
+  replyText = replyText.replace(/\?/g, ".")
+}
 
     // Salva la sessione guidata (separata dalla chat libera)
     try {

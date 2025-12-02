@@ -21,6 +21,179 @@ type TagItem = { tag: string; tag_count: number }
 type ChatMessage = { role: "user" | "assistant"; content: string }
 type Toast = { id: string; message: string; type?: "success" | "error" | "info" }
 type GuidedMsg = { role: "user" | "assistant"; content: string }
+type CalendarDay = {
+  day: string // "YYYY-MM-DD"
+  dominantMood: string | null
+  entriesCount: number
+  moodsCount: Record<string, number>
+  tags: string[]
+}
+
+type MoodCalendarProps = {
+  days: CalendarDay[]
+  monthOffset: number
+  onChangeMonth: (offset: number) => void
+  onSelectDay: (day: CalendarDay | null) => void
+}
+
+const moodToColor = (mood: string | null): string => {
+  switch ((mood || "").toLowerCase()) {
+    case "gioia":
+    case "joy":
+      return "bg-amber-400"
+    case "calma":
+    case "calm":
+      return "bg-emerald-400"
+    case "tristezza":
+    case "sadness":
+      return "bg-sky-500"
+    case "rabbia":
+    case "anger":
+      return "bg-rose-500"
+    case "ansia":
+    case "anxiety":
+      return "bg-violet-500"
+    default:
+      return "bg-gray-700/60"
+  }
+}
+
+const MoodCalendar: React.FC<MoodCalendarProps> = ({
+  days,
+  monthOffset,
+  onChangeMonth,
+  onSelectDay,
+}) => {
+  // calcoliamo il mese da mostrare
+  const base = new Date()
+  base.setMonth(base.getMonth() + monthOffset)
+  const year = base.getFullYear()
+  const month = base.getMonth()
+
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+
+  const firstWeekday = firstDay.getDay() // 0 = Sunday
+  const daysInMonth = lastDay.getDate()
+
+  // mappa date -> CalendarDay
+  const map = new Map<string, CalendarDay>()
+  for (const d of days) {
+    map.set(d.day, d)
+  }
+
+  const cells: (CalendarDay | null)[] = []
+  // offset per iniziare dal lunedì (0=lunedì, 6=domenica)
+  const offset = (firstWeekday + 6) % 7
+  for (let i = 0; i < offset; i++) {
+    cells.push(null)
+  }
+  for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+    const dateStr = new Date(year, month, dayNum).toISOString().slice(0, 10)
+    cells.push(map.get(dateStr) || {
+      day: dateStr,
+      dominantMood: null,
+      entriesCount: 0,
+      moodsCount: {},
+      tags: [],
+    })
+  }
+
+  const monthLabel = base.toLocaleDateString("it-IT", {
+    month: "long",
+    year: "numeric",
+  })
+
+  const weekdayLabels = ["L", "M", "M", "G", "V", "S", "D"]
+
+  return (
+    <div className="space-y-3">
+      {/* Header mese */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onChangeMonth(monthOffset - 1)}
+          className="text-xs text-emerald-300 hover:text-emerald-200"
+        >
+          ← mese prec.
+        </button>
+        <div className="text-xs font-medium text-gray-200 uppercase tracking-wide">
+          {monthLabel}
+        </div>
+        <button
+          type="button"
+          onClick={() => onChangeMonth(monthOffset + 1)}
+          className="text-xs text-emerald-300 hover:text-emerald-200"
+        >
+          mese succ. →
+        </button>
+      </div>
+
+      {/* Intestazione giorni settimana */}
+      <div className="grid grid-cols-7 gap-1 text-[10px] text-gray-500">
+        {weekdayLabels.map((d) => (
+          <div key={d} className="text-center">
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* Celle calendario */}
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((cell, idx) => {
+          if (!cell) {
+            return <div key={idx} className="h-7" />
+          }
+
+          const colorClass = cell.entriesCount > 0
+            ? moodToColor(cell.dominantMood)
+            : "bg-gray-800/60"
+
+          return (
+            <button
+              key={cell.day}
+              type="button"
+              onClick={() => onSelectDay(cell)}
+              className={`h-7 rounded-md ${colorClass} flex items-center justify-center text-[10px] text-gray-100 hover:ring-2 hover:ring-emerald-300/60 transition`}
+            >
+              {new Date(cell.day).getDate()}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-gray-500">
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-emerald-400" />
+          calma
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-amber-400" />
+          gioia
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-sky-500" />
+          tristezza
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-rose-500" />
+          rabbia
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-violet-500" />
+          ansia
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded-sm bg-gray-800/60" />
+          nessuna riflessione
+        </span>
+      </div>
+    </div>
+  )
+}
+
+
 
 const MOOD_PRESETS = [
   { label: "Calmo", value: "Calmo / centrato" },
@@ -169,6 +342,13 @@ export default function App() {
   const [weeklyRitualError, setWeeklyRitualError] = useState<string | null>(
     null
   )
+  const [calendarDays, setCalendarDays] = useState<CalendarDay[]>([])
+  const [calendarLoading, setCalendarLoading] = useState(false)
+  const [calendarError, setCalendarError] = useState<string | null>(null)
+  const [calendarMonthOffset, setCalendarMonthOffset] = useState(0)
+  const [selectedCalendarDay, setSelectedCalendarDay] =
+  useState<CalendarDay | null>(null)
+
 
   // emotional profile
   const [emotionalShort, setEmotionalShort] = useState<string | null>(null)
@@ -341,6 +521,57 @@ export default function App() {
     }
   }
 
+  async function loadMoodCalendar(userId: string, monthOffset = 0) {
+  setCalendarLoading(true)
+  setCalendarError(null)
+
+  try {
+    const base = new Date()
+    // spostiamo il mese in base all'offset (0 = mese corrente, -1 = mese scorso, +1 = prossimo)
+    base.setMonth(base.getMonth() + monthOffset)
+
+    const year = base.getFullYear()
+    const month = base.getMonth() // 0–11
+
+    const fromDate = new Date(year, month, 1)
+    const toDate = new Date(year, month + 1, 0)
+
+    const fromStr = fromDate.toISOString().slice(0, 10)
+    const toStr = toDate.toISOString().slice(0, 10)
+
+    const url = `${API_BASE}/api/mood-calendar?user_id=${encodeURIComponent(
+      userId
+    )}&from=${fromStr}&to=${toStr}`
+
+    const res = await fetch(url)
+    if (!res.ok) {
+      throw new Error("Non riesco a caricare il calendario emotivo")
+    }
+
+    const json = await res.json()
+
+    const days: CalendarDay[] =
+      json.days?.map((d: any) => ({
+        day: d.day,
+        dominantMood: d.dominant_mood || null,
+        entriesCount: d.entries_count || 0,
+        moodsCount: d.moods_count || {},
+        tags: d.tags || [],
+      })) ?? []
+
+    setCalendarDays(days)
+    setCalendarMonthOffset(monthOffset)
+  } catch (err: any) {
+    console.error("mood calendar error", err)
+    setCalendarError(
+      "Non riesco a preparare il calendario emotivo. Riprova più tardi."
+    )
+  } finally {
+    setCalendarLoading(false)
+  }
+}
+
+
   async function loadInsights(userId: string) {
     setInsightsLoading(true)
     setInsightsError(null)
@@ -411,6 +642,7 @@ export default function App() {
         setWeeklyRitualRange(null)
         setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
       }
+      await loadMoodCalendar(userId, calendarMonthOffset)
     } catch (err: any) {
       console.error(err)
       setInsightsError(
@@ -1581,6 +1813,45 @@ const handleChatSend = async () => {
                     </p>
                   )}
                 </section>
+<section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
+  <div className="flex items-center justify-between gap-2">
+    <div>
+      <h3 className="text-sm font-medium text-gray-100">
+        Calendario emotivo
+      </h3>
+      <p className="text-xs text-gray-400">
+        Uno sguardo alle emozioni che hanno colorato i tuoi giorni.
+      </p>
+    </div>
+  </div>
+
+  {calendarLoading && (
+    <p className="text-xs text-gray-400">Sto preparando il tuo calendario…</p>
+  )}
+
+  {calendarError && (
+    <p className="text-xs text-rose-400">{calendarError}</p>
+  )}
+
+  {!calendarLoading && !calendarError && (
+    <MoodCalendar
+      days={calendarDays}
+      monthOffset={calendarMonthOffset}
+      onChangeMonth={(offset) => {
+        if (session?.user?.id) {
+          loadMoodCalendar(session.user.id, offset)
+        }
+      }}
+      onSelectDay={(day) => setSelectedCalendarDay(day)}
+    />
+  )}
+
+  {selectedCalendarDay && (
+    <div className="mt-3 rounded-xl bg-gray-900/80 border border-gray-700/60 p-3 space-y-1">
+      ...
+    </div>
+  )}
+</section>
 
                 {/* Top tag chart (se hai molti dati) */}
                 {tagChartData.length > 0 && (

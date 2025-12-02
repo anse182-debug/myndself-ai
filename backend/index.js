@@ -886,20 +886,30 @@ Regole:
 app.post("/api/guided-chat", async (req, reply) => {
   try {
     const { user_id, message } = req.body || {}
-    if (!user_id || !message) {
+
+    if (!user_id || !message || !message.trim()) {
       return reply.code(400).send({ error: "Missing user_id or message" })
     }
 
-    // Recupero storico riflessione guidata
-    const { data: history, error: hErr } = await supabase
+    // 1) Recupero una piccola storia recente (ultimi 12 turni)
+    const { data: historyRows, error: historyErr } = await supabase
       .from("guided_history")
       .select("role, content")
       .eq("user_id", user_id)
       .order("created_at", { ascending: true })
-      .limit(15)
+      .limit(12)
 
-    if (hErr) throw hErr
+    if (historyErr) {
+      console.error("guided-chat history error:", historyErr)
+    }
 
+    const history =
+      historyRows?.map((row) => ({
+        role: row.role === "assistant" ? "assistant" : "user",
+        content: row.content,
+      })) ?? []
+
+    // 2) Prompt di sistema
     const messages = [
       {
         role: "system",
@@ -916,20 +926,20 @@ Regole:
 - Non dare consigli pratici, non proporre esercizi, non usare verbi all'imperativo (es. "prova a", "ti invito a", "dovresti").
 - Ogni turno deve terminare con UNA sola domanda aperta, breve, che inizi con "Che cosa...", "Quale..." oppure "Come...".
 - Evita di ripetere la stessa domanda o la stessa formula di un turno precedente di questa conversazione.
+- NON usare mai la domanda "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?" né varianti molto simili.
 - Se l’utente risponde a una tua domanda, riconosci brevemente la sua risposta e porta la domanda mezzo passo più in profondità, ricollegandoti a quello che ha appena detto.
-- Non usare sempre la frase "restare su come ti senti": varia il linguaggio in modo naturale.
 - Dai sempre del "tu".
-`
+`,
       },
-      ...(history?.map((h) => ({ role: h.role, content: h.content })) ?? []),
-      { role: "user", content: message }
+      ...history,
+      { role: "user", content: message },
     ]
 
-        // Chiamata diretta a OpenAI (senza callOpenAIChat)
+    // 3) Chiamata a OpenAI
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 0.75,
-      max_tokens: 200,
+      temperature: 0.7,
+      max_tokens: 260,
       messages,
     })
 
@@ -937,24 +947,27 @@ Regole:
       completion.choices?.[0]?.message?.content?.trim() ||
       "Ti sono vicino mentre provi a mettere in ordine quello che senti. Che cosa ti colpisce di più di ciò che hai appena scritto?"
 
+    // 4) Salvo sia il messaggio dell’utente che la risposta del mentor
+    const { error: insertErr } = await supabase
+      .from("guided_history")
+      .insert([
+        { user_id, role: "user", content: message },
+        { user_id, role: "assistant", content: assistant },
+      ])
 
-    await supabase.from("guided_history").insert({
-      user_id,
-      role: "user",
-      content: message
-    })
-    await supabase.from("guided_history").insert({
-      user_id,
-      role: "assistant",
-      content: assistant
-    })
+    if (insertErr) {
+      console.error("guided-chat insert error:", insertErr)
+    }
 
-    return reply.send({ response: assistant })
+    return reply.send({ reply: assistant })
   } catch (err) {
-    console.error("guided-chat error", err)
-    return reply.code(500).send({ error: err.message })
+    console.error("guided-chat error:", err)
+    return reply
+      .code(500)
+      .send({ error: "Errore nel generare la riflessione guidata." })
   }
 })
+
 
 
 // =============================================================

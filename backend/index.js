@@ -883,90 +883,189 @@ Regole:
   }
 })
 
+// ----------------------------------------------
+// Riflessone guidata (breve, con chiusura morbida)
+// ----------------------------------------------
 app.post("/api/guided-chat", async (req, reply) => {
+  const { user_id, message } = req.body || {};
+
+  if (!user_id) {
+    return reply.code(400).send({ error: "Missing user_id" });
+  }
+
   try {
-    const { user_id, message } = req.body || {}
-
-    if (!user_id || !message || !message.trim()) {
-      return reply.code(400).send({ error: "Missing user_id or message" })
-    }
-
-    // 1) Recupero una piccola storia recente (ultimi 12 turni)
-    const { data: historyRows, error: historyErr } = await supabase
-      .from("guided_history")
-      .select("role, content")
+    // 1) recupero (o creo) la sessione guidata più recente
+    const { data: sessions, error: sesErr } = await supabase
+      .from("chat_sessions")
+      .select("id, messages, mode, created_at")
       .eq("user_id", user_id)
-      .order("created_at", { ascending: true })
-      .limit(12)
+      .eq("mode", "guided")
+      .order("created_at", { ascending: false })
+      .limit(1);
 
-    if (historyErr) {
-      console.error("guided-chat history error:", historyErr)
+    if (sesErr) throw sesErr;
+
+    let session = sessions?.[0] || null;
+    let messages = (session && session.messages) || [];
+
+    // Funzione di utility per salvare la sessione
+    async function saveSession() {
+      const payload = {
+        user_id,
+        mode: "guided",
+        messages,
+      };
+
+      if (session) {
+        const { error: upErr } = await supabase
+          .from("chat_sessions")
+          .update(payload)
+          .eq("id", session.id);
+        if (upErr) throw upErr;
+      } else {
+        const { data: inserted, error: insErr } = await supabase
+          .from("chat_sessions")
+          .insert(payload)
+          .select()
+          .single();
+        if (insErr) throw insErr;
+        session = inserted;
+      }
     }
 
-    const history =
-      historyRows?.map((row) => ({
-        role: row.role === "assistant" ? "assistant" : "user",
-        content: row.content,
-      })) ?? []
+    const nowIso = new Date().toISOString();
 
-    // 2) Prompt di sistema
-    const messages = [
-      {
-        role: "system",
-        content: `
-Sei un mentor emotivo che conduce una breve riflessione guidata in italiano.
+    // Contiamo SOLO i turni dell'utente
+    const userTurns = messages.filter((m) => m.role === "user").length;
 
-Stile:
-- caldo, concreto, non terapeutico
-- risposte di 2–4 frasi, massimo ~80 parole
+    // 2) Primo avvio: nessun messaggio utente => mandiamo la domanda iniziale fissa
+    if (!message || !message.trim()) {
+      if (userTurns === 0) {
+        const firstQuestion =
+          "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?";
 
-Regole:
-- Parti sempre da ciò che la persona ha appena scritto: inizia riconoscendo in 1 frase quello che hai colto (situazione o emozione).
-- Nomina al massimo 1–2 emozioni o immagini che emergono dalle sue parole.
-- Non dare consigli pratici, non proporre esercizi, non usare verbi all'imperativo (es. "prova a", "ti invito a", "dovresti").
-- Ogni turno deve terminare con UNA sola domanda aperta, breve, che inizi con "Che cosa...", "Quale..." oppure "Come...".
-- Evita di ripetere la stessa domanda o la stessa formula di un turno precedente di questa conversazione.
-- NON usare mai la domanda "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?" né varianti molto simili.
-- Se l’utente risponde a una tua domanda, riconosci brevemente la sua risposta e porta la domanda mezzo passo più in profondità, ricollegandoti a quello che ha appena detto.
-- Dai sempre del "tu".
-`,
-      },
-      ...history,
-      { role: "user", content: message },
-    ]
+        messages.push({
+          role: "assistant",
+          content: firstQuestion,
+          at: nowIso,
+          guided_phase: "start",
+        });
 
-    // 3) Chiamata a OpenAI
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.7,
-      max_tokens: 260,
-      messages,
-    })
+        await saveSession();
 
-    const assistant =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      "Ti sono vicino mentre provi a mettere in ordine quello che senti. Che cosa ti colpisce di più di ciò che hai appena scritto?"
+        return reply.send({
+          reply: firstQuestion,
+          done: false,
+        });
+      }
 
-    // 4) Salvo sia il messaggio dell’utente che la risposta del mentor
-    const { error: insertErr } = await supabase
-      .from("guided_history")
-      .insert([
-        { user_id, role: "user", content: message },
-        { user_id, role: "assistant", content: assistant },
-      ])
-
-    if (insertErr) {
-      console.error("guided-chat insert error:", insertErr)
+      // Se non c'è testo ma la sessione è già in corso, non rispondiamo
+      return reply.code(400).send({ error: "Missing message" });
     }
 
-    return reply.send({ reply: assistant })
+    // 3) Aggiungo il messaggio dell'utente
+    messages.push({
+      role: "user",
+      content: message.trim(),
+      at: nowIso,
+    });
+
+    // Ricontiamo i turni user dopo l’ultimo messaggio
+    const newUserTurns = messages.filter((m) => m.role === "user").length;
+
+    // 4) Prepariamo il prompt per l'AI
+    //    - fino a 2 turni utente: esplorazione (una sola domanda aperta)
+    //    - dalla 3ª risposta in poi: chiusura (specchio + domanda finale + chiusura esplicita)
+    let systemPrompt;
+    let userPrompt;
+    let isClosingTurn = false;
+
+    // Testo della conversazione finora, per dare contesto all'AI
+    const convo = messages
+      .map((m) => `${m.role === "user" ? "Utente" : "Mentor"}: ${m.content}`)
+      .join("\n");
+
+    if (newUserTurns <= 2) {
+      // FASE ESPLORATIVA
+      systemPrompt = `
+Sei un mentor emotivo gentile che conduce una breve riflessione guidata.
+Il tuo compito ora è rimanere in esplorazione:
+- Rispecchia brevemente (1–2 frasi) ciò che l'utente ha appena scritto.
+- Poi fai SOLO UNA domanda aperta, centrata sulle sue emozioni o sui significati per lui/lei.
+- Non dare consigli pratici, non proporre esercizi, non usare imperativi.
+- Non parlare di "sessioni" o "chat", ma solo della sua esperienza.
+Scrivi in italiano, tono caldo e colloquiale.`;
+      userPrompt = `
+Questa è la conversazione finora:
+
+${convo}
+
+L'utente ha appena scritto: "${message.trim()}".
+
+Rispondi con al massimo 3 frasi in totale:
+- le prime per rispecchiare e riconoscere ciò che emerge;
+- l'ultima deve essere UNA sola domanda aperta per proseguire l'esplorazione.`;
+    } else {
+      // FASE DI CHIUSURA
+      isClosingTurn = true;
+
+      systemPrompt = `
+Sei un mentor emotivo gentile che sta CONCLUDENDO una breve riflessione guidata.
+Adesso il tuo compito è chiudere la mini-sessione:
+- Offri un breve specchio di ciò che sembra emergere dalla conversazione (2–3 frasi massimo).
+- Poi fai UNA sola domanda molto leggera del tipo "Che cosa vuoi portare con te da questa riflessione?".
+- Chiudi ESPPLICITAMENTE la riflessione con una frase tipo:
+  "Per oggi possiamo fermarci qui, grazie per esserti dedicato questo momento."
+- NON aprire nuove direzioni, NON invitare a raccontare ancora, NON iniziare una nuova riflessione.
+- Nessun consiglio pratico, nessun imperativo forte ("devi", "prova a").
+Scrivi in italiano, tono caldo, semplice e rassicurante.`;
+
+      userPrompt = `
+Questa è stata la conversazione:
+
+${convo}
+
+L'utente ha appena scritto: "${message.trim()}".
+
+Ora devi chiudere la riflessione:
+- massimo 4 frasi in totale,
+- specchio gentile di ciò che vedi emergere,
+- una sola domanda finale molto leggera,
+- e poi una frase chiara che indica che per oggi la riflessione guidata è conclusa.`;
+    }
+
+    const aiResponse = await callOpenAIChat({
+      system: systemPrompt,
+      user: userPrompt,
+    });
+
+    const replyText =
+      (aiResponse || "").trim() ||
+      (isClosingTurn
+        ? "Per oggi possiamo fermarci qui. Grazie per esserti dedicato questo spazio. Che cosa vuoi portare con te da questa riflessione?"
+        : "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?");
+
+    messages.push({
+      role: "assistant",
+      content: replyText,
+      at: nowIso,
+      guided_phase: isClosingTurn ? "end" : "explore",
+    });
+
+    await saveSession();
+
+    return reply.send({
+      reply: replyText,
+      done: isClosingTurn,
+    });
   } catch (err) {
-    console.error("guided-chat error:", err)
+    console.error("guided-chat error", err);
     return reply
       .code(500)
-      .send({ error: "Errore nel generare la riflessione guidata." })
+      .send({ error: "Non riesco a continuare la riflessione guidata." });
   }
-})
+});
+
 
 
 

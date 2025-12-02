@@ -910,110 +910,117 @@ Regole:
 // ----------------------------------------------
 // Riflessone guidata (breve, con chiusura morbida)
 // ----------------------------------------------
+// --- Riflessione guidata (versione con chiusura) ---
 app.post("/api/guided-chat", async (req, reply) => {
-  const { user_id, message, history } = req.body || {}
+  const body = req.body || {};
+  const { user_id, messages } = body;
 
   if (!user_id) {
-    return reply.code(400).send({ error: "Missing user_id" })
+    return reply.code(400).send({ error: "Missing user_id" });
   }
 
-  if (!message || typeof message !== "string") {
-    return reply.code(400).send({ error: "Missing message" })
-  }
+  // History che arriva dal frontend
+  const history = Array.isArray(messages) ? messages : [];
 
-  // Storia della riflessione che arriva dal frontend
-  const safeHistory = Array.isArray(history) ? history.slice(-8) : []
+  // Conteggio dei turni del mentor
+  const assistantTurns = history.filter((m) => m.role === "assistant").length;
 
-  // Quanti turni UTENTE ci sono già stati prima di questo messaggio
-  const previousUserTurns = safeHistory.filter(
-    (m) => m && m.role === "user"
-  ).length
+  // Ultimo messaggio dell’utente
+  const lastUserMessage = [...history].reverse().find((m) => m.role === "user");
+  const lastUserText = (lastUserMessage?.content || "").toLowerCase();
 
-  // Includiamo anche il messaggio attuale
-  const currentUserTurnIndex = previousUserTurns + 1
+  // L’utente sta cercando di chiudere?
+  const userWantsToClose = /(?:grazie|grazie mille|ok grazie|va bene così|mi fermo|per oggi basta|per oggi può bastare|ci sentiamo|ciao)/i.test(
+    lastUserText
+  );
 
-  // Dopo il 3° intervento dell’utente, iniziamo a chiudere
-  const isClosingTurn = currentUserTurnIndex >= 3
+  // Dopo 3 turni del mentor O se l’utente saluta → chiudi
+  const shouldClose = assistantTurns >= 3 || userWantsToClose;
 
-  const historyText = safeHistory
+  // Trascrizione compatta per il prompt
+  const transcript = history
     .map((m) =>
       m.role === "user"
         ? `Utente: ${m.content}`
         : `Mentor: ${m.content}`
     )
-    .join("\n")
-
-  const systemPrompt = `
-Sei un Mentor emotivo molto gentile. 
-Parli in italiano, dai del "tu", fai poche domande alla volta.
-Ti muovi tra curiosità, validazione e sintesi, mai giudizio.
-Non dai consigli pratici (niente "dovresti", "fai", "prova a").
-Non usi emoji.
-`
-
-  const explorationBlock = `
-Fino al terzo intervento dell'utente il tuo compito è:
-- riflettere brevemente ciò che hai capito (1–2 frasi),
-- fare UNA sola domanda aperta, semplice e concreta,
-- restare agganciato alle parole usate dall'utente,
-- NON dare consigli, NON proporre esercizi, NON cambiare argomento.
-Non usare elenchi puntati, rispondi sempre in un unico blocco di testo.
-`
-
-  const closingBlock = `
-Se questo è il terzo intervento dell'utente **o oltre**, il tuo compito è CHIUDERE la riflessione in questo messaggio.
-Per chiudere:
-- offri una breve sintesi di ciò che emerge da questa riflessione (2–3 frasi),
-- riconosci con gentilezza una qualità o una risorsa dell'utente,
-- termina SEMPRE con **una sola domanda aperta e morbida** che inizi con "Che cosa..." oppure "Qual è...", per esempio:
-  - "Che cosa ti porti via da questa riflessione per oggi?"
-  - "Qual è la cosa che senti più vera in questo momento?"
-In modalità di chiusura **non devi più aprire nuovi temi** e non devi invitare a continuare la riflessione.
-Rispondi sempre in un unico paragrafo, senza elenchi.
-`
-
-  const modeInstruction = isClosingTurn ? closingBlock : explorationBlock
-
-  const userPrompt = `
-Qui sotto trovi il dialogo della riflessione guidata finora (se presente):
-
-${historyText ? historyText : "(nessuna interazione precedente)"}
-
-L'utente ora ha scritto:
-
-Utente: "${message}"
-
-Numero complessivo di interventi dell'utente (incluso questo): ${currentUserTurnIndex}.
-
-${modeInstruction}
-
-Ora rispondi come Mentor in UN SOLO messaggio, seguendo le regole sopra.
-`
+    .join("\n");
 
   try {
-    const aiReply = await callOpenAIChat({
+    // ---------------- CHIUSURA ----------------
+    if (shouldClose) {
+      const systemPrompt =
+        "Sei un mentor emotivo molto gentile. Restituisci ciò che hai capito in modo caldo e sintetico, senza dare consigli pratici.";
+
+      const userPrompt = `
+Qui sotto trovi uno scambio tra te (Mentor) e l'utente.
+
+${transcript}
+
+Scrivi UN SOLO paragrafo in italiano (3–4 frasi) che:
+
+- riconosce cosa sembra importante per l'utente in questa riflessione;
+- restituisce con parole semplici il punto centrale che è emerso;
+- valorizza una risorsa o qualità che l'utente sta già mostrando;
+- chiude la riflessione in modo chiaro e rassicurante.
+
+Regole importanti:
+- NON fare domande.
+- NON invitare l'utente a scrivere altro o a continuare.
+- NON dare consigli pratici o istruzioni.
+- Termina con una frase di chiusura gentile, ad esempio:
+  "Per oggi possiamo fermarci qui, grazie per esserti raccontato/a."
+`;
+
+      const closingReply = await callOpenAIChat({
+        system: systemPrompt,
+        user: userPrompt,
+      });
+
+      return reply.send({
+        reply: closingReply,
+        done: true,
+      });
+    }
+
+    // ---------------- TURNO NORMALE ----------------
+    const systemPrompt =
+      "Sei un mentor emotivo molto gentile. Fai domande aperte e brevi per aiutare a guardare dentro di sé, senza dare consigli pratici.";
+
+    const userPrompt = `
+Questa è la conversazione finora tra te (Mentor) e l'utente:
+
+${transcript}
+
+Scrivi UNA SOLA nuova risposta del Mentor che:
+
+- rimane collegata a ciò che l'utente ha appena scritto;
+- riconosce brevemente l'emozione o il tema che emerge;
+- contiene al massimo 2–3 frasi;
+- termina con UNA sola domanda aperta, breve e concreta
+  (es. "Che cosa ti colpisce di più in quello che hai scritto?" oppure
+  "Qual è la parte di te che senti più presente in questo momento?").
+
+Regole importanti:
+- Non dare consigli, non dire cosa dovrebbe fare l'utente.
+- Non parlare di "dati", "modelli" o "analisi".
+- Non chiudere ancora la riflessione: stai solo accompagnando un altro passo.
+`;
+
+    const nextReply = await callOpenAIChat({
       system: systemPrompt,
       user: userPrompt,
-      temperature: 0.7,
-      max_tokens: 450,
-    })
+    });
 
     return reply.send({
-      reply: aiReply,
-      turn_index: currentUserTurnIndex,
-      mode: isClosingTurn ? "closing" : "exploration",
-    })
+      reply: nextReply,
+      done: false,
+    });
   } catch (err) {
-    console.error("guided-chat error", err)
-    return reply.code(500).send({
-      error: "Non sono riuscito a continuare la riflessione guidata.",
-    })
+    console.error("guided-chat error", err);
+    return reply.code(500).send({ error: "guided-chat failed" });
   }
-})
-
-
-
-
+});
 // =============================================================
 //  CHAT HISTORY
 // =============================================================

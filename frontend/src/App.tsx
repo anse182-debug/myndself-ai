@@ -145,6 +145,7 @@ export default function App() {
 
   // journaling & insights
   const [guidedError, setGuidedError] = useState<string | null>(null)
+  const [guidedSending, setGuidedSending] = useState(false)
   const [mood, setMood] = useState("")
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [note, setNote] = useState("")

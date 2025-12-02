@@ -538,117 +538,120 @@ app.get("/api/mood", async (req, reply) => {
   }
 })
 
-app.get("/api/mood-calendar", async (req, reply) => {
-  const { user_id, from, to } = req.query || {}
+// Calendario emotivo: mood aggregato per giorno in un mese
+app.get("/api/metrics", async (req, reply) => {
+  const { user_id, month_offset } = req.query || {}
 
   if (!user_id) {
     return reply.code(400).send({ error: "Missing user_id" })
   }
 
+  // offset del mese (0 = mese corrente, -1 = mese precedente, +1 = successivo, ecc.)
+  const offset = parseInt(month_offset || "0", 10)
+
   try {
-    const now = new Date()
+    // calcolo inizio e fine mese considerando l'offset
+    const start = new Date()
+    start.setHours(0, 0, 0, 0)
+    start.setDate(1)
+    start.setMonth(start.getMonth() + offset)
 
-    // calcoliamo default: primo e ultimo giorno del mese corrente
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() // 0–11
+    const end = new Date(start)
+    end.setMonth(end.getMonth() + 1)
 
-    const fromDate =
-      from && typeof from === "string"
-        ? new Date(from)
-        : new Date(currentYear, currentMonth, 1)
+    const fromIso = start.toISOString()
+    const toIso = end.toISOString()
 
-    const toDate =
-      to && typeof to === "string"
-        ? new Date(to)
-        : new Date(currentYear, currentMonth + 1, 0) // ultimo giorno del mese
-
-    // normalizziamo a ISO string
-    const fromIso = new Date(
-      fromDate.getFullYear(),
-      fromDate.getMonth(),
-      fromDate.getDate(),
-      0,
-      0,
-      0,
-      0
-    ).toISOString()
-
-    const toIso = new Date(
-      toDate.getFullYear(),
-      toDate.getMonth(),
-      toDate.getDate(),
-      23,
-      59,
-      59,
-      999
-    ).toISOString()
-
-    // 1) prendiamo tutte le entry dell'utente nell'intervallo
+    // prendiamo tutte le mood_entries del mese
     const { data: entries, error } = await supabase
       .from("mood_entries")
-      .select("mood, tags, at")
+      .select("mood, note, reflection, at")
       .eq("user_id", user_id)
       .gte("at", fromIso)
-      .lte("at", toIso)
+      .lt("at", toIso)
       .order("at", { ascending: true })
 
     if (error) throw error
 
-    // 2) raggruppiamo per giorno lato Node, niente mode()/WITHIN GROUP
-    const byDay = {}
-
-    for (const e of entries || []) {
-      const day = new Date(e.at).toISOString().slice(0, 10) // YYYY-MM-DD
-      if (!byDay[day]) {
-        byDay[day] = {
-          moodsCount: {},
-          tagsSet: new Set(),
-          entriesCount: 0,
-        }
-      }
-      const bucket = byDay[day]
-      const mood = e.mood || "sconosciuto"
-      bucket.moodsCount[mood] = (bucket.moodsCount[mood] || 0) + 1
-      bucket.entriesCount += 1
-
-      if (Array.isArray(e.tags)) {
-        for (const t of e.tags) {
-          if (t && typeof t === "string") bucket.tagsSet.add(t)
-        }
-      }
+    // se non c'è nulla, ritorniamo lista vuota
+    if (!entries || entries.length === 0) {
+      return reply.send({ days: [] })
     }
 
-    // 3) calcoliamo mood dominante per giorno
-    const calendar = Object.entries(byDay).map(([day, info]) => {
-      const moodsCount = info.moodsCount
-      let dominantMood = null
-      let maxCount = 0
-      for (const [mood, count] of Object.entries(moodsCount)) {
-        if (count > maxCount) {
-          maxCount = count
-          dominantMood = mood
+    // helper per normalizzare il mood in una delle 5 categorie del calendario
+    function bucketMood(rawMood) {
+      const m = (rawMood || "").toLowerCase()
+
+      if (["calmo", "calma", "sereno", "centrato", "rilassato"].some((k) => m.includes(k))) {
+        return "calma"
+      }
+      if (["grato", "gioia", "gioioso", "felice", "soddisfatto"].some((k) => m.includes(k))) {
+        return "gioia"
+      }
+      if (["triste", "tristezza", "giù"].some((k) => m.includes(k))) {
+        return "tristezza"
+      }
+      if (["rabbia", "arrabbiato", "frustrato", "furioso"].some((k) => m.includes(k))) {
+        return "rabbia"
+      }
+      if (
+        ["ansia", "ansioso", "preoccupato", "teso", "stressato", "sovraccarico"].some((k) =>
+          m.includes(k)
+        )
+      ) {
+        return "ansia"
+      }
+      return "nessuna"
+    }
+
+    // raggruppiamo per giorno (YYYY-MM-DD)
+    const byDay = {}
+
+    for (const row of entries) {
+      const d = new Date(row.at)
+      const dayKey = d.toISOString().slice(0, 10) // es. "2025-12-02"
+
+      if (!byDay[dayKey]) {
+        byDay[dayKey] = {
+          date: dayKey,
+          moods: [],
+          lastNote: "",
+          lastReflection: "",
         }
       }
 
+      byDay[dayKey].moods.push(row.mood || "")
+      if (row.note) byDay[dayKey].lastNote = row.note
+      if (row.reflection) byDay[dayKey].lastReflection = row.reflection
+    }
+
+    // costruiamo l’array per il calendario
+    const days = Object.values(byDay).map((day) => {
+      // prendiamo l’ultimo mood del giorno (o il primo, non è cruciale)
+      const primaryMood = day.moods[day.moods.length - 1] || ""
+      const bucket = bucketMood(primaryMood)
+
       return {
-        day, // "YYYY-MM-DD"
-        dominant_mood: dominantMood,
-        entries_count: info.entriesCount,
-        moods_count: moodsCount,
-        tags: Array.from(info.tagsSet),
+        date: day.date,
+        bucket, // usato per il colore (calma/gioia/tristezza/rabbia/ansia/nessuna)
+        mood: primaryMood,
+        label: primaryMood,
+        // testo da mostrare nel pannellino del giorno
+        detail:
+          day.lastReflection ||
+          day.lastNote ||
+          primaryMood ||
+          "",
       }
     })
 
-    return reply.send({
-      from: fromIso,
-      to: toIso,
-      days: calendar,
-    })
+    return reply.send({ days })
   } catch (err) {
-    console.error("❌ mood-calendar error:", err)
-    return reply.code(500).send({ error: "Failed to build mood calendar" })
+    console.error("mood-calendar error", err)
+    return reply.code(500).send({ error: err.message })
   }
 })
+
 
 
 

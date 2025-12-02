@@ -538,6 +538,121 @@ app.get("/api/mood", async (req, reply) => {
   }
 })
 
+app.get("/api/mood-calendar", async (req, reply) => {
+  const { user_id, from, to } = req.query || {}
+
+  if (!user_id) {
+    return reply.code(400).send({ error: "Missing user_id" })
+  }
+
+  try {
+    const now = new Date()
+
+    // calcoliamo default: primo e ultimo giorno del mese corrente
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() // 0–11
+
+    const fromDate =
+      from && typeof from === "string"
+        ? new Date(from)
+        : new Date(currentYear, currentMonth, 1)
+
+    const toDate =
+      to && typeof to === "string"
+        ? new Date(to)
+        : new Date(currentYear, currentMonth + 1, 0) // ultimo giorno del mese
+
+    // normalizziamo a ISO string
+    const fromIso = new Date(
+      fromDate.getFullYear(),
+      fromDate.getMonth(),
+      fromDate.getDate(),
+      0,
+      0,
+      0,
+      0
+    ).toISOString()
+
+    const toIso = new Date(
+      toDate.getFullYear(),
+      toDate.getMonth(),
+      toDate.getDate(),
+      23,
+      59,
+      59,
+      999
+    ).toISOString()
+
+    // 1) prendiamo tutte le entry dell'utente nell'intervallo
+    const { data: entries, error } = await supabase
+      .from("mood_entries")
+      .select("mood, tags, at")
+      .eq("user_id", user_id)
+      .gte("at", fromIso)
+      .lte("at", toIso)
+      .order("at", { ascending: true })
+
+    if (error) throw error
+
+    // 2) raggruppiamo per giorno lato Node, niente mode()/WITHIN GROUP
+    const byDay = {}
+
+    for (const e of entries || []) {
+      const day = new Date(e.at).toISOString().slice(0, 10) // YYYY-MM-DD
+      if (!byDay[day]) {
+        byDay[day] = {
+          moodsCount: {},
+          tagsSet: new Set(),
+          entriesCount: 0,
+        }
+      }
+      const bucket = byDay[day]
+      const mood = e.mood || "sconosciuto"
+      bucket.moodsCount[mood] = (bucket.moodsCount[mood] || 0) + 1
+      bucket.entriesCount += 1
+
+      if (Array.isArray(e.tags)) {
+        for (const t of e.tags) {
+          if (t && typeof t === "string") bucket.tagsSet.add(t)
+        }
+      }
+    }
+
+    // 3) calcoliamo mood dominante per giorno
+    const calendar = Object.entries(byDay).map(([day, info]) => {
+      const moodsCount = info.moodsCount
+      let dominantMood = null
+      let maxCount = 0
+      for (const [mood, count] of Object.entries(moodsCount)) {
+        if (count > maxCount) {
+          maxCount = count
+          dominantMood = mood
+        }
+      }
+
+      return {
+        day, // "YYYY-MM-DD"
+        dominant_mood: dominantMood,
+        entries_count: info.entriesCount,
+        moods_count: moodsCount,
+        tags: Array.from(info.tagsSet),
+      }
+    })
+
+    return reply.send({
+      from: fromIso,
+      to: toIso,
+      days: calendar,
+    })
+  } catch (err) {
+    console.error("❌ mood-calendar error:", err)
+    return reply.code(500).send({ error: "Failed to build mood calendar" })
+  }
+})
+
+
+
+
 // =============================================================
 //  SUMMARY + HISTORY
 // =============================================================

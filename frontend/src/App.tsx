@@ -442,22 +442,20 @@ export default function App() {
   }, [session?.user?.id])
 
   // ---------- GUIDED REFLECTION ----------
-  const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
-  const [guidedInput, setGuidedInput] = useState("")
-  const [guidedLoading, setGuidedLoading] = useState(false)
+// ---------- GUIDED REFLECTION ----------
+const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
+const [guidedInput, setGuidedInput] = useState("")
+const [guidedLoading, setGuidedLoading] = useState(false)
 
-  const startGuidedReflection = async () => {
-    const uid = session?.user?.id
-    if (!uid) {
-      showToast("Accedi prima per iniziare una riflessione guidata", "error")
-      return
-    }
+async function startGuidedReflection() {
+  const uid = session?.user?.id
+  if (!uid) {
+    showToast("Accedi prima per iniziare una riflessione guidata", "error")
+    return
+  }
 
-    setGuidedLoading(true)
-   async function startGuidedReflection(uid: string) {
   setGuidedLoading(true)
   try {
-    // NIENTE chiamata API qui: la prima domanda è fissa
     const firstMessage: GuidedMsg = {
       role: "assistant",
       content:
@@ -467,77 +465,47 @@ export default function App() {
     setGuidedMessages([firstMessage])
     showToast("Ho preparato qualche domanda per te 🌱", "info")
   } catch (err) {
-    console.error("guided reflection error", err)
-    showToast(
-      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
-      "error"
-    )
+    console.error("guided start error:", err)
+    showToast("Errore nell'avvio della riflessione guidata", "error")
   } finally {
     setGuidedLoading(false)
   }
 }
 
- async function startGuidedReflection(uid: string) {
-  setGuidedLoading(true)
-  try {
-    // primo messaggio fisso, nessuna chiamata al backend
-    const firstMessage: GuidedMsg = {
-      role: "assistant",
-      content:
-        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
-    }
-
-    setGuidedMessages([firstMessage])
-    showToast("Ho preparato qualche domanda per te 🌱", "info")
-  } catch (err) {
-    console.error("guided reflection error", err)
-    showToast(
-      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
-      "error"
-    )
-  } finally {
-    setGuidedLoading(false)
+async function continueGuidedReflection() {
+  if (!guidedInput.trim()) return
+  if (!session?.user?.id) {
+    showToast("Accedi prima per continuare", "error")
+    return
   }
-}
-
-    async function handleGuidedContinue() {
-  if (!session || !pendingGuidedInput.trim()) return
 
   const uid = session.user.id
-  const userText = pendingGuidedInput.trim()
+  const userText = guidedInput.trim()
 
-  // aggiungo il messaggio dell’utente in coda
-  const userMsg: GuidedMsg = { role: "user", content: userText }
-  setGuidedMessages((prev) => [...prev, userMsg])
-  setPendingGuidedInput("")
+  setGuidedMessages((prev) => [...prev, { role: "user", content: userText }])
+  setGuidedInput("")
   setGuidedLoading(true)
 
   try {
     const res = await fetch(`${API_BASE}/api/guided-chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: uid,
-        message: userText, // <--- QUI il testo dell’utente
-      }),
+      body: JSON.stringify({ user_id: uid, message: userText }),
     })
 
     const data = await res.json()
-
-    const botMsg: GuidedMsg = {
-      role: "assistant",
-      content:
-        data.reply ||
-        "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
-    }
-
-    setGuidedMessages((prev) => [...prev, botMsg])
+    setGuidedMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          data.reply ||
+          "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
+      },
+    ])
   } catch (err) {
-    console.error("guided chat error", err)
-    showToast(
-      "Qualcosa è andato storto nella riflessione guidata. Riprova tra poco.",
-      "error"
-    )
+    console.error("guided chat error:", err)
+    showToast("Errore nella riflessione guidata", "error")
   } finally {
     setGuidedLoading(false)
   }
@@ -1329,10 +1297,10 @@ const handleChatSend = async () => {
                         <div className="flex justify-between items-center gap-2">
                           <button
                             onClick={
-                              guidedMessages.length === 0
-                                ? startGuidedReflection
-                                : continueGuidedReflection
-                            }
+  guidedMessages.length === 0
+    ? startGuidedReflection
+    : continueGuidedReflection
+}
                             disabled={guidedLoading}
                             className="inline-flex items-center justify-center rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold px-4 py-2 hover:bg-emerald-300 disabled:opacity-60"
                           >

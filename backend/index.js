@@ -887,184 +887,105 @@ Regole:
 // Riflessone guidata (breve, con chiusura morbida)
 // ----------------------------------------------
 app.post("/api/guided-chat", async (req, reply) => {
-  const { user_id, message } = req.body || {};
+  const { user_id, message, history } = req.body || {}
 
   if (!user_id) {
-    return reply.code(400).send({ error: "Missing user_id" });
+    return reply.code(400).send({ error: "Missing user_id" })
   }
+
+  if (!message || typeof message !== "string") {
+    return reply.code(400).send({ error: "Missing message" })
+  }
+
+  // Storia della riflessione che arriva dal frontend
+  const safeHistory = Array.isArray(history) ? history.slice(-8) : []
+
+  // Quanti turni UTENTE ci sono già stati prima di questo messaggio
+  const previousUserTurns = safeHistory.filter(
+    (m) => m && m.role === "user"
+  ).length
+
+  // Includiamo anche il messaggio attuale
+  const currentUserTurnIndex = previousUserTurns + 1
+
+  // Dopo il 3° intervento dell’utente, iniziamo a chiudere
+  const isClosingTurn = currentUserTurnIndex >= 3
+
+  const historyText = safeHistory
+    .map((m) =>
+      m.role === "user"
+        ? `Utente: ${m.content}`
+        : `Mentor: ${m.content}`
+    )
+    .join("\n")
+
+  const systemPrompt = `
+Sei un Mentor emotivo molto gentile. 
+Parli in italiano, dai del "tu", fai poche domande alla volta.
+Ti muovi tra curiosità, validazione e sintesi, mai giudizio.
+Non dai consigli pratici (niente "dovresti", "fai", "prova a").
+Non usi emoji.
+`
+
+  const explorationBlock = `
+Fino al terzo intervento dell'utente il tuo compito è:
+- riflettere brevemente ciò che hai capito (1–2 frasi),
+- fare UNA sola domanda aperta, semplice e concreta,
+- restare agganciato alle parole usate dall'utente,
+- NON dare consigli, NON proporre esercizi, NON cambiare argomento.
+Non usare elenchi puntati, rispondi sempre in un unico blocco di testo.
+`
+
+  const closingBlock = `
+Se questo è il terzo intervento dell'utente **o oltre**, il tuo compito è CHIUDERE la riflessione in questo messaggio.
+Per chiudere:
+- offri una breve sintesi di ciò che emerge da questa riflessione (2–3 frasi),
+- riconosci con gentilezza una qualità o una risorsa dell'utente,
+- termina SEMPRE con **una sola domanda aperta e morbida** che inizi con "Che cosa..." oppure "Qual è...", per esempio:
+  - "Che cosa ti porti via da questa riflessione per oggi?"
+  - "Qual è la cosa che senti più vera in questo momento?"
+In modalità di chiusura **non devi più aprire nuovi temi** e non devi invitare a continuare la riflessione.
+Rispondi sempre in un unico paragrafo, senza elenchi.
+`
+
+  const modeInstruction = isClosingTurn ? closingBlock : explorationBlock
+
+  const userPrompt = `
+Qui sotto trovi il dialogo della riflessione guidata finora (se presente):
+
+${historyText ? historyText : "(nessuna interazione precedente)"}
+
+L'utente ora ha scritto:
+
+Utente: "${message}"
+
+Numero complessivo di interventi dell'utente (incluso questo): ${currentUserTurnIndex}.
+
+${modeInstruction}
+
+Ora rispondi come Mentor in UN SOLO messaggio, seguendo le regole sopra.
+`
 
   try {
-    // 1) recupero (o creo) la sessione guidata più recente
-    const { data: sessions, error: sesErr } = await supabase
-      .from("chat_sessions")
-      .select("id, messages, mode, created_at")
-      .eq("user_id", user_id)
-      .eq("mode", "guided")
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (sesErr) throw sesErr;
-
-    let session = sessions?.[0] || null;
-    let messages = (session && session.messages) || [];
-
-    // Funzione di utility per salvare la sessione
-    async function saveSession() {
-      const payload = {
-        user_id,
-        mode: "guided",
-        messages,
-      };
-
-      if (session) {
-        const { error: upErr } = await supabase
-          .from("chat_sessions")
-          .update(payload)
-          .eq("id", session.id);
-        if (upErr) throw upErr;
-      } else {
-        const { data: inserted, error: insErr } = await supabase
-          .from("chat_sessions")
-          .insert(payload)
-          .select()
-          .single();
-        if (insErr) throw insErr;
-        session = inserted;
-      }
-    }
-
-    const nowIso = new Date().toISOString();
-
-    // Contiamo SOLO i turni dell'utente
-    const userTurns = messages.filter((m) => m.role === "user").length;
-
-    // 2) Primo avvio: nessun messaggio utente => mandiamo la domanda iniziale fissa
-    if (!message || !message.trim()) {
-      if (userTurns === 0) {
-        const firstQuestion =
-          "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?";
-
-        messages.push({
-          role: "assistant",
-          content: firstQuestion,
-          at: nowIso,
-          guided_phase: "start",
-        });
-
-        await saveSession();
-
-        return reply.send({
-          reply: firstQuestion,
-          done: false,
-        });
-      }
-
-      // Se non c'è testo ma la sessione è già in corso, non rispondiamo
-      return reply.code(400).send({ error: "Missing message" });
-    }
-
-    // 3) Aggiungo il messaggio dell'utente
-    messages.push({
-      role: "user",
-      content: message.trim(),
-      at: nowIso,
-    });
-
-    // Ricontiamo i turni user dopo l’ultimo messaggio
-    const newUserTurns = messages.filter((m) => m.role === "user").length;
-
-    // 4) Prepariamo il prompt per l'AI
-    //    - fino a 2 turni utente: esplorazione (una sola domanda aperta)
-    //    - dalla 3ª risposta in poi: chiusura (specchio + domanda finale + chiusura esplicita)
-    let systemPrompt;
-    let userPrompt;
-    let isClosingTurn = false;
-
-    // Testo della conversazione finora, per dare contesto all'AI
-    const convo = messages
-      .map((m) => `${m.role === "user" ? "Utente" : "Mentor"}: ${m.content}`)
-      .join("\n");
-
-    if (newUserTurns <= 2) {
-      // FASE ESPLORATIVA
-      systemPrompt = `
-Sei un mentor emotivo gentile che conduce una breve riflessione guidata.
-Il tuo compito ora è rimanere in esplorazione:
-- Rispecchia brevemente (1–2 frasi) ciò che l'utente ha appena scritto.
-- Poi fai SOLO UNA domanda aperta, centrata sulle sue emozioni o sui significati per lui/lei.
-- Non dare consigli pratici, non proporre esercizi, non usare imperativi.
-- Non parlare di "sessioni" o "chat", ma solo della sua esperienza.
-Scrivi in italiano, tono caldo e colloquiale.`;
-      userPrompt = `
-Questa è la conversazione finora:
-
-${convo}
-
-L'utente ha appena scritto: "${message.trim()}".
-
-Rispondi con al massimo 3 frasi in totale:
-- le prime per rispecchiare e riconoscere ciò che emerge;
-- l'ultima deve essere UNA sola domanda aperta per proseguire l'esplorazione.`;
-    } else {
-      // FASE DI CHIUSURA
-      isClosingTurn = true;
-
-      systemPrompt = `
-Sei un mentor emotivo gentile che sta CONCLUDENDO una breve riflessione guidata.
-Adesso il tuo compito è chiudere la mini-sessione:
-- Offri un breve specchio di ciò che sembra emergere dalla conversazione (2–3 frasi massimo).
-- Poi fai UNA sola domanda molto leggera del tipo "Che cosa vuoi portare con te da questa riflessione?".
-- Chiudi ESPPLICITAMENTE la riflessione con una frase tipo:
-  "Per oggi possiamo fermarci qui, grazie per esserti dedicato questo momento."
-- NON aprire nuove direzioni, NON invitare a raccontare ancora, NON iniziare una nuova riflessione.
-- Nessun consiglio pratico, nessun imperativo forte ("devi", "prova a").
-Scrivi in italiano, tono caldo, semplice e rassicurante.`;
-
-      userPrompt = `
-Questa è stata la conversazione:
-
-${convo}
-
-L'utente ha appena scritto: "${message.trim()}".
-
-Ora devi chiudere la riflessione:
-- massimo 4 frasi in totale,
-- specchio gentile di ciò che vedi emergere,
-- una sola domanda finale molto leggera,
-- e poi una frase chiara che indica che per oggi la riflessione guidata è conclusa.`;
-    }
-
-    const aiResponse = await callOpenAIChat({
+    const aiReply = await callOpenAIChat({
       system: systemPrompt,
       user: userPrompt,
-    });
-
-    const replyText =
-      (aiResponse || "").trim() ||
-      (isClosingTurn
-        ? "Per oggi possiamo fermarci qui. Grazie per esserti dedicato questo spazio. Che cosa vuoi portare con te da questa riflessione?"
-        : "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?");
-
-    messages.push({
-      role: "assistant",
-      content: replyText,
-      at: nowIso,
-      guided_phase: isClosingTurn ? "end" : "explore",
-    });
-
-    await saveSession();
+      temperature: 0.7,
+      max_tokens: 450,
+    })
 
     return reply.send({
-      reply: replyText,
-      done: isClosingTurn,
-    });
+      reply: aiReply,
+      turn_index: currentUserTurnIndex,
+      mode: isClosingTurn ? "closing" : "exploration",
+    })
   } catch (err) {
-    console.error("guided-chat error", err);
-    return reply
-      .code(500)
-      .send({ error: "Non riesco a continuare la riflessione guidata." });
+    console.error("guided-chat error", err)
+    return reply.code(500).send({
+      error: "Non sono riuscito a continuare la riflessione guidata.",
+    })
   }
-});
+})
 
 
 

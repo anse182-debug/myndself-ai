@@ -449,8 +449,19 @@ const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
 const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
 
-const handleGuidedSend = async (e: React.FormEvent) => {
-  e.preventDefault()
+async function handleGuidedSend(
+  e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
+) {
+  if (e && typeof e.preventDefault === "function") {
+    e.preventDefault()
+  }
+
+  // resto della funzione invariato:
+  // - setGuidedLoading(true)
+  // - fetch(`${API_BASE}/api/guided-chat`, {...})
+  // - update di setGuidedMessages(...)
+  // - gestione errori, ecc.
+
   if (!session) return
   const uid = session.user.id
   const text = guidedInput.trim()

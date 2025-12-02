@@ -539,7 +539,7 @@ export default function App() {
     const fromStr = fromDate.toISOString().slice(0, 10)
     const toStr = toDate.toISOString().slice(0, 10)
 
-    const url = `${API_BASE}/api/mood-calendar?user_id=${encodeURIComponent(
+    const url = `${API_BASE}/api/metrics?user_id=${encodeURIComponent(
       userId
     )}&from=${fromStr}&to=${toStr}`
 
@@ -1848,7 +1848,9 @@ const handleChatSend = async () => {
 
   {selectedCalendarDay && (
     <div className="mt-3 rounded-xl bg-gray-900/80 border border-gray-700/60 p-3 space-y-1">
-      ...
+      <p className="text-xs text-gray-300">
+      {selectedCalendarDay.detail || selectedCalendarDay.mood || "..."}
+    </p>
     </div>
   )}
 </section>

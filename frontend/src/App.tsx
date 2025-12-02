@@ -477,49 +477,72 @@ export default function App() {
   }
 }
 
-  const continueGuidedReflection = async () => {
-    const uid = session?.user?.id
-    if (!uid) {
-      showToast("Accedi prima per continuare la riflessione guidata", "error")
-      return
+ async function startGuidedReflection(uid: string) {
+  setGuidedLoading(true)
+  try {
+    // primo messaggio fisso, nessuna chiamata al backend
+    const firstMessage: GuidedMsg = {
+      role: "assistant",
+      content:
+        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
     }
-    if (!guidedInput.trim()) return
 
-    const newUserMsg: GuidedMsg = {
-      role: "user",
-      content: guidedInput.trim(),
-    }
-    setGuidedMessages((prev) => [...prev, newUserMsg])
-    setGuidedInput("")
-
-    setGuidedLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/guided-chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          user_id: uid,
-          message: guidedInput.trim(),
-        }),
-      })
-      const data = await res.json()
-      const next: GuidedMsg = {
-        role: "assistant",
-        content:
-          data.reply ||
-          "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
-      }
-      setGuidedMessages((prev) => [...prev, next])
-    } catch (err) {
-      console.error("guided reflection continue error", err)
-      showToast(
-        "Non sono riuscito a continuare la riflessione guidata. Riprova tra poco.",
-        "error"
-      )
-    } finally {
-      setGuidedLoading(false)
-    }
+    setGuidedMessages([firstMessage])
+    showToast("Ho preparato qualche domanda per te 🌱", "info")
+  } catch (err) {
+    console.error("guided reflection error", err)
+    showToast(
+      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
+      "error"
+    )
+  } finally {
+    setGuidedLoading(false)
   }
+}
+
+    async function handleGuidedContinue() {
+  if (!session || !pendingGuidedInput.trim()) return
+
+  const uid = session.user.id
+  const userText = pendingGuidedInput.trim()
+
+  // aggiungo il messaggio dell’utente in coda
+  const userMsg: GuidedMsg = { role: "user", content: userText }
+  setGuidedMessages((prev) => [...prev, userMsg])
+  setPendingGuidedInput("")
+  setGuidedLoading(true)
+
+  try {
+    const res = await fetch(`${API_BASE}/api/guided-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: uid,
+        message: userText, // <--- QUI il testo dell’utente
+      }),
+    })
+
+    const data = await res.json()
+
+    const botMsg: GuidedMsg = {
+      role: "assistant",
+      content:
+        data.reply ||
+        "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
+    }
+
+    setGuidedMessages((prev) => [...prev, botMsg])
+  } catch (err) {
+    console.error("guided chat error", err)
+    showToast(
+      "Qualcosa è andato storto nella riflessione guidata. Riprova tra poco.",
+      "error"
+    )
+  } finally {
+    setGuidedLoading(false)
+  }
+}
+
 
   // ---------- MENTOR CHAT ----------
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])

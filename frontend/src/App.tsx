@@ -96,7 +96,7 @@ const BANNER_NOTES = [
   {
     id: "tiny",
     title: "Un minuto alla volta",
-    body: "Non serve recuperare tutto il passato. Ti basta guardare oggi: come ti sei svegliato, cosa ti ha punto, cosa ti ha fatto respirare meglio.",
+    body: "Non serve recuperare tutto il passato. Ti basta guardare oggi: come ti sei svegliato, cosa ti ha colpito, cosa ti ha fatto respirare meglio.",
   },
   {
     id: "soft",

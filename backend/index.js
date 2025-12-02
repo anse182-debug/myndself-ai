@@ -73,6 +73,30 @@ L’utente non deve trovare la risposta giusta, ma la sua.
 Tu sei al suo fianco, non sopra di lui.
 `.trim()
 
+// Helper riutilizzabile per le chiamate chat a OpenAI
+async function callOpenAIChat({
+  system,
+  user,
+  temperature = 0.7,
+  max_tokens = 450,
+}) {
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: system || "" },
+      { role: "user", content: user || "" },
+    ],
+    temperature,
+    max_tokens,
+  })
+
+  const text =
+    completion.choices?.[0]?.message?.content?.trim() ??
+    ""
+
+  return text
+}
+
 // ====== HELPERS ======
 async function saveToMemory({ user_id, content, source = "chat" }) {
   try {

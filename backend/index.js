@@ -883,6 +883,67 @@ Regole:
   }
 })
 
+app.post("/api/guided-chat", async (req, reply) => {
+  try {
+    const { user_id, message } = req.body || {}
+    if (!user_id || !message) {
+      return reply.code(400).send({ error: "Missing user_id or message" })
+    }
+
+    // Recupero storico riflessione guidata
+    const { data: history, error: hErr } = await supabase
+      .from("guided_history")
+      .select("role, content")
+      .eq("user_id", user_id)
+      .order("created_at", { ascending: true })
+      .limit(15)
+
+    if (hErr) throw hErr
+
+    const messages = [
+      {
+        role: "system",
+        content: `
+Sei un mentor emotivo che guida una riflessione.
+Regole:
+- Sii empatico ma sintetico
+- Parla di ciò che l’utente ha detto, non di emozioni generiche
+- Non dare istruzioni, non dire "ti invito"
+- Chiudi SEMPRE con una sola domanda aperta
+- Dai del "tu"
+`
+      },
+      ...(history?.map((h) => ({ role: h.role, content: h.content })) ?? []),
+      { role: "user", content: message }
+    ]
+
+    const aiResponse = await callOpenAIChat({
+      system: "",
+      user: "",
+      messages,
+      temperature: 0.75,
+      max_tokens: 200
+    })
+
+    const assistant = aiResponse.trim()
+
+    await supabase.from("guided_history").insert({
+      user_id,
+      role: "user",
+      content: message
+    })
+    await supabase.from("guided_history").insert({
+      user_id,
+      role: "assistant",
+      content: assistant
+    })
+
+    return reply.send({ response: assistant })
+  } catch (err) {
+    console.error("guided-chat error", err)
+    return reply.code(500).send({ error: err.message })
+  }
+})
 
 
 // =============================================================

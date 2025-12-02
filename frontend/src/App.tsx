@@ -454,31 +454,28 @@ export default function App() {
     }
 
     setGuidedLoading(true)
-    try {
-      const res = await fetch(`${API_BASE}/api/guided-chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, message: "" }),
-      })
-      const data = await res.json()
-      const firstMessage: GuidedMsg = {
-        role: "assistant",
-        content:
-          data.reply ||
-          "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
-      }
-      setGuidedMessages([firstMessage])
-      showToast("Ho preparato qualche domanda per te 🌱", "info")
-    } catch (err) {
-      console.error("guided reflection error", err)
-      showToast(
-        "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
-        "error"
-      )
-    } finally {
-      setGuidedLoading(false)
+   async function startGuidedReflection(uid: string) {
+  setGuidedLoading(true)
+  try {
+    // NIENTE chiamata API qui: la prima domanda è fissa
+    const firstMessage: GuidedMsg = {
+      role: "assistant",
+      content:
+        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
     }
+
+    setGuidedMessages([firstMessage])
+    showToast("Ho preparato qualche domanda per te 🌱", "info")
+  } catch (err) {
+    console.error("guided reflection error", err)
+    showToast(
+      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
+      "error"
+    )
+  } finally {
+    setGuidedLoading(false)
   }
+}
 
   const continueGuidedReflection = async () => {
     const uid = session?.user?.id

@@ -917,15 +917,18 @@ Regole:
       { role: "user", content: message }
     ]
 
-    const aiResponse = await callOpenAIChat({
-      system: "",
-      user: "",
-      messages,
+        // Chiamata diretta a OpenAI (senza callOpenAIChat)
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
       temperature: 0.75,
-      max_tokens: 200
+      max_tokens: 200,
+      messages,
     })
 
-    const assistant = aiResponse.trim()
+    const assistant =
+      completion.choices?.[0]?.message?.content?.trim() ||
+      "Ti sono vicino mentre provi a mettere in ordine quello che senti. Che cosa ti colpisce di più di ciò che hai appena scritto?"
+
 
     await supabase.from("guided_history").insert({
       user_id,

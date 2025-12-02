@@ -529,6 +529,11 @@ const handleGuidedSend = async (e: React.FormEvent) => {
   }
 }
 
+  function continueGuidedReflection() {
+  // wrapper usato dal bottone "Continua"
+  handleGuidedSend()
+}
+
   const startGuidedReflection = async () => {
   if (!session) return
   const uid = session.user.id

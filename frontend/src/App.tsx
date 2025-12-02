@@ -528,6 +528,53 @@ const handleGuidedSend = async (e: React.FormEvent) => {
   }
 }
 
+  const startGuidedReflection = async () => {
+  if (!session) return
+  const uid = session.user.id
+
+  setGuidedLoading(true)
+  setGuidedError(null)
+
+  try {
+    const res = await fetch(`${API_BASE}/api/guided-chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: uid,
+        message: "", // messaggio vuoto = "inizia nuova riflessione"
+      }),
+    })
+
+    if (!res.ok) {
+      throw new Error("Non riesco ad avviare la riflessione guidata")
+    }
+
+    const data = await res.json()
+
+    const firstMessage: GuidedMsg = {
+      role: "assistant",
+      content:
+        (data.reply && data.reply.trim()) ||
+        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
+    }
+
+    // azzera eventuale conversazione precedente e mostra la nuova
+    setGuidedMessages([firstMessage])
+    showToast("Ho preparato qualche domanda per te 🌱", "info")
+  } catch (err) {
+    console.error("guided reflection start error", err)
+    setGuidedError(
+      "Non riesco ad avviare la riflessione guidata. Riprova tra poco."
+    )
+    showToast(
+      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
+      "error"
+    )
+  } finally {
+    setGuidedLoading(false)
+  }
+}
+
 
 
   // ---------- MENTOR CHAT ----------

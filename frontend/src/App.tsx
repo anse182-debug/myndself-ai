@@ -13,6 +13,7 @@ import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 const ONBOARDING_KEY = "myndself_onboarding_v1_done"
+const MAX_GUIDED_TURNS = 3 // numero massimo di messaggi del Mentor in una riflessione guidata
 
 type SummaryEntry = { id?: string; summary: string; created_at: string }
 type DailyItem = { day: string; entries: number }
@@ -447,69 +448,86 @@ const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
 const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
 
-async function startGuidedReflection() {
-  const uid = session?.user?.id
-  if (!uid) {
-    showToast("Accedi prima per iniziare una riflessione guidata", "error")
-    return
-  }
+const handleGuidedSend = async (e: React.FormEvent) => {
+  e.preventDefault()
+  if (!session) return
+  const uid = session.user.id
+  const text = guidedInput.trim()
+  if (!text) return
 
-  setGuidedLoading(true)
-  try {
-    const firstMessage: GuidedMsg = {
+  // Azzero il campo input
+  setGuidedInput("")
+
+  // 1) aggiungo il messaggio dell’utente alla history locale
+  const userMsg: GuidedMsg = { role: "user", content: text }
+  const historyAfterUser = [...guidedMessages, userMsg]
+  setGuidedMessages(historyAfterUser)
+
+  // 2) conto quante volte ha parlato finora il Mentor
+  const assistantTurns = historyAfterUser.filter(
+    (m) => m.role === "assistant"
+  ).length
+
+  // 3) se ha già parlato MAX_GUIDED_TURNS volte, chiudo qui senza chiamare il backend
+  if (assistantTurns >= MAX_GUIDED_TURNS) {
+    const closing: GuidedMsg = {
       role: "assistant",
       content:
-        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
+        "Grazie per esserti fermato un momento con me su questo tema. " +
+        "Per oggi possiamo fermarci qui: hai già fatto un buon lavoro nel mettere in parole quello che senti. " +
+        "Se nei prossimi giorni vorrai tornare su questo argomento, sarò qui.",
     }
-
-    setGuidedMessages([firstMessage])
-    showToast("Ho preparato qualche domanda per te 🌱", "info")
-  } catch (err) {
-    console.error("guided start error:", err)
-    showToast("Errore nell'avvio della riflessione guidata", "error")
-  } finally {
-    setGuidedLoading(false)
-  }
-}
-
-async function continueGuidedReflection() {
-  if (!guidedInput.trim()) return
-  if (!session?.user?.id) {
-    showToast("Accedi prima per continuare", "error")
+    setGuidedMessages([...historyAfterUser, closing])
     return
   }
 
-  const uid = session.user.id
-  const userText = guidedInput.trim()
-
-  setGuidedMessages((prev) => [...prev, { role: "user", content: userText }])
-  setGuidedInput("")
-  setGuidedLoading(true)
-
+  // 4) altrimenti chiamo il backend per la prossima domanda del Mentor
+  setGuidedSending(true)
   try {
     const res = await fetch(`${API_BASE}/api/guided-chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: uid, message: userText, history: guidedMessages, }),
+      body: JSON.stringify({
+        user_id: uid,
+        message: text,
+      }),
     })
 
+    if (!res.ok) {
+      throw new Error("Non riesco a continuare la riflessione guidata")
+    }
+
     const data = await res.json()
-    setGuidedMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content:
-          data.reply ||
-          "Ti va di restare ancora un momento su come ti sei sentito in ciò che hai scritto?",
-      },
-    ])
+
+    const replyText: string =
+      (data.reply && data.reply.trim()) ||
+      "Per oggi possiamo fermarci qui. Hai già fatto un buon lavoro nel fermarti ad ascoltare come stai."
+
+    const mentorMsg: GuidedMsg = {
+      role: "assistant",
+      content: replyText,
+    }
+
+    setGuidedMessages((prev) => [...prev, mentorMsg])
   } catch (err) {
-    console.error("guided chat error:", err)
-    showToast("Errore nella riflessione guidata", "error")
+    console.error("guided reflection error", err)
+    // in caso di errore, chiudo comunque in modo gentile
+    const fallbackClosing: GuidedMsg = {
+      role: "assistant",
+      content:
+        "Sembra che ci sia stato un problema tecnico, ma va benissimo così: " +
+        "per oggi possiamo fermarci qui. Grazie per esserti preso questo spazio.",
+    }
+    setGuidedMessages((prev) => [...prev, fallbackClosing])
+    showToast(
+      "C'è stato un problema tecnico con la riflessione guidata. Per oggi puoi considerarla conclusa.",
+      "error"
+    )
   } finally {
-    setGuidedLoading(false)
+    setGuidedSending(false)
   }
 }
+
 
 
   // ---------- MENTOR CHAT ----------

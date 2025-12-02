@@ -1017,18 +1017,28 @@ const handleChatSend = async () => {
   }
 
   type InsightsTabProps = {
-    loading: boolean
-    error: string | null
-    moodSeries: { date: string; label: string }[]
-    topTags: { tag: string; count: number }[]
-    mentorInsight: string | null
-    weeklyRitual: string | null
-    weeklyRitualRange: { from: string; to: string } | null
-    weeklyRitualError: string | null
-    onStartReflection: () => void
-  }
+  loading: boolean
+  error: string | null
+  moodSeries: { date: string; label: string }[]
+  topTags: { tag: string; count: number }[]
+  mentorInsight: string | null
+  weeklyRitual: string | null
+  weeklyRitualRange: { from: string; to: string } | null
+  weeklyRitualError: string | null
+  onStartReflection: () => void
 
-  const InsightsTab: React.FC<InsightsTabProps> = ({
+  // 👇 NUOVO: calendario emotivo
+  calendarDays: CalendarDay[]
+  calendarMonthOffset: number
+  calendarLoading: boolean
+  calendarError: string | null
+  selectedCalendarDay: CalendarDay | null
+  onChangeCalendarMonth: (offset: number) => void
+  onSelectCalendarDay: (day: CalendarDay | null) => void
+}
+
+
+const InsightsTab: React.FC<InsightsTabProps> = ({
   loading,
   error,
   moodSeries,
@@ -1038,6 +1048,13 @@ const handleChatSend = async () => {
   weeklyRitualRange,
   weeklyRitualError,
   onStartReflection,
+  calendarDays,
+  calendarMonthOffset,
+  calendarLoading,
+  calendarError,
+  selectedCalendarDay,
+  onChangeCalendarMonth,
+  onSelectCalendarDay,
 }) => {
   if (loading) {
     return (
@@ -1057,7 +1074,53 @@ const handleChatSend = async () => {
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-      {/* 1️⃣ Uno sguardo del Mentor */}
+      {/* 1️⃣ Calendario emotivo */}
+      <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-emerald-200">
+            Calendario emotivo
+          </h2>
+          <p className="text-xs text-gray-400">
+            Uno sguardo visivo a come ti sei sentito negli ultimi giorni.
+          </p>
+        </div>
+
+        {calendarLoading && (
+          <p className="text-xs text-gray-400">
+            Sto preparando il tuo calendario…
+          </p>
+        )}
+
+        {calendarError && (
+          <p className="text-xs text-rose-400">{calendarError}</p>
+        )}
+
+        {!calendarLoading && !calendarError && (
+          <MoodCalendar
+            days={calendarDays}
+            monthOffset={calendarMonthOffset}
+            onChangeMonth={onChangeCalendarMonth}
+            onSelectDay={onSelectCalendarDay}
+          />
+        )}
+
+        {selectedCalendarDay && (
+          <div className="mt-3 rounded-xl bg-gray-900/80 border border-gray-700/60 p-3 space-y-1">
+            <div className="text-xs font-medium text-gray-200">
+              {new Date(selectedCalendarDay.day).toLocaleDateString("it-IT", {
+                weekday: "long",
+                day: "2-digit",
+                month: "long",
+              })}
+            </div>
+            <p className="text-xs text-gray-300">
+              {selectedCalendarDay.detail || selectedCalendarDay.mood || "—"}
+            </p>
+          </div>
+        )}
+      </section>
+
+      {/* 2️⃣ Uno sguardo del Mentor */}
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-emerald-200">
           Uno sguardo del Mentor
@@ -1080,27 +1143,27 @@ const handleChatSend = async () => {
         </button>
       </section>
 
-      {/* 2️⃣ Rituale della settimana */}
+      {/* 3️⃣ Rituale della settimana */}
       <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-emerald-200">
             Rituale della settimana
           </h2>
 
-          {weeklyRitualRange && (
-            <p className="text-[11px] text-gray-400 mt-0.5">
-              Ultimi 7 giorni ·{" "}
-              {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
-                day: "2-digit",
-                month: "2-digit",
-              })}{" "}
-              –{" "}
-              {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
-                day: "2-digit",
-                month: "2-digit",
-              })}
-            </p>
-          )}
+        {weeklyRitualRange && (
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Ultimi 7 giorni ·{" "}
+            {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
+              day: "2-digit",
+              month: "2-digit",
+            })}{" "}
+            –{" "}
+            {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
+              day: "2-digit",
+              month: "2-digit",
+            })}
+          </p>
+        )}
         </div>
 
         {weeklyRitualError && (
@@ -1128,7 +1191,7 @@ const handleChatSend = async () => {
         </button>
       </section>
 
-      {/* 3️⃣ Emozioni più ricorrenti (versione compatta) */}
+      {/* 4️⃣ Emozioni più ricorrenti (compatto) */}
       {topTags.length > 0 && (
         <section className="space-y-2 bg-gray-900/40 border border-gray-700/30 rounded-xl p-3">
           <h3 className="text-sm font-semibold text-gray-300">
@@ -1157,6 +1220,7 @@ const handleChatSend = async () => {
     </div>
   )
 }
+
 
 
   // ---------- RENDER ----------
@@ -1502,18 +1566,30 @@ const handleChatSend = async () => {
 
                 {/* TAB: INSIGHT */}
                 {currentTab === "insight" && (
-                  <InsightsTab
-                    loading={insightsLoading}
-                    error={insightsError}
-                    moodSeries={insightsMoodSeries}
-                    topTags={insightsTopTags}
-                    mentorInsight={mentorInsight}
-                    weeklyRitual={weeklyRitual}
-                    weeklyRitualRange={weeklyRitualRange}
-                    weeklyRitualError={weeklyRitualError}
-                    onStartReflection={() => setCurrentTab("oggi")}
-                  />
-                )}
+  <InsightsTab
+    loading={insightsLoading}
+    error={insightsError}
+    moodSeries={insightsMoodSeries}
+    topTags={insightsTopTags}
+    mentorInsight={mentorInsight}
+    weeklyRitual={weeklyRitual}
+    weeklyRitualRange={weeklyRitualRange}
+    weeklyRitualError={weeklyRitualError}
+    onStartReflection={() => setCurrentTab("oggi")}
+    calendarDays={calendarDays}
+    calendarMonthOffset={calendarMonthOffset}
+    calendarLoading={calendarLoading}
+    calendarError={calendarError}
+    selectedCalendarDay={selectedCalendarDay}
+    onChangeCalendarMonth={(offset) => {
+      if (session?.user?.id) {
+        loadMoodCalendar(session.user.id, offset)
+      }
+    }}
+    onSelectCalendarDay={setSelectedCalendarDay}
+  />
+)}
+
 
                 {/* TAB: GUIDATA */}
                 {currentTab === "guidata" && (
@@ -1772,47 +1848,7 @@ const handleChatSend = async () => {
                     </p>
                   )}
                 </section>
-<section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
-  <div className="flex items-center justify-between gap-2">
-    <div>
-      <h3 className="text-sm font-medium text-gray-100">
-        Calendario emotivo
-      </h3>
-      <p className="text-xs text-gray-400">
-        Uno sguardo alle emozioni che hanno colorato i tuoi giorni.
-      </p>
-    </div>
-  </div>
 
-  {calendarLoading && (
-    <p className="text-xs text-gray-400">Sto preparando il tuo calendario…</p>
-  )}
-
-  {calendarError && (
-    <p className="text-xs text-rose-400">{calendarError}</p>
-  )}
-
-  {!calendarLoading && !calendarError && (
-    <MoodCalendar
-      days={calendarDays}
-      monthOffset={calendarMonthOffset}
-      onChangeMonth={(offset) => {
-        if (session?.user?.id) {
-          loadMoodCalendar(session.user.id, offset)
-        }
-      }}
-      onSelectDay={(day) => setSelectedCalendarDay(day)}
-    />
-  )}
-
-  {selectedCalendarDay && (
-    <div className="mt-3 rounded-xl bg-gray-900/80 border border-gray-700/60 p-3 space-y-1">
-      <p className="text-xs text-gray-300">
-      {selectedCalendarDay.detail || selectedCalendarDay.mood || "..."}
-    </p>
-    </div>
-  )}
-</section>
 
                 {/* Top tag chart (se hai molti dati) */}
                 {tagChartData.length > 0 && (

@@ -1029,176 +1029,135 @@ const handleChatSend = async () => {
   }
 
   const InsightsTab: React.FC<InsightsTabProps> = ({
-    loading,
-    error,
-    moodSeries,
-    topTags,
-    mentorInsight,
-    weeklyRitual,
-    weeklyRitualRange,
-    weeklyRitualError,
-    onStartReflection,
-  }) => {
-    if (loading) {
-      return (
-        <div className="py-8 text-sm text-gray-400">
-          Sto preparando i tuoi insight…
-        </div>
-      )
-    }
-
-    if (error) {
-      return (
-        <div className="py-8 text-sm text-red-300">
-          {error}
-        </div>
-      )
-    }
-
+  loading,
+  error,
+  moodSeries,
+  topTags,
+  mentorInsight,
+  weeklyRitual,
+  weeklyRitualRange,
+  weeklyRitualError,
+  onStartReflection,
+}) => {
+  if (loading) {
     return (
-      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
-        {/* Header */}
-        <div>
-          <h2 className="text-lg font-semibold mb-1">
-            I tuoi ultimi 30 giorni
-          </h2>
-          <p className="text-xs text-gray-400">
-            Uno sguardo leggero su come ti sei mosso emotivamente di recente.
-          </p>
-        </div>
-
-        {/* Mood trend */}
-        {moodSeries.length > 0 && (
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold">
-              Come ti sei sentito negli ultimi giorni
-            </h3>
-            <div className="w-full overflow-x-auto">
-              <div className="flex flex-wrap gap-2 pb-1">
-                {moodSeries.map((d) => (
-                  <div
-                    key={d.date}
-                    className="flex flex-col items-center gap-1"
-                  >
-                    <span className="inline-flex items-center justify-center rounded-full bg-white/5 border border-white/10 px-3 py-1 text-xs text-gray-100 whitespace-nowrap">
-                      {d.label || "—"}
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {formatDateLabel(d.date)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              Le etichette sono come le hai scritte tu: servono solo a non
-              perdere di vista come ti sei sentito, non devono essere perfette.
-            </p>
-          </section>
-        )}
-
-        {/* Tag cloud */}
-        {topTags.length > 0 && (
-          <section className="space-y-3">
-            <h3 className="text-sm font-semibold">
-              Le emozioni che hai nominato più spesso
-            </h3>
-            <div className="w-full overflow-x-auto">
-              <div className="flex flex-wrap gap-2 pb-1">
-                {topTags.map((t, idx) => (
-                  <span
-                    key={t.tag}
-                    className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs ${
-                      idx === 0
-                        ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
-                        : "bg-white/5 border-white/10 text-gray-200"
-                    }`}
-                  >
-                    {t.tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-gray-400">
-              Queste parole mostrano cosa sta occupando più spesso il tuo
-              spazio emotivo in questo periodo.
-            </p>
-          </section>
-        )}
-
-        {/* Mentor insight */}
-        <section className="space-y-3">
-          <h3 className="text-sm font-semibold">
-            Uno sguardo del Mentor
-          </h3>
-          <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
-            {mentorInsight ? (
-              <p>{mentorInsight}</p>
-            ) : (
-              <p className="text-gray-300">
-                Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
-                restituirà qui una breve sintesi dei pattern che emergono.
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onStartReflection}
-            className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
-          >
-            Riflettiamo insieme ora →
-          </button>
-        </section>
-
-        {/* Rituale della settimana */}
-        <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
-          <div>
-            <h2 className="text-sm font-semibold text-emerald-200">
-              Rituale della settimana
-            </h2>
-
-            {weeklyRitualRange && (
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                Ultimi 7 giorni ·{" "}
-                {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
-                  day: "2-digit",
-                  month: "2-digit",
-                })}{" "}
-                –{" "}
-                {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
-                  day: "2-digit",
-                  month: "2-digit",
-                })}
-              </p>
-            )}
-          </div>
-
-          {weeklyRitualError && (
-            <p className="text-xs text-gray-400">{weeklyRitualError}</p>
-          )}
-
-          {weeklyRitual && !weeklyRitualError && (
-            <p className="text-sm text-gray-200 whitespace-pre-wrap">
-              {weeklyRitual}
-            </p>
-          )}
-
-          {!weeklyRitual && !weeklyRitualError && (
-            <p className="text-xs text-gray-400">
-              Quando avrai qualche giorno di riflessioni alle spalle, qui
-              troverai una piccola lettura settimanale del tuo Mentor.
-            </p>
-          )}
-
-          <button
-            onClick={onStartReflection}
-            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition"
-          >
-            Fai una riflessione ora
-          </button>
-        </section>
+      <div className="py-8 text-sm text-gray-400">
+        Sto preparando i tuoi insight…
       </div>
     )
   }
+
+  if (error) {
+    return (
+      <div className="py-8 text-sm text-red-300">
+        {error}
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      {/* 1️⃣ Uno sguardo del Mentor */}
+      <section className="space-y-3">
+        <h3 className="text-sm font-semibold text-emerald-200">
+          Uno sguardo del Mentor
+        </h3>
+        <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
+          {mentorInsight ? (
+            <p>{mentorInsight}</p>
+          ) : (
+            <p className="text-gray-300">
+              Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
+              restituirà qui una breve sintesi dei pattern che emergono.
+            </p>
+          )}
+        </div>
+        <button
+          onClick={onStartReflection}
+          className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
+        >
+          Riflettiamo insieme ora →
+        </button>
+      </section>
+
+      {/* 2️⃣ Rituale della settimana */}
+      <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-emerald-200">
+            Rituale della settimana
+          </h2>
+
+          {weeklyRitualRange && (
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              Ultimi 7 giorni ·{" "}
+              {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
+                day: "2-digit",
+                month: "2-digit",
+              })}{" "}
+              –{" "}
+              {new Date(weeklyRitualRange.to).toLocaleDateString("it-IT", {
+                day: "2-digit",
+                month: "2-digit",
+              })}
+            </p>
+          )}
+        </div>
+
+        {weeklyRitualError && (
+          <p className="text-xs text-gray-400">{weeklyRitualError}</p>
+        )}
+
+        {weeklyRitual && !weeklyRitualError && (
+          <p className="text-sm text-gray-200 whitespace-pre-wrap">
+            {weeklyRitual}
+          </p>
+        )}
+
+        {!weeklyRitual && !weeklyRitualError && (
+          <p className="text-xs text-gray-400">
+            Quando avrai qualche giorno di riflessioni alle spalle, qui
+            troverai una piccola lettura settimanale del tuo Mentor.
+          </p>
+        )}
+
+        <button
+          onClick={onStartReflection}
+          className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition"
+        >
+          Fai una riflessione ora
+        </button>
+      </section>
+
+      {/* 3️⃣ Emozioni più ricorrenti (versione compatta) */}
+      {topTags.length > 0 && (
+        <section className="space-y-2 bg-gray-900/40 border border-gray-700/30 rounded-xl p-3">
+          <h3 className="text-sm font-semibold text-gray-300">
+            Emozioni più ricorrenti
+          </h3>
+          <div className="flex flex-wrap gap-2">
+            {topTags.slice(0, 6).map((t, idx) => (
+              <span
+                key={t.tag}
+                className={`inline-flex items-center justify-center rounded-full border px-3 py-1 text-xs ${
+                  idx === 0
+                    ? "bg-emerald-400/20 border-emerald-300/40 text-emerald-100"
+                    : "bg-white/5 border-white/10 text-gray-200"
+                }`}
+              >
+                {t.tag}
+              </span>
+            ))}
+          </div>
+          <p className="text-[11px] text-gray-500">
+            Queste parole mostrano cosa sta occupando più spesso il tuo spazio
+            emotivo in questo periodo.
+          </p>
+        </section>
+      )}
+    </div>
+  )
+}
+
 
   // ---------- RENDER ----------
   // se non ha completato l'onboarding, mostra solo quello

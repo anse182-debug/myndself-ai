@@ -22,12 +22,16 @@ type ChatMessage = { role: "user" | "assistant"; content: string }
 type Toast = { id: string; message: string; type?: "success" | "error" | "info" }
 type GuidedMsg = { role: "user" | "assistant"; content: string }
 type CalendarDay = {
-  day: string // "YYYY-MM-DD"
+  day: string
   dominantMood: string | null
   entriesCount: number
   moodsCount: Record<string, number>
   tags: string[]
+  // aggiunte per il pannellino di dettaglio
+  mood?: string | null
+  detail?: string | null
 }
+
 
 type MoodCalendarProps = {
   days: CalendarDay[]
@@ -521,27 +525,16 @@ export default function App() {
     }
   }
 
-  async function loadMoodCalendar(userId: string, monthOffset = 0) {
+async function loadMoodCalendar(userId: string, monthOffset = 0) {
   setCalendarLoading(true)
   setCalendarError(null)
 
   try {
-    const base = new Date()
-    // spostiamo il mese in base all'offset (0 = mese corrente, -1 = mese scorso, +1 = prossimo)
-    base.setMonth(base.getMonth() + monthOffset)
-
-    const year = base.getFullYear()
-    const month = base.getMonth() // 0–11
-
-    const fromDate = new Date(year, month, 1)
-    const toDate = new Date(year, month + 1, 0)
-
-    const fromStr = fromDate.toISOString().slice(0, 10)
-    const toStr = toDate.toISOString().slice(0, 10)
-
+    // chiamiamo il backend come si aspetta lui:
+    // /api/metrics?user_id=...&month_offset=...
     const url = `${API_BASE}/api/metrics?user_id=${encodeURIComponent(
       userId
-    )}&from=${fromStr}&to=${toStr}`
+    )}&month_offset=${monthOffset}`
 
     const res = await fetch(url)
     if (!res.ok) {
@@ -552,11 +545,17 @@ export default function App() {
 
     const days: CalendarDay[] =
       json.days?.map((d: any) => ({
-        day: d.day,
-        dominantMood: d.dominant_mood || null,
-        entriesCount: d.entries_count || 0,
-        moodsCount: d.moods_count || {},
-        tags: d.tags || [],
+        // il backend manda "date"
+        day: d.date,
+        // bucket = calma / gioia / tristezza / rabbia / ansia / nessuna
+        dominantMood: d.bucket === "nessuna" ? null : d.bucket,
+        // per ora: 1 se c’è almeno un entry quel giorno, 0 altrimenti
+        entriesCount: d.mood ? 1 : 0,
+        moodsCount: d.mood ? { [d.bucket]: 1 } : {},
+        tags: [],
+        // extra per il pannellino di dettaglio
+        mood: d.mood || null,
+        detail: d.detail || null,
       })) ?? []
 
     setCalendarDays(days)
@@ -570,6 +569,7 @@ export default function App() {
     setCalendarLoading(false)
   }
 }
+
 
 
   async function loadInsights(userId: string) {

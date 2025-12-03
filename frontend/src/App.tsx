@@ -108,7 +108,7 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
     year: "numeric",
   })
 
-  const weekdayLabels = ["L", "M", "M", "G", "V", "S", "D"]
+  const weekdayLabels = ["D", "L", "M", "M", "G", "V", "S"]
 
   return (
     <div className="space-y-3">

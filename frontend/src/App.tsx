@@ -1758,65 +1758,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
               {/* COLONNA DESTRA: INSIGHT VELOCI + PROFILO EMOTIVO */}
               <aside className="space-y-4">
                 {/* Profilo emotivo */}
-                <section className="bg-gray-900/70 border border-emerald-400/20 rounded-2xl p-4 sm:p-5 space-y-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h2 className="text-sm font-semibold text-emerald-200">
-                        Uno sguardo al tuo paesaggio emotivo
-                      </h2>
-                      <p className="text-[11px] text-gray-400">
-                        Il Mentor prova a restituirti come si sta muovendo il
-                        tuo mondo interno.
-                      </p>
-                    </div>
-                    {emotionProfileLoading && <Spinner />}
-                  </div>
-
-                  {emotionalShort && (
-                    <p className="text-sm text-gray-100 whitespace-pre-wrap">
-                      {emotionalExpanded ? emotionalFull : emotionalShort}
-                    </p>
-                  )}
-
-                  {!emotionalShort && !emotionProfileLoading && (
-                    <p className="text-xs text-gray-400">
-                      Dopo qualche giorno di utilizzo, qui troverai una
-                      descrizione sintetica dei pattern emotivi che ricorrono
-                      più spesso nelle tue riflessioni.
-                    </p>
-                  )}
-
-                  {emotionalFull && emotionalShort && (
-                    <button
-                      onClick={() =>
-                        setEmotionalExpanded((prev) => !prev)
-                      }
-                      className="text-xs text-emerald-300 hover:text-emerald-200"
-                    >
-                      {emotionalExpanded
-                        ? "Mostra una versione più breve"
-                        : "Mostra una versione più estesa"}
-                    </button>
-                  )}
-
-                  {emotionalTags.length > 0 && (
-                    <div className="pt-2 space-y-1">
-                      <p className="text-[11px] text-gray-400">
-                        Alcune parole chiave che ricorrono spesso:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {emotionalTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="inline-flex items-center rounded-full bg-white/5 border border-white/10 px-2.5 py-0.5 text-[11px] text-gray-100"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </section>
+              
 
                 
 

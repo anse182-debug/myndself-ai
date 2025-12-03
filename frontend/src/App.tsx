@@ -202,21 +202,33 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
 const MOOD_PRESETS = [
   { label: "Calmo", value: "Calmo / centrato" },
   { label: "Grato", value: "Grato" },
+  { label: "Contento", value: "Contento" },
+  { label: "Entusiasta", value: "Entusiasta" },
   { label: "Stressato", value: "Stressato" },
   { label: "Stanco", value: "Stanco / scarico" },
   { label: "Ansioso", value: "Ansioso / in allerta" },
   { label: "Triste", value: "Triste" },
   { label: "Sovraccarico", value: "Sovraccarico" },
+  { label: "Arrabbiato", value: "Arrabbiato" },
+  { label: "Frustrato", value: "Frustrato" },
+  { label: "Confuso", value: "Confuso" },
+  { label: "Annoiato", value: "Annoiato" },
 ]
 
 const MOOD_EMOJI: Record<string, string> = {
   "Calmo / centrato": "🧘‍♀️",
   Grato: "🙏",
+  Contento: "😊",
+  Entusiasta: "🤩",
   Stressato: "😣",
   "Stanco / scarico": "😴",
   "Ansioso / in allerta": "😰",
   Triste: "😔",
+  Arrabbiato: "😠",
+  Frustrato: "😣",
   Sovraccarico: "💥",
+  Confuso: "😕",
+  Annoiato: "😑",
 }
 
 const QUICK_TAGS = [
@@ -232,6 +244,18 @@ const QUICK_TAGS = [
   "Frustrazione",
   "Sovraccarico",
   "Apprezzamento",
+  "Rabbia",
+  "Impazienza",
+  "Agitazione",
+  "Determinazione",
+  "Entusiasmo",
+  "Apatia",
+  "Noia",
+  "Gratitudine",
+  "Fiducia",
+  "Curiosità",
+  "Solitudine",
+  "Vicinanza",
 ]
 
 const GUIDED_PROMPTS = [
@@ -1106,7 +1130,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
         {reflectionDaysCount > 0 && (
   <p className="text-[11px] text-gray-400 mt-1">
-    Negli ultimi 30 giorni hai dato spazio alle tue emozioni in{" "}
+    Negli ultimi 30 giorni hai dato spazio alle tue emozioni in {" "} giorni
     <span className="font-semibold text-emerald-200">
       {reflectionDaysCount} giorno
       {reflectionDaysCount !== 1 && "i"}

@@ -222,34 +222,6 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
           )
         })}
       </div>
-
-      {/* Legend */}
-      <div className="flex flex-wrap gap-2 mt-2 text-[10px] text-gray-500">
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-emerald-400" />
-          calma
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-amber-400" />
-          gioia
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-sky-500" />
-          tristezza
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-rose-500" />
-          rabbia
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-violet-500" />
-          ansia
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded-sm bg-gray-800/60" />
-          nessuna riflessione
-        </span>
-      </div>
     </div>
   )
 }
@@ -1563,32 +1535,43 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                         Come ti senti, a grandi linee?
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {MOOD_PRESETS.map((m) => {
-                          const active = selectedMoods.includes(m.value)
-                          return (
-                            <button
-                              key={m.value}
-                              type="button"
-                              onClick={() => {
-                                setMood(m.value)
-                                setSelectedMoods((prev) => {
-                                  if (prev.includes(m.value)) {
-                                    return prev.filter((v) => v !== m.value)
-                                  }
-                                  return [...prev, m.value]
-                                })
-                              }}
-                              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs ${
-                                active
-                                  ? "bg-emerald-400 text-gray-950 border-emerald-300"
-                                  : "bg-white/5 border-white/15 text-gray-100 hover:bg-white/10"
-                              }`}
-                            >
-                              <span>{MOOD_EMOJI[m.value] ?? "✨"}</span>
-                              <span>{m.label}</span>
-                            </button>
-                          )
-                        })}
+                       {MOOD_PRESETS.map((m) => {
+  const active = selectedMoods.includes(m.value)
+  const colorKey = m.label.toLowerCase() // "calmo", "grato", ecc.
+  const hex = EMOTION_COLORS[colorKey]
+
+  return (
+    <button
+      key={m.value}
+      type="button"
+      onClick={() => {
+        setMood(m.value)
+        setSelectedMoods((prev) => {
+          if (prev.includes(m.value)) {
+            return prev.filter((v) => v !== m.value)
+          }
+          return [...prev, m.value]
+        })
+      }}
+      className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
+        active
+          ? "text-gray-950"
+          : "bg-white/5 text-gray-100 hover:bg-white/10"
+      }`}
+      style={
+        active && hex
+          ? { backgroundColor: hex, borderColor: hex }
+          : !active && hex
+          ? { borderColor: hex }
+          : undefined
+      }
+    >
+      <span>{MOOD_EMOJI[m.value] ?? "✨"}</span>
+      <span>{m.label}</span>
+    </button>
+  )
+})}
+
                       </div>
                     </div>
 
@@ -1613,35 +1596,44 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                         momento.
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {QUICK_TAGS.map((tag) => {
-                          const active = note.includes(tag)
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => {
-                                if (active) {
-                                  setNote((prev) =>
-                                    prev.replace(tag, "").replace("  ", " ")
-                                  )
-                                } else {
-                                  setNote((prev) =>
-                                    prev.length
-                                      ? `${prev.trim()} · ${tag}`
-                                      : tag
-                                  )
-                                }
-                              }}
-                              className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] ${
-                                active
-                                  ? "bg-emerald-500/20 border-emerald-300/60 text-emerald-100"
-                                  : "bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
-                              }`}
-                            >
-                              {tag}
-                            </button>
-                          )
-                        })}
+                       {QUICK_TAGS.map((tag) => {
+  const active = note.includes(tag)
+  const colorKey = tag.toLowerCase()
+  const hex = EMOTION_COLORS[colorKey]
+
+  return (
+    <button
+      key={tag}
+      type="button"
+      onClick={() => {
+        if (active) {
+          setNote((prev) =>
+            prev.replace(tag, "").replace("  ", " ")
+          )
+        } else {
+          setNote((prev) =>
+            prev.length ? `${prev.trim()} · ${tag}` : tag
+          )
+        }
+      }}
+      className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] transition-colors ${
+        active
+          ? "text-gray-950"
+          : "bg-white/5 text-gray-200 hover:bg-white/10"
+      }`}
+      style={
+        active && hex
+          ? { backgroundColor: hex, borderColor: hex }
+          : !active && hex
+          ? { borderColor: hex }
+          : undefined
+      }
+    >
+      {tag}
+    </button>
+  )
+})}
+
                       </div>
                     </div>
 

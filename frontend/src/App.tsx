@@ -97,25 +97,32 @@ type MoodCalendarProps = {
   onSelectDay: (day: CalendarDay | null) => void
 }
 
+// Colori delle celle del calendario allineati alla legenda BUCKET_COLORS
 const moodToColor = (mood: string | null): string => {
   switch ((mood || "").toLowerCase()) {
-    case "gioia":
-    case "joy":
-      return "bg-amber-400"
     case "calma":
     case "calm":
+      // calma / serenità → azzurro
+      return "bg-sky-300"
+    case "gioia":
+    case "joy":
+      // gioia / apertura → verde
       return "bg-emerald-400"
     case "tristezza":
     case "sadness":
-      return "bg-sky-500"
+      // tristezza / pesantezza → grigio scuro
+      return "bg-neutral-700"
     case "rabbia":
     case "anger":
-      return "bg-rose-500"
+      // rabbia / frustrazione → rosso
+      return "bg-rose-400"
     case "ansia":
     case "anxiety":
-      return "bg-violet-500"
+      // ansia / tensione → blu profondo
+      return "bg-indigo-500"
     default:
-      return "bg-gray-700/60"
+      // nessuna riflessione / neutro
+      return "bg-gray-800/60"
   }
 }
 

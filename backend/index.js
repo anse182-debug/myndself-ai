@@ -1032,7 +1032,6 @@ Regole:
 app.post("/api/guided-chat", async (req, reply) => {
  const { user_id, message, step } = req.body || {}
  const turnIndex = Number.isFinite(step) ? Number(step) : 1
-  const { user_id, messages } = body;
 
   if (!user_id) {
     return reply.code(400).send({ error: "Missing user_id" });

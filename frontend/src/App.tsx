@@ -15,6 +15,63 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 const ONBOARDING_KEY = "myndself_onboarding_v1_done"
 const MAX_GUIDED_TURNS = 3 // numero massimo di messaggi del Mentor in una riflessione guidata
 
+// 🎨 Colori per emozioni specifiche (pill, tag, ecc.)
+const EMOTION_COLORS: Record<string, string> = {
+  // macro stati (prima riga "come ti senti, a grandi linee?")
+  calmo: "#74D8FF",
+  grato: "#59E7B3",
+  contento: "#66E0C2",
+  entusiasta: "#2EEB80",
+  stressato: "#4C66E6",
+  stanco: "#6C6C6C",
+  sovraccarico: "#FF4FCC",
+  ansioso: "#4C66E6",
+  triste: "#4A4A4A",
+  arrabbiato: "#FF5454",
+  frustrato: "#FF7A5A",
+  confuso: "#7D7FFF",
+  annoiato: "#A0A0A0",
+
+  // dettaglio "scegli qualche parola che descrive questo momento"
+  rabbia: "#FF5454",
+  frustrazione: "#FF7A5A",
+  impazienza: "#FF9D4D",
+  agitazione: "#FF6F8D",
+  determinazione: "#3CD45A",
+  motivazione: "#4CEB66",
+  entusiasmo: "#2EEB80",
+  apatia: "#8A8A8A",
+  "stanchezza mentale": "#6C6C6C",
+  "stanchezza fisica": "#5E5E5E",
+  noia: "#A0A0A0",
+  "ansia a bassa intensità": "#7993FF",
+  "ansia forte": "#4C66E6",
+  "senso di colpa": "#9C5AC8",
+  "ansia bassa intensità": "#7993FF", // nel caso usi questa variante
+  confusione: "#7D7FFF",
+  sovraccarico: "#FF4FCC",
+  serenità: "#74D8FF",
+  apprezzamento: "#66E0C2",
+  gratitudine: "#59E7B3",
+  speranza: "#8FF29F",
+  fiducia: "#52C5D8",
+  curiosità: "#63D6E1",
+  vicinanza: "#5CBFE6",
+  vuoto: "#4A4A4A",
+  solitudine: "#705C99",
+}
+
+// 🎨 Colori per i "bucket" del calendario (calma / gioia / tristezza / rabbia / ansia / nessuna)
+const BUCKET_COLORS: Record<string, string> = {
+  calma: "#74D8FF",      // azzurro calma
+  gioia: "#2EEB80",      // verde gioia/espansione
+  tristezza: "#4A4A4A",  // grigio profondo
+  rabbia: "#FF5454",     // rosso
+  ansia: "#4C66E6",      // blu profondo
+  nessuna: "#343434",    // neutro
+}
+
+
 type SummaryEntry = { id?: string; summary: string; created_at: string }
 type DailyItem = { day: string; entries: number }
 type TagItem = { tag: string; tag_count: number }
@@ -1130,13 +1187,53 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
         {reflectionDaysCount > 0 && (
   <p className="text-[11px] text-gray-400 mt-1">
-    Negli ultimi 30 giorni hai dato spazio alle tue emozioni in {" "} giorni
+    Negli ultimi 30 giorni hai dato spazio alle tue emozioni in {" "}
     <span className="font-semibold text-emerald-200">
-      {reflectionDaysCount} giorno
+      {reflectionDaysCount} giorn
       {reflectionDaysCount !== 1 && "i"}
     </span>
     .
   </p>
+)}
+
+        {!calendarLoading && !calendarError && (
+  <div className="mt-3 flex flex-wrap gap-3 text-[11px] text-gray-400">
+    <span className="flex items-center gap-1">
+      <span
+        className="inline-block w-3 h-3 rounded-full"
+        style={{ backgroundColor: BUCKET_COLORS.calma }}
+      />
+      calma / serenità
+    </span>
+    <span className="flex items-center gap-1">
+      <span
+        className="inline-block w-3 h-3 rounded-full"
+        style={{ backgroundColor: BUCKET_COLORS.gioia }}
+      />
+      gioia / apertura
+    </span>
+    <span className="flex items-center gap-1">
+      <span
+        className="inline-block w-3 h-3 rounded-full"
+        style={{ backgroundColor: BUCKET_COLORS.tristezza }}
+      />
+      tristezza / pesantezza
+    </span>
+    <span className="flex items-center gap-1">
+      <span
+        className="inline-block w-3 h-3 rounded-full"
+        style={{ backgroundColor: BUCKET_COLORS.rabbia }}
+      />
+      rabbia / frustrazione
+    </span>
+    <span className="flex items-center gap-1">
+      <span
+        className="inline-block w-3 h-3 rounded-full"
+        style={{ backgroundColor: BUCKET_COLORS.ansia }}
+      />
+      ansia / tensione
+    </span>
+  </div>
 )}
 
 

@@ -1121,7 +1121,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
   <p className="text-[11px] text-gray-400 mt-1">
     Negli ultimi 30 giorni hai dato spazio alle tue emozioni in {" "}
     <span className="font-semibold text-emerald-200">
-      {reflectionDaysCount} giorn
+      {reflectionDaysCount} occasion
       {reflectionDaysCount !== 1 && "i"}
     </span>
     .

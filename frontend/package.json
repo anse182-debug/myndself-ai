@@ -11,8 +11,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.45.3",
     "recharts": "^2.10.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.0.37",

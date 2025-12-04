@@ -794,15 +794,19 @@ async function handleGuidedSend(
 
   // 4) altrimenti chiamo il backend per la prossima domanda del Mentor
   setGuidedSending(true)
+  const mentorRepliesSoFar = guidedMessages.filter(m => m.role === "assistant").length
+  const step = mentorRepliesSoFar + 1
   try {
-    const res = await fetch(`${API_BASE}/api/guided-chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: uid,
-        message: text,
-      }),
-    })
+  const res = await fetch(`${API_BASE}/api/guided-chat`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: uid,
+    message: guidedInput,
+    step, // 👉 2, 3, 4… a seconda del giro
+  }),
+})
+
 
     if (!res.ok) {
       throw new Error("Non riesco a continuare la riflessione guidata")
@@ -852,14 +856,15 @@ async function handleGuidedSend(
   setGuidedError(null)
 
   try {
-    const res = await fetch(`${API_BASE}/api/guided-chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: uid,
-        message: "", // messaggio vuoto = "inizia nuova riflessione"
-      }),
-    })
+   const res = await fetch(`${API_BASE}/api/guided-chat`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    user_id: uid,
+    message: "",
+    step: 1, // 👉 prima risposta del Mentor
+  }),
+})
 
     if (!res.ok) {
       throw new Error("Non riesco ad avviare la riflessione guidata")

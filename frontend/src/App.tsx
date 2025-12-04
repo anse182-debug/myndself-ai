@@ -470,8 +470,7 @@ export default function App() {
     setAuthLoading(true)
     try {
       const redirectTo =
-        window.location.origin +
-        (window.location.pathname.includes("/app") ? "/app/#" : "/app/#")
+        window.location.origin
 
       const { error } = await supabase.auth.signInWithOtp({
         email: magicLinkEmail,

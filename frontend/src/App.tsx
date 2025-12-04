@@ -460,39 +460,46 @@ export default function App() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
 
-  const handleLogin = async () => {
-    setAuthError(null)
-    if (!magicLinkEmail) {
-      setAuthError("Inserisci una email per continuare.")
-      return
-    }
+const handleLogin = async () => {
+  setAuthError(null)
 
-    setAuthLoading(true)
-    try {
-      const redirectTo =
-        window.location.origin
-
-      const { error } = await supabase.auth.signInWithOtp({
-        email: magicLinkEmail,
-        options: {
-          emailRedirectTo: redirectTo,
-        },
-      })
-
-      if (error) {
-        throw error
-      }
-
-      showToast("Ti ho mandato un link magico via email ✉️", "success")
-      setAuthError(null)
-    } catch (error: any) {
-      console.error("auth error", error)
-      setAuthError(error.message || "Errore durante l'invio del link magico.")
-      showToast(error.message, "error")
-    } finally {
-      setAuthLoading(false)
-    }
+  if (!magicLinkEmail) {
+    setAuthError("Inserisci una email per continuare.")
+    return
   }
+
+  setAuthLoading(true)
+
+  try {
+    // URL di redirect per il magic link
+    // In prod: https://myndself.ai/app
+    // In dev puoi usare un env, vedi sotto
+    const redirectTo =
+      import.meta.env.VITE_SUPABASE_REDIRECT_URL ||
+      `${window.location.origin}/app`
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email: magicLinkEmail,
+      options: {
+        emailRedirectTo: redirectTo,
+      },
+    })
+
+    if (error) {
+      throw error
+    }
+
+    showToast("Ti ho mandato un link magico via email ✉️", "success")
+    setAuthError(null)
+  } catch (error: any) {
+    console.error("auth error", error)
+    setAuthError(error.message || "Errore durante l'invio del link magico.")
+    showToast(error.message || "Errore durante l'invio del link magico.", "error")
+  } finally {
+    setAuthLoading(false)
+  }
+}
+
 
   const handleLogout = async () => {
     await supabase.auth.signOut()

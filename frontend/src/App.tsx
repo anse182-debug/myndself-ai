@@ -747,153 +747,95 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
 const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
 const [guidedInput, setGuidedInput] = useState("")
 const [guidedLoading, setGuidedLoading] = useState(false)
+const [guidedActive, setGuidedActive] = useState(false)
+const [guidedStep, setGuidedStep] = useState<number>(0)
+const [guidedFinal, setGuidedFinal] = useState(false)
 
-async function handleGuidedSend(
-  e?: React.FormEvent<HTMLFormElement> | React.MouseEvent<HTMLButtonElement>
-) {
-  if (e && typeof e.preventDefault === "function") {
-    e.preventDefault()
-  }
-
-  // resto della funzione invariato:
-  // - setGuidedLoading(true)
-  // - fetch(`${API_BASE}/api/guided-chat`, {...})
-  // - update di setGuidedMessages(...)
-  // - gestione errori, ecc.
-
-  if (!session) return
-  const uid = session.user.id
-  const text = guidedInput.trim()
-  if (!text) return
-
-  // Azzero il campo input
-  setGuidedInput("")
-
-  // 1) aggiungo il messaggio dell’utente alla history locale
-  const userMsg: GuidedMsg = { role: "user", content: text }
-  const historyAfterUser = [...guidedMessages, userMsg]
-  setGuidedMessages(historyAfterUser)
-
-  // 2) conto quante volte ha parlato finora il Mentor
-  const assistantTurns = historyAfterUser.filter(
-    (m) => m.role === "assistant"
-  ).length
-
-  // 3) se ha già parlato MAX_GUIDED_TURNS volte, chiudo qui senza chiamare il backend
-  if (assistantTurns >= MAX_GUIDED_TURNS) {
-    const closing: GuidedMsg = {
+function startGuidedSession() {
+  setGuidedActive(true)
+  setGuidedFinal(false)
+  setGuidedStep(1)
+  setGuidedMessages([
+    {
       role: "assistant",
       content:
-        "Grazie per esserti fermato un momento con me su questo tema. " +
-        "Per oggi possiamo fermarci qui: hai già fatto un buon lavoro nel mettere in parole quello che senti. " +
-        "Se nei prossimi giorni vorrai tornare su questo argomento, sarò qui.",
-    }
-    setGuidedMessages([...historyAfterUser, closing])
-    return
-  }
+        "Ti va di fare una breve riflessione insieme? In poche parole, cosa sta succedendo dentro di te adesso?",
+    },
+  ])
+}
 
-  // 4) altrimenti chiamo il backend per la prossima domanda del Mentor
-  setGuidedSending(true)
-  const mentorRepliesSoFar = guidedMessages.filter(m => m.role === "assistant").length
-  const step = mentorRepliesSoFar + 1
-  try {
-  const res = await fetch(`${API_BASE}/api/guided-chat`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    user_id: uid,
-    message: guidedInput,
-    step, // 👉 2, 3, 4… a seconda del giro
-  }),
-})
-
-
-    if (!res.ok) {
-      throw new Error("Non riesco a continuare la riflessione guidata")
-    }
-
-    const data = await res.json()
-
-    const replyText: string =
-      (data.reply && data.reply.trim()) ||
-      "Per oggi possiamo fermarci qui. Hai già fatto un buon lavoro nel fermarti ad ascoltare come stai."
-
-    const mentorMsg: GuidedMsg = {
-      role: "assistant",
-      content: replyText,
-    }
-
-    setGuidedMessages((prev) => [...prev, mentorMsg])
-  } catch (err) {
-    console.error("guided reflection error", err)
-    // in caso di errore, chiudo comunque in modo gentile
-    const fallbackClosing: GuidedMsg = {
-      role: "assistant",
-      content:
-        "Sembra che ci sia stato un problema tecnico, ma va benissimo così: " +
-        "per oggi possiamo fermarci qui. Grazie per esserti preso questo spazio.",
-    }
-    setGuidedMessages((prev) => [...prev, fallbackClosing])
-    showToast(
-      "C'è stato un problema tecnico con la riflessione guidata. Per oggi puoi considerarla conclusa.",
+async function sendGuidedTurn() {
+  const uid = session?.user?.id
+  if (!uid)
+    return showToast(
+      "Accedi prima per continuare la riflessione guidata",
       "error"
     )
-  } finally {
-    setGuidedSending(false)
+
+  // se non abbiamo ancora iniziato, parto con la prima domanda fissa
+  if (!guidedActive) return startGuidedSession()
+
+  // se non è il turno finale, serve una risposta dell’utente
+  if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
+    return showToast("Scrivi una breve risposta per continuare 💭", "info")
   }
-}
 
-  function continueGuidedReflection() {
-  // wrapper usato dal bottone "Continua"
-  handleGuidedSend()
-}
-
-  const startGuidedReflection = async () => {
-  if (!session) return
-  const uid = session.user.id
+  // aggiungo il messaggio dell’utente al contesto
+  let msgs = guidedMessages
+  if (guidedInput.trim()) {
+    msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
+    setGuidedMessages(msgs)
+    setGuidedInput("")
+  }
 
   setGuidedLoading(true)
-  setGuidedError(null)
-
   try {
-   const res = await fetch(`${API_BASE}/api/guided-chat`, {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    user_id: uid,
-    message: "",
-    step: 1, // 👉 prima risposta del Mentor
-  }),
-})
-
-    if (!res.ok) {
-      throw new Error("Non riesco ad avviare la riflessione guidata")
-    }
+    const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: uid,
+        messages: msgs,
+        step: guidedStep || 1,
+      }),
+    })
 
     const data = await res.json()
+    const reply =
+      data?.reply ||
+      "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
+    const isFinal = Boolean(data?.isFinal)
 
-    const firstMessage: GuidedMsg = {
-      role: "assistant",
-      content:
-        (data.reply && data.reply.trim()) ||
-        "Possiamo iniziare dal presente: che cosa sta colorando di più la tua giornata oggi?",
+    setGuidedMessages(prev => [...prev, { role: "assistant", content: reply }])
+    setGuidedFinal(isFinal)
+    setGuidedStep(prev => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
+
+    if (isFinal) {
+      showToast("Riflessione guidata salvata tra le sintesi ✅", "success")
+      try {
+        const sumRes = await fetch(
+          `${API_BASE}/api/summary-history?user_id=${uid}`
+        )
+        const sumJson = await sumRes.json()
+        if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
+      } catch (e) {
+        console.error("refresh insights error:", e)
+      }
     }
-
-    // azzera eventuale conversazione precedente e mostra la nuova
-    setGuidedMessages([firstMessage])
-    showToast("Ho preparato qualche domanda per te 🌱", "info")
-  } catch (err) {
-    console.error("guided reflection start error", err)
-    setGuidedError(
-      "Non riesco ad avviare la riflessione guidata. Riprova tra poco."
-    )
-    showToast(
-      "Non riesco ad avviare la riflessione guidata. Riprova tra poco.",
-      "error"
-    )
+  } catch (e) {
+    console.error("guided error:", e)
+    showToast("Errore nella riflessione guidata", "error")
   } finally {
     setGuidedLoading(false)
   }
+}
+
+function resetGuided() {
+  setGuidedActive(false)
+  setGuidedFinal(false)
+  setGuidedStep(0)
+  setGuidedMessages([])
+  setGuidedInput("")
 }
 
 
@@ -1789,25 +1731,18 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                         />
                         <div className="flex justify-between items-center gap-2">
                           <button
-                            onClick={
-  guidedMessages.length === 0
-    ? startGuidedReflection
-    : continueGuidedReflection
-}
-                            disabled={guidedLoading}
-                            className="inline-flex items-center justify-center rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold px-4 py-2 hover:bg-emerald-300 disabled:opacity-60"
-                          >
-                            {guidedLoading ? (
-                              <>
-                                <Spinner />{" "}
-                                <span className="ml-2">Un attimo…</span>
-                              </>
-                            ) : guidedMessages.length === 0 ? (
-                              "Inizia la riflessione guidata"
-                            ) : (
-                              "Continua"
-                            )}
-                          </button>
+  type="button"
+  onClick={guidedFinal ? resetGuided : sendGuidedTurn}
+  disabled={guidedLoading}
+  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition disabled:opacity-50"
+>
+  {guidedFinal
+    ? "Ricomincia una nuova riflessione"
+    : guidedMessages.length === 0
+      ? "Inizia la riflessione guidata"
+      : "Continua"}
+</button>
+
                         </div>
                       </div>
                     </div>

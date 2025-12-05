@@ -1982,14 +1982,39 @@ app.get("/api/insights", async (req, reply) => {
 // ---------------------------------------------------------
 app.post("/api/weekly-email-batch", async (req, reply) => {
   try {
-    const authHeader = req.headers["authorization"] || "";
+    const rawHeader =
+      req.headers["authorization"] ||
+      req.headers["Authorization"] ||
+      "";
+
+    console.log("📬 weekly-email-batch called, Authorization:", rawHeader);
+
     const expected = process.env.WEEKLY_BATCH_SECRET;
 
-    if (!expected || authHeader !== `Bearer ${expected}`) {
-      return reply.code(401).send({ error: "Unauthorized" });
+    // estrai solo il token dopo "Bearer "
+    const token = rawHeader.replace(/bearer\s+/i, "").trim();
+
+    if (!expected) {
+      console.error("❌ WEEKLY_BATCH_SECRET not set");
+      return reply
+        .code(500)
+        .send({ error: "Server misconfigured: missing secret" });
     }
 
-    // prendo tutti i profili con email (puoi filtrare se hai flag di opt-in)
+    if (!token || token !== expected) {
+      console.warn("⚠️ weekly-email-batch unauthorized call", {
+        tokenSnippet: token ? token.slice(0, 6) + "..." : null,
+      });
+
+      return reply.code(401).send({
+        error: "Unauthorized",
+        details: "Invalid or missing bearer token",
+      });
+    }
+
+    console.log("✅ weekly-email-batch authorized, proceeding…");
+
+    // prendo tutti i profili con email
     const { data: users, error } = await supabase
       .from("profiles")
       .select("id, email")
@@ -2001,6 +2026,7 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
     }
 
     if (!users || users.length === 0) {
+      console.log("weekly-email-batch: no users with email");
       return reply.send({ ok: true, count: 0 });
     }
 
@@ -2013,16 +2039,23 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
         success += 1;
       } catch (err) {
         failures += 1;
-        console.error("weekly-email-batch user error", u, err);
+        console.error("weekly-email-batch user error", u.email, err);
       }
     }
 
+    console.log(
+      `weekly-email-batch completed: total=${users.length}, success=${success}, failures=${failures}`
+    );
+
     return reply.send({ ok: true, count: users.length, success, failures });
   } catch (err) {
-    console.error("weekly-email-batch error", err);
-    return reply.code(500).send({ error: err.message || "Batch error" });
+    console.error("weekly-email-batch fatal error", err);
+    return reply
+      .code(500)
+      .send({ error: err.message || "Batch error (unexpected)" });
   }
 });
+
 
 
 // =============================================================

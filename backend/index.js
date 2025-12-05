@@ -98,6 +98,260 @@ async function callOpenAIChat({
 }
 
 // ====== HELPERS ======
+// ---------------------------------------------------------
+// WEEKLY EMAIL: EMOZIONE DOMINANTE + TEMPLATE HTML
+// ---------------------------------------------------------
+
+/**
+ * Calcola l'emozione (tag) più frequente negli ultimi 7 giorni
+ * per un dato utente, basandosi su mood_entries.tags (text[])
+ */
+async function getDominantEmotionForLast7Days(userId) {
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const { data, error } = await supabase
+    .from("mood_entries")
+    .select("tags")
+    .eq("user_id", userId)
+    .gte("at", sevenDaysAgo.toISOString());
+
+  if (error) {
+    console.error("getDominantEmotion supabase error", error);
+    throw error;
+  }
+
+  if (!data || data.length === 0) {
+    return { emotion: null, entriesCount: 0 };
+  }
+
+  const counts = new Map();
+
+  for (const row of data) {
+    if (Array.isArray(row.tags)) {
+      for (const rawTag of row.tags) {
+        const tag = (rawTag || "").trim().toLowerCase();
+        if (!tag) continue;
+        counts.set(tag, (counts.get(tag) || 0) + 1);
+      }
+    }
+  }
+
+  if (counts.size === 0) {
+    return { emotion: null, entriesCount: data.length };
+  }
+
+  let topEmotion = null;
+  let maxCount = 0;
+  for (const [tag, count] of counts.entries()) {
+    if (count > maxCount) {
+      maxCount = count;
+      topEmotion = tag;
+    }
+  }
+
+  return { emotion: topEmotion, entriesCount: data.length };
+}
+
+/**
+ * Template HTML per la mail settimanale del Mentor
+ */
+function buildWeeklyEmailHtml({ bodyText, emotion, hasEntries }) {
+  const safeBody =
+    (bodyText || "")
+      .split("\n")
+      .map((p) => p.trim())
+      .filter(Boolean)
+      .map((p) => `<p style="margin: 0 0 12px; line-height: 1.6;">${p}</p>`)
+      .join("") || `<p style="margin:0 0 12px; line-height:1.6;">
+        Questa settimana hai dato spazio a emozioni importanti.  
+        Grazie per esserti fermato un momento con te stessə.
+      </p>`;
+
+  const subtitle = hasEntries
+    ? emotion
+      ? `Questa settimana, nelle tue riflessioni, è emersa soprattutto <strong>${emotion}</strong>.`
+      : `Questa settimana hai dato spazio a emozioni diverse nelle tue riflessioni.`
+    : `Questa settimana forse non hai scritto, ma il Mentor è qui quando vorrai riprendere il filo.`;
+
+  return `
+  <div style="background:#020617; padding:32px 0; font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; color:#e5e7eb;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px; margin:0 auto; background:#020617;">
+      <tr>
+        <td style="padding:0 24px 24px;">
+          <!-- Header -->
+          <div style="text-align:left; margin-bottom:24px;">
+            <div style="display:inline-flex; align-items:center; gap:8px;">
+              <div style="width:28px; height:28px; border-radius:999px; background:radial-gradient(circle at 30% 30%, #6ee7b7, #22c55e 45%, #14532d 85%); display:flex; align-items:center; justify-content:center;">
+                <span style="font-size:16px;">🧠</span>
+              </div>
+              <div>
+                <div style="font-size:14px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#a7f3d0;">MyndSelf Mentor</div>
+                <div style="font-size:11px; color:#6b7280;">Diario emotivo gentile</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card -->
+          <div style="border-radius:16px; border:1px solid rgba(16,185,129,0.35); background:radial-gradient(circle at top left, rgba(52,211,153,0.12), transparent 55%), #020617; padding:20px 18px 20px;">
+            <h1 style="margin:0 0 8px; font-size:18px; color:#e5e7eb;">
+              Una piccola nota sulla tua settimana
+            </h1>
+            <p style="margin:0 0 16px; font-size:13px; color:#9ca3af;">
+              ${subtitle}
+            </p>
+
+            <div style="margin:16px 0; padding:14px 14px 12px; border-radius:12px; background:rgba(15,23,42,0.9); border:1px solid rgba(148,163,184,0.4);">
+              <p style="margin:0 0 8px; font-size:12px; text-transform:uppercase; letter-spacing:0.12em; color:#a7f3d0;">
+                Uno sguardo del Mentor
+              </p>
+              <div style="font-size:14px; color:#e5e7eb;">
+                ${safeBody}
+              </div>
+            </div>
+
+            <p style="margin:12px 0 0; font-size:12px; color:#9ca3af;">
+              Se ti va, puoi tornare nel tuo spazio personale su 
+              <a href="https://myndself.ai/app" style="color:#6ee7b7; text-decoration:none;">MyndSelf</a>
+              e aggiungere qualche parola su come stai oggi.
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="margin-top:18px; font-size:10px; color:#6b7280; line-height:1.5;">
+            Ricevi questa email perché hai creato un account su MyndSelf.ai.
+            Se non riconosci questo indirizzo, puoi ignorare questo messaggio.
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+  `;
+}
+
+/**
+ * Invia la mail settimanale per un singolo utente
+ * user = { id, email }
+ */
+async function sendWeeklyEmailForUser(user) {
+  const userId = user.id;
+  const email = user.email;
+
+  if (!userId || !email) {
+    return;
+  }
+
+  // 1) prendo emozione dominante + numero riflessioni
+  let emotion = null;
+  let entriesCount = 0;
+
+  try {
+    const res = await getDominantEmotionForLast7Days(userId);
+    emotion = res.emotion;
+    entriesCount = res.entriesCount;
+  } catch (err) {
+    console.error("getDominantEmotionForLast7Days error", userId, err);
+  }
+
+  // 2) preparo il prompt per il Mentor
+  let userPrompt;
+  if (!entriesCount) {
+    userPrompt = `
+Negli ultimi 7 giorni questa persona non ha scritto riflessioni nel diario emotivo.
+
+Scrivi una breve nota settimanale (4–6 frasi) che:
+- riconosca con molta gentilezza il fatto che a volte non c'è spazio o energia per scrivere;
+- inviti a guardare la settimana appena trascorsa con curiosità, senza giudizio;
+- non faccia sentire in colpa la persona;
+- chiuda con UNA sola domanda aperta che inizi con "Che cosa..." o "Qual è...".
+
+Regole:
+- Scrivi in italiano.
+- Dai del "tu".
+- Tono caldo, calmo, non giudicante, non terapeutico, non direttivo.
+- Nessun consiglio pratico, nessun "dovresti" o "prova a".
+- Non nominare app, dati o grafici: parla come un compagno di viaggio.
+`;
+  } else {
+    userPrompt = `
+Negli ultimi 7 giorni, nelle riflessioni di questa persona, l'emozione più frequente è stata:
+
+"${emotion || "emozione non specificata"}"
+
+Scrivi una nota settimanale (4–6 frasi) che:
+- riconosca in modo delicato la presenza di questa emozione nella settimana;
+- colleghi questa emozione al fatto che la persona si è fermata a mettere in parole ciò che sente;
+- metta in luce almeno una risorsa o qualità che sembra emergere (es. capacità di osservare, di cercare calma, di dare nome a ciò che prova);
+- chiuda con UNA sola domanda aperta che inizi con "Che cosa..." o "Qual è...".
+
+Regole:
+- Scrivi in italiano.
+- Dai del "tu".
+- Tono caldo, calmo, non giudicante, non terapeutico, non direttivo.
+- Nessun consiglio pratico, nessun "dovresti" o "prova a".
+- Non nominare app, dati o grafici: parla come un compagno di viaggio.
+`;
+  }
+
+  const systemPrompt = `
+Sei il Mentor emotivo di MyndSelf, un compagno di journaling gentile.
+Offri solo riflessioni e domande, mai consigli pratici o istruzioni operative.
+Rispondi sempre in italiano, con massimo 4–6 frasi.
+`;
+
+  let mentorText = "";
+
+  try {
+    const aiResponse = await callOpenAIChat({
+      system: systemPrompt,
+      user: userPrompt,
+      temperature: 0.7,
+      max_tokens: 400,
+    });
+
+    mentorText =
+      (aiResponse || "").trim() ||
+      "Questa settimana hai attraversato emozioni preziose, anche se non tutte sono arrivate fino alle parole. Concediti di riconoscere il semplice fatto di esserci, qui e ora. Che cosa ti colpisce di più se ripensi agli ultimi giorni?";
+  } catch (err) {
+    console.error("weekly email AI error", userId, err);
+    mentorText =
+      "Questa settimana hai attraversato emozioni preziose, anche se non tutte sono arrivate fino alle parole. Concediti di riconoscere il semplice fatto di esserci, qui e ora. Che cosa ti colpisce di più se ripensi agli ultimi giorni?";
+  }
+
+  const html = buildWeeklyEmailHtml({
+    bodyText: mentorText,
+    emotion,
+    hasEntries: entriesCount > 0,
+  });
+
+  const subject = entriesCount
+    ? emotion
+      ? `Questa settimana ti ha accompagnato soprattutto ${emotion}`
+      : "Una piccola nota sulla tua settimana"
+    : "Una piccola nota dal tuo Mentor";
+
+  try {
+    await resend.emails.send({
+      from: "MyndSelf Mentor <mentor@myndself.ai>",
+      to: email,
+      subject,
+      html,
+    });
+
+    await supabase.from("weekly_email_log").insert({
+      user_id: userId,
+      status: "sent",
+    });
+  } catch (err) {
+    console.error("weekly email send error", userId, err);
+    await supabase.from("weekly_email_log").insert({
+      user_id: userId,
+      status: "error",
+      error: String(err?.message || err),
+    });
+  }
+}
+
 async function saveToMemory({ user_id, content, source = "chat" }) {
   try {
     if (!user_id || !content) return
@@ -1721,6 +1975,54 @@ app.get("/api/insights", async (req, reply) => {
     reply.code(500).send({ error: err.message })
   }
 })
+
+// ---------------------------------------------------------
+// ENDPOINT BATCH: invio weekly email a tutti i profili
+// Protetto da secret per uso con cron (Render)
+// ---------------------------------------------------------
+app.post("/api/weekly-email-batch", async (req, reply) => {
+  try {
+    const authHeader = req.headers["authorization"] || "";
+    const expected = process.env.WEEKLY_BATCH_SECRET;
+
+    if (!expected || authHeader !== `Bearer ${expected}`) {
+      return reply.code(401).send({ error: "Unauthorized" });
+    }
+
+    // prendo tutti i profili con email (puoi filtrare se hai flag di opt-in)
+    const { data: users, error } = await supabase
+      .from("profiles")
+      .select("id, email")
+      .not("email", "is", null);
+
+    if (error) {
+      console.error("weekly-email-batch profiles error", error);
+      throw error;
+    }
+
+    if (!users || users.length === 0) {
+      return reply.send({ ok: true, count: 0 });
+    }
+
+    let success = 0;
+    let failures = 0;
+
+    for (const u of users) {
+      try {
+        await sendWeeklyEmailForUser(u);
+        success += 1;
+      } catch (err) {
+        failures += 1;
+        console.error("weekly-email-batch user error", u, err);
+      }
+    }
+
+    return reply.send({ ok: true, count: users.length, success, failures });
+  } catch (err) {
+    console.error("weekly-email-batch error", err);
+    return reply.code(500).send({ error: err.message || "Batch error" });
+  }
+});
 
 
 // =============================================================

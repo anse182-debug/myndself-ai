@@ -1987,8 +1987,6 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
       req.headers["Authorization"] ||
       "";
 
-    console.log("📬 weekly-email-batch called, Authorization:", rawHeader);
-
     const expected = process.env.WEEKLY_BATCH_SECRET;
 
     // estrai solo il token dopo "Bearer "
@@ -2014,21 +2012,28 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
 
     console.log("✅ weekly-email-batch authorized, proceeding…");
 
-    // prendo tutti i profili con email
-    const { data: users, error } = await supabase
-      .from("profiles")
-      .select("id, email")
-      .not("email", "is", null);
+    // prendo tutti gli utenti da Supabase Auth (auth.users)
+const { data, error } = await supabase.auth.admin.listUsers();
 
-    if (error) {
-      console.error("weekly-email-batch profiles error", error);
-      throw error;
-    }
+if (error) {
+  console.error("weekly-email-batch listUsers error", error);
+  throw error;
+}
 
-    if (!users || users.length === 0) {
-      console.log("weekly-email-batch: no users with email");
-      return reply.send({ ok: true, count: 0 });
-    }
+// in supabase-js v2, data.users contiene la lista
+const rawUsers = (data && data.users) || [];
+
+const users = rawUsers
+  .filter((u) => !!u.email) // tieni solo chi ha una email
+  .map((u) => ({
+    id: u.id,
+    email: u.email,
+  }));
+
+if (!users || users.length === 0) {
+  console.log("weekly-email-batch: no auth users with email");
+  return reply.send({ ok: true, count: 0 });
+}
 
     let success = 0;
     let failures = 0;

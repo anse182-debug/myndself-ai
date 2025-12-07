@@ -1,4 +1,7 @@
-<main class="min-h-screen bg-slate-950 text-slate-100">
+export default function TermsPage() {
+  return (
+    <main className="min-h-screen bg-slate-950 text-slate-100 px-6 py-12">
+      <div className="max-w-3xl mx-auto">
   <section class="max-w-3xl mx-auto px-4 py-12 md:py-16">
     <h1 class="text-3xl md:text-4xl font-semibold mb-6">
       Termini d’uso di Myndself.ai
@@ -145,4 +148,10 @@
       <a href="mailto:privacy@myndself.ai" class="underline">privacy@myndself.ai</a>
     </p>
   </section>
-</main>
+      </div>
+    </main>
+  );
+}
+
+
+

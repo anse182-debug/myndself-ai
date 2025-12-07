@@ -7,7 +7,7 @@ export default function TermsPage() {
           Termini d’uso di Myndself.ai
         </h1>
         <p className="text-sm text-slate-400 mb-8">
-          Ultimo aggiornamento: 07.12.2025
+          Ultimo aggiornamento: {/* inserisci la data, es. 07/12/2025 */}
         </p>
 
         <h2 className="text-xl font-semibold mt-8 mb-3">1. Chi siamo</h2>
@@ -93,4 +93,113 @@ export default function TermsPage() {
             ai dati di altri utenti;
           </li>
           <li>
-            copiare, modificare, reverse–
+            copiare, modificare, reverse–engineerare o distribuire il servizio o
+            parti di esso;
+          </li>
+          <li>
+            utilizzare Myndself.ai per raccogliere o trattare dati di terzi
+            senza il loro consenso.
+          </li>
+        </ul>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          6. Account e sicurezza
+        </h2>
+        <p className="mb-4">
+          Potrebbe esserti richiesto di creare un account per utilizzare alcune
+          funzionalità. Sei responsabile di:
+        </p>
+        <ul className="list-disc list-inside mb-4 space-y-1">
+          <li>mantenere riservate le credenziali di accesso;</li>
+          <li>
+            informarci prontamente in caso di sospetto uso non autorizzato
+            dell’account;
+          </li>
+          <li>tutte le attività svolte tramite il tuo account.</li>
+        </ul>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          7. Proprietà intellettuale
+        </h2>
+        <p className="mb-4">
+          Tutti i diritti sul marchio, sul design, sull’interfaccia, sui testi e
+          sul software di Myndself.ai sono di proprietà di Alessandro Anselmi o
+          dei suoi licenzianti. Ti viene concesso un diritto d’uso limitato, non
+          esclusivo e revocabile, esclusivamente per fini personali e non
+          commerciali.
+        </p>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          8. Contenuti generati dall’utente
+        </h2>
+        <p className="mb-4">
+          I contenuti che inserisci (riflessioni, tag emotivi, note personali,
+          ecc.) restano tuoi. Con il loro inserimento concedi a Myndself.ai una
+          licenza limitata ad utilizzarli, in forma anonima o aggregata, per:
+        </p>
+        <ul className="list-disc list-inside mb-4 space-y-1">
+          <li>erogare il servizio;</li>
+          <li>migliorare funzionalità e modelli;</li>
+          <li>effettuare analisi statistiche interne.</li>
+        </ul>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          9. Limitazione di responsabilità
+        </h2>
+        <p className="mb-4">
+          Myndself.ai è fornito “così com’è” e “come disponibile”, senza
+          garanzie di risultato, continuità o assenza di errori. Nei limiti
+          massimi consentiti dalla legge applicabile, il Titolare non è
+          responsabile per:
+        </p>
+        <ul className="list-disc list-inside mb-4 space-y-1">
+          <li>
+            decisioni prese sulla base dei contenuti generati dall’app o
+            dall’AI;
+          </li>
+          <li>
+            eventuali interruzioni, malfunzionamenti, perdita di dati o problemi
+            tecnici;
+          </li>
+          <li>
+            eventuali conseguenze psicologiche derivanti da un utilizzo
+            improprio o non supervisionato del servizio.
+          </li>
+        </ul>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          10. Modifiche al servizio e ai Termini
+        </h2>
+        <p className="mb-4">
+          Myndself.ai potrà modificare, sospendere o interrompere il servizio
+          (in tutto o in parte) in qualsiasi momento, in particolare durante la
+          fase beta.
+        </p>
+        <p className="mb-4">
+          I presenti Termini potranno essere aggiornati. In caso di modifiche
+          sostanziali potremo informarti tramite email o notifiche nell’app.
+          L’uso continuato del servizio dopo tali modifiche implica
+          l’accettazione dei nuovi Termini.
+        </p>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">
+          11. Legge applicabile e foro competente
+        </h2>
+        <p className="mb-4">
+          I presenti Termini sono regolati dal diritto svizzero. Per qualsiasi
+          controversia relativa all’uso di Myndself.ai sarà competente in via
+          esclusiva il foro di Lugano, fatti salvi eventuali diritti
+          inderogabili dell’utente previsti dalla legge.
+        </p>
+
+        <h2 className="text-xl font-semibold mt-8 mb-3">12. Contatti</h2>
+        <p className="mb-4">
+          Per domande sui presenti Termini, puoi contattarci a:{" "}
+          <a href="mailto:privacy@myndself.ai" className="underline">
+            privacy@myndself.ai
+          </a>
+        </p>
+      </section>
+    </main>
+  );
+}

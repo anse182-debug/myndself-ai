@@ -1,49 +1,79 @@
 // src/Terms.tsx
+
 export default function TermsPage() {
+  const year = new Date().getFullYear();
+
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-6 py-12">
-      <section className="max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">
-          Termini d’uso di Myndself.ai
-        </h1>
-        <p className="text-sm text-slate-400 mb-8">
-          Ultimo aggiornamento: {/* inserisci la data, es. 07/12/2025 */}
-        </p>
-
-        <h2 className="text-xl font-semibold mt-8 mb-3">1. Chi siamo</h2>
-        <p className="mb-4">
-          Myndself.ai è una piattaforma digitale che offre strumenti per il
-          benessere personale, la gestione delle emozioni e la riflessione
-          guidata tramite intelligenza artificiale.
-        </p>
-        <p className="mb-4">
-          Il servizio è fornito da:
-          <br />
-          <strong>Alessandro Anselmi</strong>
-          <br />
-          Via Giacomo Mercoli 3
-          <br />
-          6900 Lugano, Svizzera
-          <br />
-          Email:{" "}
-          <a href="mailto:privacy@myndself.ai" className="underline">
-            privacy@myndself.ai
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* HEADER */}
+      <header className="border-b border-white/10">
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+          <a href="/" className="flex items-center gap-2">
+            <img
+              src="/logo.svg"
+              alt="Myndself.ai"
+              className="h-7 w-7 rounded-md"
+            />
+            <span className="font-semibold tracking-tight text-sm md:text-base">
+              Myndself.ai
+            </span>
           </a>
-        </p>
+          <a
+            href="/"
+            className="text-xs md:text-sm text-slate-400 hover:text-slate-100 transition"
+          >
+            Torna alla home
+          </a>
+        </div>
+      </header>
 
-        <h2 className="text-xl font-semibold mt-8 mb-3">
-          2. Accettazione dei Termini
-        </h2>
-        <p className="mb-4">
-          Accedendo o utilizzando Myndself.ai, accetti di essere vincolato dai
-          presenti Termini d’uso (“Termini”). Se non li accetti, non utilizzare
-          il servizio.
-        </p>
-        <p className="mb-4">
-          Durante la fase beta il servizio è fornito a titolo sperimentale e
-          potrà essere modificato, limitato o sospeso in qualsiasi momento senza
-          preavviso.
-        </p>
+      {/* CONTENUTO */}
+      <main className="flex-1">
+        <section className="max-w-3xl mx-auto px-4 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+            Termini d’uso di Myndself.ai
+          </h1>
+          <p className="text-sm text-slate-400 mb-8">
+            Ultimo aggiornamento: 07.12.2025
+          </p>
+
+          {/* 👇 QUI INCOLLA TUTTO IL TESTO LEGALE CHE AVEVAMO GIÀ */}
+          {/* Inizia il contenuto dei Termini */}
+
+          <h2 className="text-xl font-semibold mt-8 mb-3">1. Chi siamo</h2>
+          <p className="mb-4">
+            Myndself.ai è una piattaforma digitale che offre strumenti per il
+            benessere personale, la gestione delle emozioni e la riflessione
+            guidata tramite intelligenza artificiale.
+          </p>
+          <p className="mb-4">
+            Il servizio è fornito da:
+            <br />
+            <strong>Alessandro Anselmi</strong>
+            <br />
+            Via Giacomo Mercoli 3
+            <br />
+            6900 Lugano, Svizzera
+            <br />
+            Email:{" "}
+            <a href="mailto:privacy@myndself.ai" className="underline">
+              privacy@myndself.ai
+            </a>
+          </p>
+
+          <h2 className="text-xl font-semibold mt-8 mb-3">
+            2. Accettazione dei Termini
+          </h2>
+          <p className="mb-4">
+            Accedendo o utilizzando Myndself.ai, accetti di essere vincolato dai
+            presenti Termini d’uso (“Termini”). Se non li accetti, non utilizzare
+            il servizio.
+          </p>
+          <p className="mb-4">
+            Durante la fase beta il servizio è fornito a titolo sperimentale e
+            potrà essere modificato, limitato o sospeso in qualsiasi momento
+            senza preavviso.
+          </p>
 
         <h2 className="text-xl font-semibold mt-8 mb-3">
           3. Natura del servizio – Nessun consiglio medico
@@ -199,7 +229,33 @@ export default function TermsPage() {
             privacy@myndself.ai
           </a>
         </p>
-      </section>
-    </main>
+
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-white/10">
+        <div className="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-500 flex flex-wrap gap-4 justify-between">
+          <span>© {year} Myndself.ai • Tutti i diritti riservati</span>
+          <div className="flex gap-4">
+            <a href="/terms" className="underline hover:text-slate-300">
+              Termini d’uso
+            </a>
+            <a href="/privacy" className="underline hover:text-slate-300">
+              Privacy Policy
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
+
+
+
+
+
+
+
+        
+ 

@@ -1,62 +1,88 @@
 // src/Privacy.tsx
 
 export default function PrivacyPage() {
+  const year = new Date().getFullYear();
+
   return (
-    <main className="min-h-screen bg-slate-950 text-slate-100 px-6 py-12">
-      <section className="max-w-3xl mx-auto">
-        <h1 className="text-3xl md:text-4xl font-semibold mb-2">
-          Privacy Policy di Myndself.ai
-        </h1>
-        <p className="text-sm text-slate-400 mb-8">
-          Ultimo aggiornamento: 07.12.2025
-        </p>
-
-        <p className="mb-4">
-          La presente informativa descrive come Myndself.ai raccoglie, utilizza e
-          protegge i tuoi dati personali quando utilizzi il servizio.
-        </p>
-
-        <h2 className="text-xl font-semibold mt-8 mb-3">1. Titolare del trattamento</h2>
-        <p className="mb-4">
-          Il Titolare del trattamento è:
-          <br />
-          <strong>Alessandro Anselmi</strong>
-          <br />
-          Via Giacomo Mercoli 3
-          <br />
-          6900 Lugano, Svizzera
-          <br />
-          Email:{" "}
-          <a href="mailto:privacy@myndself.ai" className="underline">
-            privacy@myndself.ai
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
+      {/* HEADER */}
+      <header className="border-b border-white/10">
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+          <a href="/" className="flex items-center gap-2">
+            <img
+              src="/logo.svg"
+              alt="Myndself.ai"
+              className="h-7 w-7 rounded-md"
+            />
+            <span className="font-semibold tracking-tight text-sm md:text-base">
+              Myndself.ai
+            </span>
           </a>
-        </p>
+          <a
+            href="/"
+            className="text-xs md:text-sm text-slate-400 hover:text-slate-100 transition"
+          >
+            Torna alla home
+          </a>
+        </div>
+      </header>
 
-        <h2 className="text-xl font-semibold mt-8 mb-3">2. Dati raccolti</h2>
-        <p className="mb-2">
-          Quando utilizzi Myndself.ai possiamo raccogliere le seguenti categorie di dati:
-        </p>
-        <ul className="list-disc list-inside mb-4 space-y-1">
-          <li>
-            <strong>Dati identificativi di base</strong>: email, nome (se fornito).
-          </li>
-          <li>
-            <strong>Dati di utilizzo</strong>: data e ora di accesso, numero di riflessioni,
-            check–in, funzionalità utilizzate, interazioni con l’interfaccia.
-          </li>
-          <li>
-            <strong>Dati emotivi e di journaling</strong>: testi inseriti, tag emotivi,
-            valutazioni del tuo stato emotivo e altre informazioni che scegli
-            volontariamente di condividere durante l’uso della piattaforma.
-          </li>
-        </ul>
-        <p className="mb-4">
-          Non ti chiediamo di inserire diagnosi mediche, informazioni su terapie o farmaci.
-          Ti invitiamo a non includere nei testi informazioni sanitarie dettagliate se non
-          strettamente necessario per il tuo percorso personale.
-        </p>
+      {/* CONTENUTO */}
+      <main className="flex-1">
+        <section className="max-w-3xl mx-auto px-4 py-10 md:py-14">
+          <h1 className="text-3xl md:text-4xl font-semibold mb-2">
+            Privacy Policy di Myndself.ai
+          </h1>
+          <p className="text-sm text-slate-400 mb-8">
+            Ultimo aggiornamento: 07.12.2025
+          </p>
 
-        <h2 className="text-xl font-semibold mt-8 mb-3">
+          {/* 👇 QUI INCOLLA TUTTO IL TESTO DELLA PRIVACY CHE AVEVAMO GIÀ */}
+
+          <p className="mb-4">
+            La presente informativa descrive come Myndself.ai raccoglie, utilizza
+            e protegge i tuoi dati personali quando utilizzi il servizio.
+          </p>
+
+          <h2 className="text-xl font-semibold mt-8 mb-3">
+            1. Titolare del trattamento
+          </h2>
+          <p className="mb-4">
+            Il Titolare del trattamento è:
+            <br />
+            <strong>Alessandro Anselmi</strong>
+            <br />
+            Via Giacomo Mercoli 3
+            <br />
+            6900 Lugano, Svizzera
+            <br />
+            Email:{" "}
+            <a href="mailto:privacy@myndself.ai" className="underline">
+              privacy@myndself.ai
+            </a>
+          </p>
+
+          <h2 className="text-xl font-semibold mt-8 mb-3">2. Dati raccolti</h2>
+          <p className="mb-2">
+            Quando utilizzi Myndself.ai possiamo raccogliere le seguenti categorie di dati:
+          </p>
+          <ul className="list-disc list-inside mb-4 space-y-1">
+            <li>
+              <strong>Dati identificativi di base</strong>: email, nome (se fornito).
+            </li>
+            <li>
+              <strong>Dati di utilizzo</strong>: data e ora di accesso, numero di
+              riflessioni, check–in, funzionalità utilizzate, interazioni con
+              l’interfaccia.
+            </li>
+            <li>
+              <strong>Dati emotivi e di journaling</strong>: testi inseriti, tag emotivi,
+              valutazioni del tuo stato emotivo e altre informazioni che scegli
+              volontariamente di condividere.
+            </li>
+          </ul>
+
+          <h2 className="text-xl font-semibold mt-8 mb-3">
           3. Finalità e basi giuridiche
         </h2>
         <p className="mb-2">Utilizziamo i tuoi dati per le seguenti finalità:</p>
@@ -219,7 +245,26 @@ export default function PrivacyPage() {
           </a>
           .
         </p>
-      </section>
-    </main>
+        </section>
+      </main>
+
+      {/* FOOTER */}
+      <footer className="border-t border-white/10">
+        <div className="max-w-5xl mx-auto px-4 py-6 text-xs text-slate-500 flex flex-wrap gap-4 justify-between">
+          <span>© {year} Myndself.ai • Tutti i diritti riservati</span>
+          <div className="flex gap-4">
+            <a href="/terms" className="underline hover:text-slate-300">
+              Termini d’uso
+            </a>
+            <a href="/privacy" className="underline hover:text-slate-300">
+              Privacy Policy
+            </a>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
+
+
+

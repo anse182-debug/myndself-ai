@@ -565,6 +565,15 @@ const [lang, setLang] = useState<Lang>(() =>
         <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-400">
           <span>© {new Date().getFullYear()} MyndSelf.ai</span>
           <span>{footer.tagline}</span>
+          <p className="text-xs text-slate-400 mt-8">
+  <Link to="/terms" className="underline">
+    Termini d’uso
+  </Link>
+  <span className="mx-2">•</span>
+  <Link to="/privacy" className="underline">
+    Privacy Policy
+  </Link>
+</p>
         </div>
       </footer>
     </main>

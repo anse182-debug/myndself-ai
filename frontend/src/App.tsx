@@ -1,3 +1,8 @@
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Landing from "./Landing";
+import Onboarding from "./Onboarding";
+import TermsPage from "./Terms";
+import PrivacyPage from "./Privacy";
 import { useEffect, useMemo, useState } from "react"
 import { Onboarding } from "./Onboarding"
 import { supabase } from "./lib/supabase"

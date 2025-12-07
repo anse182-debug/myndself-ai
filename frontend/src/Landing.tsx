@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { Section } from "./components/Section"
 import { CTAForm } from "./components/CTAForm"
+import { Link } from "react-router-dom"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 

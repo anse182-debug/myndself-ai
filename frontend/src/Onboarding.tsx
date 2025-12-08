@@ -1,15 +1,17 @@
 // src/Onboarding.tsx
-import { useState } from "react";
-import { supabase } from "./supabaseClient";
-import { useNavigate } from "react-router-dom";
+import { useState } from "react"
 
-export default function Onboarding() {
-  const navigate = useNavigate();
-  const [step, setStep] = useState(1);
+const ONBOARDING_KEY = "myndself_onboarding_v1_done"
+const GOAL_KEY = "myndself_onboarding_goal_v1"
+const MOTIVATION_KEY = "myndself_onboarding_motivation_v1"
+const COMMITMENT_KEY = "myndself_onboarding_commitment_v1"
+const DESIRED_CHANGE_KEY = "myndself_onboarding_desired_change_v1"
 
-  const [motivation, setMotivation] = useState<string[]>([]);
-  const [commitment, setCommitment] = useState<string>("");
-  const [desiredChange, setDesiredChange] = useState("");
+export function Onboarding({ onFinish }: { onFinish: () => void }) {
+  const [step, setStep] = useState(1)
+  const [motivation, setMotivation] = useState<string[]>([])
+  const [commitment, setCommitment] = useState<string>("")
+  const [desiredChange, setDesiredChange] = useState("")
 
   const motivations = [
     "Gestire meglio le mie emozioni",
@@ -18,129 +20,165 @@ export default function Onboarding() {
     "Aumentare consapevolezza",
     "Fermarmi almeno una volta al giorno",
     "Parlarne senza giudizio",
-    "Altro"
-  ];
+    "Altro",
+  ]
 
-  async function completeOnboarding() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  function goToNextStep() {
+    if (step === 2 && motivation.length === 0) return
+    if (step === 4 && !desiredChange.trim()) return
 
-    await supabase.from("user_profile").upsert({
-      user_id: user.id,
-      motivation,
-      commitment_level: commitment,
-      desired_change: desiredChange,
-      onboarding_completed: true,
-      updated_at: new Date().toISOString(),
-    });
+    if (step < 4) {
+      setStep(step + 1)
+    } else {
+      // salvataggio finale su localStorage (come fa già l'app)
+      const finalGoal =
+        desiredChange.trim() ||
+        (motivation.length ? motivation.join(", ") : "Percorso emotivo")
 
-    navigate("/app");
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(ONBOARDING_KEY, "true")
+        window.localStorage.setItem(GOAL_KEY, finalGoal)
+        window.localStorage.setItem(
+          MOTIVATION_KEY,
+          JSON.stringify(motivation)
+        )
+        if (commitment) {
+          window.localStorage.setItem(COMMITMENT_KEY, commitment)
+        }
+        window.localStorage.setItem(DESIRED_CHANGE_KEY, desiredChange.trim())
+      }
+
+      onFinish()
+    }
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-6">
-      {step === 1 && (
-        <div className="max-w-md text-center">
-          <h1 className="text-3xl font-semibold mb-3">Benvenuto su Myndself.ai</h1>
-          <p className="text-slate-400 mb-8">
-            Uno spazio per capire cosa provi e come cambi nel tempo.
-          </p>
-          <button
-            onClick={() => setStep(2)}
-            className="w-full bg-white text-slate-900 py-3 rounded-md font-medium"
-          >
-            Inizia il tuo percorso
-          </button>
-        </div>
-      )}
+    <main className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-lg bg-gray-900/70 border border-white/10 rounded-2xl p-6 space-y-6">
+        {step === 1 && (
+          <>
+            <h2 className="text-xl font-semibold text-emerald-200">
+              Benvenuto su Myndself.ai
+            </h2>
+            <p className="text-sm text-gray-300">
+              Uno spazio per capire cosa provi e come cambi nel tempo.
+            </p>
+            <button
+              onClick={() => setStep(2)}
+              className="w-full bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300"
+            >
+              Inizia il tuo percorso
+            </button>
+          </>
+        )}
 
-      {step === 2 && (
-        <div className="max-w-md text-left">
-          <h2 className="text-2xl font-semibold mb-3">Perché sei qui?</h2>
-          <p className="text-slate-400 mb-6">
-            La tua risposta guiderà la tua esperienza.
-          </p>
+        {step === 2 && (
+          <>
+            <h2 className="text-xl font-semibold text-emerald-200">
+              Perché sei qui?
+            </h2>
+            <p className="text-sm text-gray-300 mb-2">
+              La tua risposta guiderà la tua esperienza.
+            </p>
 
-          <div className="space-y-3">
-            {motivations.map((m) => (
-              <label key={m} className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  value={m}
-                  checked={motivation.includes(m)}
-                  onChange={(e) => {
-                    if (motivation.includes(m)) {
-                      setMotivation(motivation.filter((val) => val !== m));
-                    } else {
-                      setMotivation([...motivation, m]);
-                    }
-                  }}
-                  className="h-4 w-4"
-                />
-                {m}
-              </label>
-            ))}
-          </div>
+            <div className="space-y-2 text-sm">
+              {motivations.map((m) => (
+                <label
+                  key={m}
+                  className="flex items-center gap-2 text-sm text-gray-200"
+                >
+                  <input
+                    type="checkbox"
+                    checked={motivation.includes(m)}
+                    onChange={() => {
+                      if (motivation.includes(m)) {
+                        setMotivation(motivation.filter((x) => x !== m))
+                      } else {
+                        setMotivation([...motivation, m])
+                      }
+                    }}
+                    className="h-4 w-4 rounded border-white/30 bg-transparent"
+                  />
+                  <span>{m}</span>
+                </label>
+              ))}
+            </div>
 
-          <button
-            disabled={motivation.length === 0}
-            onClick={() => setStep(3)}
-            className="mt-8 w-full bg-white text-slate-900 py-3 rounded-md font-medium disabled:opacity-40"
-          >
-            Continua
-          </button>
-        </div>
-      )}
+            <button
+              onClick={goToNextStep}
+              disabled={motivation.length === 0}
+              className="w-full bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300 disabled:opacity-40"
+            >
+              Continua
+            </button>
+          </>
+        )}
 
-      {step === 3 && (
-        <div className="max-w-md text-left">
-          <h2 className="text-2xl font-semibold mb-3">
-            Quanto vuoi prenderti cura di te?
-          </h2>
-          <p className="text-slate-400 mb-6">
-            Non serve molto. Solo costanza.
-          </p>
+        {step === 3 && (
+          <>
+            <h2 className="text-xl font-semibold text-emerald-200">
+              Quanto vuoi prenderti cura di te?
+            </h2>
+            <p className="text-sm text-gray-300 mb-3">
+              Non serve molto tempo. Solo costanza.
+            </p>
 
-          <div className="flex flex-col gap-3">
-            {["Ogni giorno", "3 volte a settimana", "Quando ne ho bisogno"].map((c) => (
-              <button
-                key={c}
-                onClick={() => {
-                  setCommitment(c);
-                  setStep(4);
-                }}
-                className="border border-slate-600 py-3 rounded-md"
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            <div className="space-y-3">
+              {["Ogni giorno", "3 volte a settimana", "Quando ne ho bisogno"].map(
+                (c) => (
+                  <button
+                    key={c}
+                    onClick={() => setCommitment(c)}
+                    className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition ${
+                      commitment === c
+                        ? "bg-emerald-400 text-gray-950 border-emerald-400"
+                        : "bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
+                    }`}
+                  >
+                    {c}
+                  </button>
+                )
+              )}
+            </div>
 
-      {step === 4 && (
-        <div className="max-w-md text-left">
-          <h2 className="text-2xl font-semibold mb-3">Il tuo primo passo</h2>
-          <p className="text-slate-400 mb-6">
-            Cosa speri che cambi iniziando questo percorso?
-          </p>
+            <button
+              onClick={goToNextStep}
+              className="w-full mt-4 bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300"
+            >
+              Continua
+            </button>
+          </>
+        )}
 
-          <textarea
-            placeholder="Esempio: Voglio capire perché mi sento sopraffatto"
-            value={desiredChange}
-            onChange={(e) => setDesiredChange(e.target.value)}
-            className="w-full h-28 bg-slate-900 border border-slate-700 rounded-md p-3 text-sm"
-          />
+        {step === 4 && (
+          <>
+            <h2 className="text-xl font-semibold text-emerald-200">
+              Il tuo primo passo
+            </h2>
+            <p className="text-sm text-gray-300 mb-3">
+              Cosa speri che cambi iniziando questo percorso?
+            </p>
 
-          <button
-            disabled={!desiredChange}
-            onClick={completeOnboarding}
-            className="mt-6 w-full bg-white text-slate-900 py-3 rounded-md disabled:opacity-40"
-          >
-            Crea il mio spazio
-          </button>
-        </div>
-      )}
-    </div>
-  );
+            <textarea
+              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200"
+              placeholder="Esempio: Voglio capire perché mi sento spesso sopraffatto."
+              value={desiredChange}
+              onChange={(e) => setDesiredChange(e.target.value)}
+            />
+
+            <button
+              onClick={goToNextStep}
+              disabled={!desiredChange.trim()}
+              className="w-full mt-4 bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300 disabled:opacity-40"
+            >
+              Crea il mio spazio
+            </button>
+          </>
+        )}
+      </div>
+    </main>
+  )
 }
+
+// così puoi importare sia default che nominato
+export default Onboarding

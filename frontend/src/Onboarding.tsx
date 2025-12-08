@@ -1,99 +1,146 @@
-import { useState } from "react"
+// src/Onboarding.tsx
+import { useState } from "react";
+import { supabase } from "./supabaseClient";
+import { useNavigate } from "react-router-dom";
 
-const ONBOARDING_KEY = "myndself_onboarding_v1_done"
-const GOAL_KEY = "myndself_onboarding_goal_v1"
+export default function Onboarding() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState(1);
 
-export function Onboarding({ onFinish }: { onFinish: () => void }) {
-  const [goal, setGoal] = useState("")
-  const [customGoal, setCustomGoal] = useState("")
-  const [step, setStep] = useState(1)
+  const [motivation, setMotivation] = useState<string[]>([]);
+  const [commitment, setCommitment] = useState<string>("");
+  const [desiredChange, setDesiredChange] = useState("");
 
-  const options = [
-    "Perché mi sento spesso stanco o sovraccarico",
-    "Come gestire meglio le mie emozioni",
-    "Cosa mi fa stare davvero bene",
-    "Perché faccio fatica a prendere decisioni",
-  ]
+  const motivations = [
+    "Gestire meglio le mie emozioni",
+    "Ridurre stress / ansia",
+    "Capire i miei pattern emotivi",
+    "Aumentare consapevolezza",
+    "Fermarmi almeno una volta al giorno",
+    "Parlarne senza giudizio",
+    "Altro"
+  ];
 
-  function handleNext() {
-    if (step === 1 && !goal && !customGoal) return
-    if (step === 2) {
-      const finalGoal = customGoal ? `Altro: ${customGoal}` : goal
-      window.localStorage.setItem(GOAL_KEY, finalGoal)
-      window.localStorage.setItem(ONBOARDING_KEY, "true")
-      onFinish()
-    } else {
-      setStep(2)
-    }
+  async function completeOnboarding() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase.from("user_profile").upsert({
+      user_id: user.id,
+      motivation,
+      commitment_level: commitment,
+      desired_change: desiredChange,
+      onboarding_completed: true,
+      updated_at: new Date().toISOString(),
+    });
+
+    navigate("/app");
   }
 
   return (
-    <main className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-lg bg-gray-900/70 border border-white/10 rounded-2xl p-6 space-y-6">
-        {step === 1 && (
-          <>
-            <h2 className="text-xl font-semibold text-emerald-200">
-              Prima di iniziare
-            </h2>
-            <p className="text-sm text-gray-300">
-              Per accompagnarti meglio, vorrei capire cosa ti porta qui.
-            </p>
+    <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center px-6">
+      {step === 1 && (
+        <div className="max-w-md text-center">
+          <h1 className="text-3xl font-semibold mb-3">Benvenuto su Myndself.ai</h1>
+          <p className="text-slate-400 mb-8">
+            Uno spazio per capire cosa provi e come cambi nel tempo.
+          </p>
+          <button
+            onClick={() => setStep(2)}
+            className="w-full bg-white text-slate-900 py-3 rounded-md font-medium"
+          >
+            Inizia il tuo percorso
+          </button>
+        </div>
+      )}
 
-            <div className="space-y-2 text-sm">
-              {options.map((opt) => (
-                <button
-                  key={opt}
-                  onClick={() => {
-                    setGoal(opt)
-                    setCustomGoal("")
+      {step === 2 && (
+        <div className="max-w-md text-left">
+          <h2 className="text-2xl font-semibold mb-3">Perché sei qui?</h2>
+          <p className="text-slate-400 mb-6">
+            La tua risposta guiderà la tua esperienza.
+          </p>
+
+          <div className="space-y-3">
+            {motivations.map((m) => (
+              <label key={m} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  value={m}
+                  checked={motivation.includes(m)}
+                  onChange={(e) => {
+                    if (motivation.includes(m)) {
+                      setMotivation(motivation.filter((val) => val !== m));
+                    } else {
+                      setMotivation([...motivation, m]);
+                    }
                   }}
-                  className={`w-full text-left px-3 py-2 rounded-lg border transition ${
-                    goal === opt
-                      ? "bg-emerald-400 text-gray-950 border-emerald-400"
-                      : "bg-white/5 border-white/10 text-gray-200 hover:bg-white/10"
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
+                  className="h-4 w-4"
+                />
+                {m}
+              </label>
+            ))}
+          </div>
 
-              <textarea
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-gray-200"
-                placeholder="Altro…"
-                value={customGoal}
-                onChange={(e) => {
-                  setGoal("")
-                  setCustomGoal(e.target.value)
+          <button
+            disabled={motivation.length === 0}
+            onClick={() => setStep(3)}
+            className="mt-8 w-full bg-white text-slate-900 py-3 rounded-md font-medium disabled:opacity-40"
+          >
+            Continua
+          </button>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className="max-w-md text-left">
+          <h2 className="text-2xl font-semibold mb-3">
+            Quanto vuoi prenderti cura di te?
+          </h2>
+          <p className="text-slate-400 mb-6">
+            Non serve molto. Solo costanza.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            {["Ogni giorno", "3 volte a settimana", "Quando ne ho bisogno"].map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setCommitment(c);
+                  setStep(4);
                 }}
-              />
-            </div>
+                className="border border-slate-600 py-3 rounded-md"
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
-            <button
-              onClick={handleNext}
-              className="w-full bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300"
-            >
-              Avanti
-            </button>
-          </>
-        )}
+      {step === 4 && (
+        <div className="max-w-md text-left">
+          <h2 className="text-2xl font-semibold mb-3">Il tuo primo passo</h2>
+          <p className="text-slate-400 mb-6">
+            Cosa speri che cambi iniziando questo percorso?
+          </p>
 
-        {step === 2 && (
-          <>
-            <h2 className="text-xl font-semibold text-emerald-200">
-              Ottimo 🌿
-            </h2>
-            <p className="text-sm text-gray-300">
-              Ti accompagnerò tenendo a mente questa intenzione.
-            </p>
-            <button
-              onClick={handleNext}
-              className="w-full bg-emerald-400 text-gray-900 rounded-lg py-2 font-semibold text-sm hover:bg-emerald-300"
-            >
-              Inizia
-            </button>
-          </>
-        )}
-      </div>
-    </main>
-  )
+          <textarea
+            placeholder="Esempio: Voglio capire perché mi sento sopraffatto"
+            value={desiredChange}
+            onChange={(e) => setDesiredChange(e.target.value)}
+            className="w-full h-28 bg-slate-900 border border-slate-700 rounded-md p-3 text-sm"
+          />
+
+          <button
+            disabled={!desiredChange}
+            onClick={completeOnboarding}
+            className="mt-6 w-full bg-white text-slate-900 py-3 rounded-md disabled:opacity-40"
+          >
+            Crea il mio spazio
+          </button>
+        </div>
+      )}
+    </div>
+  );
 }

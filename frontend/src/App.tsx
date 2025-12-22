@@ -560,19 +560,23 @@ const primaryEmotion =
 if (primaryEmotion) {
   const { data: freqRow, error: freqErr } = await supabase
     .from("v_emotion_frequency_last_7d")
-    .select("occurrences_7d")
+    .select("occurrences_7d, days_since_last_seen")
     .eq("user_id", uid)
     .eq("emotion", primaryEmotion)
     .maybeSingle()
+
+  const occurrences7d = freqRow?.occurrences_7d ?? 0
+  const daysSince = freqRow?.days_since_last_seen
 
   if (freqErr) {
     console.warn("Temporal mirror fetch error:", freqErr)
     setTemporalMirrorText(null)
   } else {
     const sentence = buildTemporalMirrorSentence(
-      primaryEmotion,
-      freqRow?.occurrences_7d ?? 0
-    )
+  primaryEmotion,
+  freqRow?.occurrences_7d ?? 0,
+  freqRow?.days_since_last_seen ?? null
+)
     setTemporalMirrorText(sentence)
   }
 } else {
@@ -876,18 +880,36 @@ function resetGuided() {
   setGuidedInput("")
 }
 
-function buildTemporalMirrorSentence(emotion: string, count?: number | null) {
+function buildTemporalMirrorSentence(
+  emotion: string,
+  occurrences7d: number,
+  daysSinceLastSeen?: number | null
+) {
   const e = emotion.trim()
   if (!e) return null
 
-  if (!count || count <= 0) {
+  // Caso: non c'è storia recente (o prima volta)
+  if (!occurrences7d || occurrences7d <= 0) {
     return `Negli ultimi 7 giorni, "${e}" non era emersa.`
   }
-  if (count === 1) {
+
+  // Caso: è ricorrente
+  if (occurrences7d >= 4) {
+    return `Negli ultimi 7 giorni, "${e}" è stata tra le emozioni più ricorrenti.`
+  }
+
+  // Caso: “non la vedevamo da X giorni” (solo se ha senso)
+  if (typeof daysSinceLastSeen === "number" && daysSinceLastSeen >= 2) {
+    return `Negli ultimi 7 giorni, "${e}" è tornata: non la vedevamo da ${daysSinceLastSeen} giorni.`
+  }
+
+  // Default: conteggio semplice
+  if (occurrences7d === 1) {
     return `Negli ultimi 7 giorni, "${e}" è emersa 1 volta.`
   }
-  return `Negli ultimi 7 giorni, "${e}" è emersa ${count} volte.`
+  return `Negli ultimi 7 giorni, "${e}" è emersa ${occurrences7d} volte.`
 }
+
 
 
   // ---------- MENTOR CHAT ----------

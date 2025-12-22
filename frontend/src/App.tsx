@@ -390,6 +390,7 @@ export default function App() {
   const [guidedSending, setGuidedSending] = useState(false)
   const [mood, setMood] = useState("")
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
+  const [temporalMirrorText, setTemporalMirrorText] = useState<string | null>(null)
   const [note, setNote] = useState("")
   const [reflection, setReflection] = useState("")
   const [weeklyInsight, setWeeklyInsight] = useState("")
@@ -439,6 +440,10 @@ export default function App() {
     )
   }
 
+  useEffect(() => {
+  setMood(selectedMoods.join(", "))
+}, [selectedMoods])
+  
   // ---------- AUTH ----------
   useEffect(() => {
     ;(async () => {
@@ -521,24 +526,26 @@ const handleLogin = async () => {
     const uid = session?.user?.id
     if (!uid)
       return showToast("Accedi prima per salvare le riflessioni", "error")
-    if (!mood && !note)
-      return showToast(
-        "Scrivi almeno come ti senti o una breve nota 💭",
-        "error"
-      )
+    if (selectedMoods.length === 0 && !note.trim())
+  return showToast(
+    "Scrivi almeno come ti senti o una breve nota 💭",
+    "error"
+  )
+
 
     setIsReflecting(true)
     setReflection("")
+    setTemporalMirrorText(null)
     try {
       const goal =
         typeof window !== "undefined"
           ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
           : ""
-
+const moodPayload = selectedMoods.join(", ")
       const res = await fetch(`${API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, mood, note, goal }),
+        body: JSON.stringify({ user_id: uid, mood: moodPayload, note, goal }),
       })
       const data = await res.json()
       setReflection(data.reflection || "")
@@ -546,6 +553,32 @@ const handleLogin = async () => {
       setMood("")
       setSelectedMoods([])
       setNote("")
+      // --- Ticket 1: Temporal Emotional Mirror (1 frase, non interpretativa)
+const primaryEmotion =
+  (selectedMoods?.[0] ?? mood.split(",")[0] ?? "").trim()
+
+if (primaryEmotion) {
+  const { data: freqRow, error: freqErr } = await supabase
+    .from("v_emotion_frequency_last_7d")
+    .select("occurrences_7d")
+    .eq("user_id", uid)
+    .eq("emotion", primaryEmotion)
+    .maybeSingle()
+
+  if (freqErr) {
+    console.warn("Temporal mirror fetch error:", freqErr)
+    setTemporalMirrorText(null)
+  } else {
+    const sentence = buildTemporalMirrorSentence(
+      primaryEmotion,
+      freqRow?.occurrences_7d ?? 0
+    )
+    setTemporalMirrorText(sentence)
+  }
+} else {
+  setTemporalMirrorText(null)
+}
+
       setShowReflectionDone(true)
 
       // refresh dati per Insight
@@ -843,6 +876,18 @@ function resetGuided() {
   setGuidedInput("")
 }
 
+function buildTemporalMirrorSentence(emotion: string, count?: number | null) {
+  const e = emotion.trim()
+  if (!e) return null
+
+  if (!count || count <= 0) {
+    return `Negli ultimi 7 giorni, "${e}" non era emersa.`
+  }
+  if (count === 1) {
+    return `Negli ultimi 7 giorni, "${e}" è emersa 1 volta.`
+  }
+  return `Negli ultimi 7 giorni, "${e}" è emersa ${count} volte.`
+}
 
 
   // ---------- MENTOR CHAT ----------
@@ -1510,14 +1555,13 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       key={m.value}
       type="button"
       onClick={() => {
-        setMood(m.value)
-        setSelectedMoods((prev) => {
-          if (prev.includes(m.value)) {
-            return prev.filter((v) => v !== m.value)
-          }
-          return [...prev, m.value]
-        })
-      }}
+  setSelectedMoods((prev) => {
+    if (prev.includes(m.value)) {
+      return prev.filter((v) => v !== m.value)
+    }
+    return [...prev, m.value]
+  })
+}}
       className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs transition-colors ${
         active
           ? "text-gray-950"
@@ -1642,15 +1686,21 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
                     {/* Reward box dopo riflessione */}
                     {showReflectionDone && (
-                      <ReflectionSuccess
-                        moods={selectedMoods}
-                        onShowInsights={() => {
-                          setShowReflectionDone(false)
-                          setCurrentTab("insight")
-                        }}
-                        onDismiss={() => setShowReflectionDone(false)}
-                      />
-                    )}
+  <ReflectionSuccess
+    moods={selectedMoods}
+    mirrorText={temporalMirrorText}
+    onShowInsights={() => {
+      setShowReflectionDone(false)
+      setTemporalMirrorText(null)
+      setCurrentTab("insight")
+    }}
+    onDismiss={() => {
+      setShowReflectionDone(false)
+      setTemporalMirrorText(null)
+    }}
+  />
+)}
+
                   </section>
                 )}
 
@@ -1886,12 +1936,14 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
 type ReflectionSuccessProps = {
   moods: string[]
+  mirrorText?: string | null
   onShowInsights: () => void
   onDismiss: () => void
 }
 
 const ReflectionSuccess: React.FC<ReflectionSuccessProps> = ({
   moods,
+  mirrorText,
   onShowInsights,
   onDismiss,
 }) => {
@@ -1917,6 +1969,11 @@ const ReflectionSuccess: React.FC<ReflectionSuccessProps> = ({
           paesaggio emotivo negli ultimi giorni.
         </p>
         <div className="flex flex-wrap gap-2 pt-1">
+          {mirrorText && (
+  <p className="text-xs text-emerald-100/90 italic">
+    {mirrorText}
+  </p>
+)}
           <button
             onClick={onShowInsights}
             className="inline-flex items-center rounded-full bg-emerald-400 text-gray-950 text-xs font-semibold px-3 py-1.5 hover:bg-emerald-300"

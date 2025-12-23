@@ -521,6 +521,8 @@ const handleLogin = async () => {
   const [isReflecting, setIsReflecting] = useState(false)
   const [showReflectionDone, setShowReflectionDone] = useState(false)
   const [emotionProfileLoading, setEmotionProfileLoading] = useState(false)
+  const [showCheckin14, setShowCheckin14] = useState(false)
+
 
   const handleReflection = async () => {
     const uid = session?.user?.id
@@ -551,8 +553,45 @@ const moodPayload = selectedMoods.join(", ")
       setReflection(data.reflection || "")
       showToast("Riflessione salvata ✅", "success")
       setMood("")
-      setSelectedMoods([])
-      setNote("")
+setSelectedMoods([])
+setNote("")
+
+// --- CHECK-IN 14 GIORNI (mostra una sola volta) ---
+try {
+  const CHECKIN_KEY = "myndself_checkin14_v1_shown"
+
+  let shouldShow = false
+  if (typeof window !== "undefined") {
+    const alreadyShown = window.localStorage.getItem(CHECKIN_KEY)
+
+    if (!alreadyShown) {
+      const { data: firstRow } = await supabase
+        .from("mood_entries")
+        .select("created_at")
+        .eq("user_id", uid)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+      if (firstRow?.created_at) {
+        const first = new Date(firstRow.created_at).getTime()
+        const days = Math.floor((Date.now() - first) / 86400000)
+        if (days >= 14) shouldShow = true
+      }
+
+      if (shouldShow) {
+        window.localStorage.setItem(CHECKIN_KEY, new Date().toISOString())
+      }
+    }
+  }
+
+  setShowCheckin14(shouldShow)
+} catch {
+  setShowCheckin14(false)
+}
+
+setShowReflectionDone(true)
+
       // --- Ticket 1: Temporal Emotional Mirror (1 frase, non interpretativa)
 const primaryEmotion =
   (selectedMoods?.[0] ?? mood.split(",")[0] ?? "").trim()
@@ -1709,18 +1748,19 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     {/* Reward box dopo riflessione */}
                     {showReflectionDone && (
   <ReflectionSuccess
-    moods={selectedMoods}
-    mirrorText={temporalMirrorText}
-    onShowInsights={() => {
-      setShowReflectionDone(false)
-      setTemporalMirrorText(null)
-      setCurrentTab("insight")
-    }}
-    onDismiss={() => {
-      setShowReflectionDone(false)
-      setTemporalMirrorText(null)
-    }}
-  />
+  moods={selectedMoods}
+  showCheckin14={showCheckin14}
+  onShowInsights={() => {
+    setShowReflectionDone(false)
+    setShowCheckin14(false)
+    setCurrentTab("insight")
+  }}
+  onDismiss={() => {
+    setShowReflectionDone(false)
+    setShowCheckin14(false)
+  }}
+/>
+
 )}
 
                   </section>
@@ -1958,17 +1998,18 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
 type ReflectionSuccessProps = {
   moods: string[]
-  mirrorText?: string | null
+  showCheckin14?: boolean
   onShowInsights: () => void
   onDismiss: () => void
 }
 
 const ReflectionSuccess: React.FC<ReflectionSuccessProps> = ({
   moods,
-  mirrorText,
+  showCheckin14,
   onShowInsights,
   onDismiss,
 }) => {
+
   const emojis =
     moods.length > 0
       ? moods.map((m) => MOOD_EMOJI[m] ?? "✨")
@@ -1990,6 +2031,19 @@ const ReflectionSuccess: React.FC<ReflectionSuccessProps> = ({
           Se ti va, possiamo dare uno sguardo a come si sta muovendo il tuo
           paesaggio emotivo negli ultimi giorni.
         </p>
+        {showCheckin14 && (
+  <div className="mt-3 rounded-2xl border border-emerald-400/20 bg-emerald-500/5 p-4">
+    <p className="text-sm text-emerald-50">
+      Negli ultimi 14 giorni sei tornato qui più volte.
+    </p>
+    <p className="text-sm text-emerald-50 mt-1">
+      Alcune emozioni stanno iniziando a ripresentarsi.
+    </p>
+    <p className="text-xs text-emerald-100/70 mt-2 italic">
+      Osservarle nel tempo può rendere le cose più chiare.
+    </p>
+  </div>
+)}
         <div className="flex flex-wrap gap-2 pt-1">
           {mirrorText && (
   <p className="text-xs text-emerald-100/90 italic">

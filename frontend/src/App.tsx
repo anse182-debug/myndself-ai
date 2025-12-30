@@ -76,6 +76,70 @@ const BUCKET_COLORS: Record<string, string> = {
   nessuna: "#343434",    // neutro
 }
 
+// --- 14-day check-in (frontend-only, safe for beta)
+const CHECKIN_START_KEY = "myndself_checkin_start_v1" // ISO date
+const CHECKIN_LAST_SHOWN_KEY = "myndself_checkin_last_shown_v1" // ISO date (optional)
+
+// clamp 1..7
+const clampDay = (n: number) => Math.max(1, Math.min(7, n))
+
+const getDayIndex = (): number => {
+  if (typeof window === "undefined") return 1
+  const raw = window.localStorage.getItem(CHECKIN_START_KEY)
+
+  // se non esiste ancora, partiamo da oggi (ma non scriviamo qui: lo faremo al primo submit)
+  if (!raw) return 1
+
+  const start = new Date(raw)
+  if (Number.isNaN(start.getTime())) return 1
+
+  const now = new Date()
+  // differenza in giorni (floor) + 1
+  const diffDays = Math.floor((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  return clampDay(diffDays)
+}
+
+type CheckinCopy = { intro: string; question: string; closing: string }
+
+const CHECKIN_COPY_7D: Record<number, CheckinCopy> = {
+  1: {
+    intro: "Benvenuto. Partiamo semplice.",
+    question: "Con una parola: cosa senti di più adesso?",
+    closing: "Anche un solo click oggi è già un inizio.",
+  },
+  2: {
+    intro: "Ieri hai iniziato a osservarti.",
+    question: "Cosa ti ha influenzato di più oggi: persone, lavoro o tempo per te?",
+    closing: "Non serve essere precisi. Serve essere presenti.",
+  },
+  3: {
+    intro: "Stiamo costruendo continuità.",
+    question: "C’è un’emozione che oggi è rimasta sullo sfondo, ma c’era?",
+    closing: "Notare lo sfondo cambia già il primo piano.",
+  },
+  // ✅ Day4 (nuova versione “morbida”)
+  4: {
+    intro: "Ti ho seguito con attenzione.",
+    question: "Quale emozione è emersa più di una volta questa settimana?",
+    closing: "Notare la ripetizione è già una forma di chiarezza",
+  },
+  5: {
+    intro: "Hai già qualche giorno alle spalle.",
+    question: "Cosa ti ha fatto respirare meglio, anche solo per un momento?",
+    closing: "Piccolo ≠ inutile. Piccolo è sostenibile.",
+  },
+  6: {
+    intro: "Stai creando un ritmo.",
+    question: "Se dovessi dare un titolo a questa settimana finora, quale sarebbe?",
+    closing: "Un titolo non spiega tutto. Ma aiuta a vedere.",
+  },
+  7: {
+    intro: "Una settimana: ci sei.",
+    question: "Cosa vorresti continuare a osservare nei prossimi giorni?",
+    closing: "La cosa importante non è la perfezione. È la continuità.",
+  },
+}
+
 
 type SummaryEntry = { id?: string; summary: string; created_at: string }
 type DailyItem = { day: string; entries: number }
@@ -428,6 +492,8 @@ export default function App() {
 
   // tab / viste
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
+  const [checkinDayIndex, setCheckinDayIndex] = useState<number>(1)
+
 
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -465,6 +531,12 @@ export default function App() {
       subscription.unsubscribe()
     }
   }, [])
+
+  useEffect(() => {
+  if (!session?.user?.id) return
+  setCheckinDayIndex(getDayIndex())
+}, [session?.user?.id])
+
 
   const [magicLinkEmail, setMagicLinkEmail] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
@@ -537,6 +609,13 @@ const handleLogin = async () => {
     setReflection("")
     setTemporalMirrorText(null)
     try {
+      // setta start date al primo utilizzo del rituale (solo una volta)
+if (typeof window !== "undefined") {
+  const existing = window.localStorage.getItem(CHECKIN_START_KEY)
+  if (!existing) {
+    window.localStorage.setItem(CHECKIN_START_KEY, new Date().toISOString())
+  }
+}
       const goal =
         typeof window !== "undefined"
           ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
@@ -1554,10 +1633,24 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                         <h2 className="text-sm font-semibold">
                           La riflessione di oggi
                         </h2>
-                        <p className="text-xs text-gray-400">
-                          Non devi raccontare tutto. Parti da un punto della
-                          tua giornata che “punge” o che illumina qualcosa.
-                        </p>
+                       {(() => {
+  const d = checkinDayIndex
+  const copy = CHECKIN_COPY_7D[d] ?? CHECKIN_COPY_7D[1]
+  return (
+    <div className="mt-1 space-y-1">
+      <p className="text-xs text-gray-300">
+        {copy.intro}
+      </p>
+      <p className="text-xs text-gray-400 italic">
+        {copy.question}
+      </p>
+      <p className="text-xs text-gray-500">
+        {copy.closing}
+      </p>
+    </div>
+  )
+})()}
+
                       </div>
                     </header>
 

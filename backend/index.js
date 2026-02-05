@@ -55,6 +55,28 @@ function fmtDateIT(d) {
   return new Intl.DateTimeFormat("it-CH", { day: "2-digit", month: "2-digit", year: "numeric" }).format(dt)
 }
 
+function getBearerToken(req) {
+  const authHeader = req.headers["authorization"] || req.headers["Authorization"] || ""
+  if (!authHeader) return null
+  const m = String(authHeader).match(/^Bearer\s+(.+)$/i)
+  return m ? m[1].trim() : null
+}
+
+async function requireSupabaseUser(req, reply) {
+  const jwt = getBearerToken(req)
+  if (!jwt) {
+    reply.code(401).send({ error: "missing_bearer_token" })
+    return null
+  }
+  const { data, error } = await supabase.auth.getUser(jwt)
+  if (error || !data?.user?.id) {
+    reply.code(401).send({ error: "invalid_token" })
+    return null
+  }
+  return data.user // { id, email, ... }
+}
+
+
 // ====== SYSTEM PROMPT (G3) ======
 const SYSTEM_PROMPT = `
 You are MyndSelf.ai — a calm, emotionally intelligent companion.
@@ -2085,36 +2107,49 @@ if (!users || users.length === 0) {
 });
 
 // =============================================================
-// THERAPIST SHARE: crea token (MVP beta-safe)
+// THERAPIST SHARE (robusto): crea token usando JWT Supabase
 // POST /api/therapist/share
-// body: { user_id: "uuid-string" }
+// Header: Authorization: Bearer <supabase_access_token>
+// Body (opzionale): { expires_days: 30 }
 // =============================================================
 app.post("/api/therapist/share", async (req, reply) => {
   try {
-    const { user_id } = req.body || {}
-    if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+    const user = await requireSupabaseUser(req, reply)
+    if (!user) return
+
+    const expiresDays = Math.max(
+      1,
+      Math.min(90, Number(req.body?.expires_days ?? THERAPIST_SHARE_TTL_DAYS))
+    )
 
     const token = newShareToken()
     const token_hash = sha256(token)
-    const expires_at = addDays(new Date(), THERAPIST_SHARE_TTL_DAYS).toISOString()
+    const expires_at = addDays(new Date(), expiresDays).toISOString()
 
     const { error } = await supabase
       .from("therapist_shares")
-      .insert({ user_id, token_hash, expires_at })
+      .insert({
+        user_id: user.id,       // salva uuid come text
+        token_hash,
+        expires_at,
+        revoked: false,
+      })
 
     if (error) throw error
 
     return reply.send({
       ok: true,
-      token,
+      token,                   // restituito UNA volta sola
       expires_at,
-      url: `/api/therapist/report.pdf?token=${encodeURIComponent(token)}&days=30`,
+      report_url: `/api/therapist/report.pdf?token=${encodeURIComponent(token)}&days=30`,
+      note: "Condividi questo token con il terapeuta. Chiunque lo possiede può aprire il report finché non scade.",
     })
   } catch (err) {
     console.error("❌ therapist/share error:", err)
     return reply.code(500).send({ error: "therapist_share_failed" })
   }
 })
+
 
 // =============================================================
 // THERAPIST PDF REPORT (read-only via token)
@@ -2241,6 +2276,64 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
   } catch (err) {
     console.error("❌ therapist/report.pdf error:", err)
     return reply.code(500).send({ error: "therapist_report_failed" })
+  }
+})
+
+// =============================================================
+// THERAPIST REVOKE: revoca un token (robusto via JWT)
+// POST /api/therapist/revoke
+// Header: Authorization: Bearer <supabase_access_token>
+// Body: { token: "ms_..." }
+// =============================================================
+app.post("/api/therapist/revoke", async (req, reply) => {
+  try {
+    const user = await requireSupabaseUser(req, reply)
+    if (!user) return
+
+    const { token } = req.body || {}
+    if (!token) return reply.code(400).send({ error: "missing_token" })
+
+    const token_hash = sha256(String(token))
+
+    const { data, error } = await supabase
+      .from("therapist_shares")
+      .update({ revoked: true })
+      .eq("user_id", user.id)
+      .eq("token_hash", token_hash)
+      .select("id")
+      .maybeSingle()
+
+    if (error) throw error
+    if (!data) return reply.code(404).send({ error: "token_not_found" })
+
+    return reply.send({ ok: true })
+  } catch (err) {
+    console.error("❌ therapist/revoke error:", err)
+    return reply.code(500).send({ error: "therapist_revoke_failed" })
+  }
+})
+
+// =============================================================
+// THERAPIST REVOKE ALL: revoca tutti i token attivi dell’utente
+// POST /api/therapist/revoke-all
+// Header: Authorization: Bearer <supabase_access_token>
+// =============================================================
+app.post("/api/therapist/revoke-all", async (req, reply) => {
+  try {
+    const user = await requireSupabaseUser(req, reply)
+    if (!user) return
+
+    const { error } = await supabase
+      .from("therapist_shares")
+      .update({ revoked: true })
+      .eq("user_id", user.id)
+      .eq("revoked", false)
+
+    if (error) throw error
+    return reply.send({ ok: true })
+  } catch (err) {
+    console.error("❌ therapist/revoke-all error:", err)
+    return reply.code(500).send({ error: "therapist_revoke_all_failed" })
   }
 })
 

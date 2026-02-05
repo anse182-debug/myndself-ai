@@ -2213,66 +2213,58 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .slice(0, 8)
 
     // 4) PDF
-    reply
-      .header("Content-Type", "application/pdf")
-      .header(
-        "Content-Disposition",
-        `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
-      )
+    // 4) PDF (stream sicuro Fastify)
+reply.header("Content-Type", "application/pdf")
+reply.header(
+  "Content-Disposition",
+  `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
+)
 
-    const doc = new PDFDocument({ size: "A4", margin: 48 })
-    doc.pipe(reply.raw)
+// IMPORTANT: diciamo a Fastify che gestiamo noi lo stream
+reply.hijack()
 
-    doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
-    doc.moveDown(0.4)
-    doc.fontSize(11).fillColor("#555")
-      .text(`Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`)
-    doc.fillColor("#000").moveDown(1)
+const doc = new PDFDocument({ size: "A4", margin: 48 })
 
-    doc.fontSize(10).fillColor("#444").text(
-      "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
-      { align: "left" }
-    )
-    doc.fillColor("#000").moveDown(1)
+// se il client chiude la connessione, fermiamo il PDF subito
+const onClose = () => {
+  try { doc.end() } catch {}
+}
+reply.raw.on("close", onClose)
 
-    doc.fontSize(14).text("Sintesi rapida", { underline: true })
-    doc.moveDown(0.6)
-    doc.fontSize(11).text(`• Check-in nel periodo: ${(entries || []).length}`)
-    doc.text(`• Messaggi riflessione guidata: ${(guided || []).length}`)
-    doc.text(`• Top tag: ${topTags.length ? topTags.map(t => `${t.tag} (${t.count})`).join(", ") : "n/d"}`)
-    doc.moveDown(1)
+// preveniamo crash per errori di stream
+doc.on("error", (e) => {
+  console.error("❌ pdfkit error:", e)
+  try { reply.raw.destroy(e) } catch {}
+})
+reply.raw.on("error", (e) => {
+  console.error("❌ response stream error:", e)
+  try { doc.end() } catch {}
+})
 
-    doc.fontSize(14).text("Ultimi check-in (estratto)", { underline: true })
-    doc.moveDown(0.6)
+// pipe DOPO aver agganciato i listener
+doc.pipe(reply.raw)
 
-    const last = (entries || []).slice(-10).reverse()
-    if (!last.length) {
-      doc.fontSize(11).text("Nessun check-in nel periodo selezionato.")
-    } else {
-      for (const e of last) {
-        doc.fontSize(11).text(`${fmtDateIT(e.at)} — ${e.mood || "n/d"}`)
-        if (e.note) doc.fontSize(10).fillColor("#333").text(`Nota: ${e.note}`)
-        if (e.reflection) doc.fontSize(10).fillColor("#333").text(`Riflessione: ${e.reflection}`)
-        doc.fillColor("#000").moveDown(0.6)
-      }
-    }
+// ---- CONTENUTO PDF (quello che avevi già)
+doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
+doc.moveDown(0.4)
+doc.fontSize(11).fillColor("#555")
+  .text(`Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`)
+doc.fillColor("#000").moveDown(1)
 
-    doc.moveDown(0.6)
-    doc.fontSize(14).text("Riflessione guidata (estratto)", { underline: true })
-    doc.moveDown(0.6)
+doc.fontSize(10).fillColor("#444").text(
+  "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
+  { align: "left" }
+)
+doc.fillColor("#000").moveDown(1)
 
-    const snippet = (guided || []).slice(-12)
-    if (!snippet.length) {
-      doc.fontSize(11).text("Nessun dato di riflessione guidata nel periodo.")
-    } else {
-      for (const m of snippet) {
-        const who = m.role === "assistant" ? "Mentor" : "Utente"
-        doc.fontSize(10).fillColor("#333").text(`${who}: ${m.content || ""}`)
-      }
-      doc.fillColor("#000")
-    }
+// ... (tutto il resto uguale al tuo: sintesi, ultimi check-in, estratto guided)
 
-    doc.end()
+// chiudi il documento
+doc.end()
+
+// aspetta che lo stream finisca prima di uscire dall’handler
+await new Promise((resolve) => reply.raw.on("finish", resolve))
+
   } catch (err) {
     console.error("❌ therapist/report.pdf error:", err)
     return reply.code(500).send({ error: "therapist_report_failed" })

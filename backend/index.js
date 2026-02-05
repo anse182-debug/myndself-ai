@@ -7,6 +7,8 @@ import cors from "@fastify/cors"
 import OpenAI from "openai"
 import pkg from "@supabase/supabase-js"
 import { Resend } from "resend"
+import crypto from "crypto"
+import PDFDocument from "pdfkit"
 const { createClient } = pkg
 
 // ====== ENV ======
@@ -31,6 +33,27 @@ await app.register(cors, { origin: "*", methods: ["GET", "POST", "OPTIONS"] })
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+
+const THERAPIST_SHARE_TTL_DAYS = Number(process.env.THERAPIST_SHARE_TTL_DAYS || 30)
+
+function sha256(input) {
+  return crypto.createHash("sha256").update(input).digest("hex")
+}
+
+function newShareToken() {
+  return "ms_" + crypto.randomBytes(24).toString("hex")
+}
+
+function addDays(date, days) {
+  const d = new Date(date)
+  d.setDate(d.getDate() + days)
+  return d
+}
+
+function fmtDateIT(d) {
+  const dt = d instanceof Date ? d : new Date(d)
+  return new Intl.DateTimeFormat("it-CH", { day: "2-digit", month: "2-digit", year: "numeric" }).format(dt)
+}
 
 // ====== SYSTEM PROMPT (G3) ======
 const SYSTEM_PROMPT = `
@@ -2061,6 +2084,165 @@ if (!users || users.length === 0) {
   }
 });
 
+// =============================================================
+// THERAPIST SHARE: crea token (MVP beta-safe)
+// POST /api/therapist/share
+// body: { user_id: "uuid-string" }
+// =============================================================
+app.post("/api/therapist/share", async (req, reply) => {
+  try {
+    const { user_id } = req.body || {}
+    if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+
+    const token = newShareToken()
+    const token_hash = sha256(token)
+    const expires_at = addDays(new Date(), THERAPIST_SHARE_TTL_DAYS).toISOString()
+
+    const { error } = await supabase
+      .from("therapist_shares")
+      .insert({ user_id, token_hash, expires_at })
+
+    if (error) throw error
+
+    return reply.send({
+      ok: true,
+      token,
+      expires_at,
+      url: `/api/therapist/report.pdf?token=${encodeURIComponent(token)}&days=30`,
+    })
+  } catch (err) {
+    console.error("❌ therapist/share error:", err)
+    return reply.code(500).send({ error: "therapist_share_failed" })
+  }
+})
+
+// =============================================================
+// THERAPIST PDF REPORT (read-only via token)
+// GET /api/therapist/report.pdf?token=...&days=30
+// =============================================================
+app.get("/api/therapist/report.pdf", async (req, reply) => {
+  try {
+    const { token, days } = req.query || {}
+    if (!token) return reply.code(400).send({ error: "missing_token" })
+
+    const token_hash = sha256(String(token))
+    const lookbackDays = Math.max(7, Math.min(90, Number(days || 30)))
+
+    // 1) valida token
+    const { data: share, error: shareErr } = await supabase
+      .from("therapist_shares")
+      .select("user_id, expires_at, revoked")
+      .eq("token_hash", token_hash)
+      .maybeSingle()
+
+    if (shareErr) throw shareErr
+    if (!share) return reply.code(401).send({ error: "invalid_token" })
+    if (share.revoked) return reply.code(403).send({ error: "token_revoked" })
+    if (share.expires_at && new Date(share.expires_at) < new Date()) {
+      return reply.code(403).send({ error: "token_expired" })
+    }
+
+    const userId = share.user_id
+    const to = new Date()
+    const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000)
+
+    // 2) carica dati (service role bypassa RLS)
+    const { data: entries, error: eErr } = await supabase
+      .from("mood_entries")
+      .select("at, mood, tags, note, reflection")
+      .eq("user_id", userId)
+      .gte("at", from.toISOString())
+      .lte("at", to.toISOString())
+      .order("at", { ascending: true })
+
+    if (eErr) throw eErr
+
+    const { data: guided, error: gErr } = await supabase
+      .from("guided_history")
+      .select("created_at, role, content")
+      .eq("user_id", userId)
+      .gte("created_at", from.toISOString())
+      .lte("created_at", to.toISOString())
+      .order("created_at", { ascending: true })
+
+    if (gErr) throw gErr
+
+    // 3) aggregazioni leggere (tag)
+    const tagCounts = {}
+    for (const row of entries || []) {
+      for (const t of row.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1
+    }
+    const topTags = Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 8)
+
+    // 4) PDF
+    reply
+      .header("Content-Type", "application/pdf")
+      .header(
+        "Content-Disposition",
+        `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
+      )
+
+    const doc = new PDFDocument({ size: "A4", margin: 48 })
+    doc.pipe(reply.raw)
+
+    doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
+    doc.moveDown(0.4)
+    doc.fontSize(11).fillColor("#555")
+      .text(`Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`)
+    doc.fillColor("#000").moveDown(1)
+
+    doc.fontSize(10).fillColor("#444").text(
+      "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
+      { align: "left" }
+    )
+    doc.fillColor("#000").moveDown(1)
+
+    doc.fontSize(14).text("Sintesi rapida", { underline: true })
+    doc.moveDown(0.6)
+    doc.fontSize(11).text(`• Check-in nel periodo: ${(entries || []).length}`)
+    doc.text(`• Messaggi riflessione guidata: ${(guided || []).length}`)
+    doc.text(`• Top tag: ${topTags.length ? topTags.map(t => `${t.tag} (${t.count})`).join(", ") : "n/d"}`)
+    doc.moveDown(1)
+
+    doc.fontSize(14).text("Ultimi check-in (estratto)", { underline: true })
+    doc.moveDown(0.6)
+
+    const last = (entries || []).slice(-10).reverse()
+    if (!last.length) {
+      doc.fontSize(11).text("Nessun check-in nel periodo selezionato.")
+    } else {
+      for (const e of last) {
+        doc.fontSize(11).text(`${fmtDateIT(e.at)} — ${e.mood || "n/d"}`)
+        if (e.note) doc.fontSize(10).fillColor("#333").text(`Nota: ${e.note}`)
+        if (e.reflection) doc.fontSize(10).fillColor("#333").text(`Riflessione: ${e.reflection}`)
+        doc.fillColor("#000").moveDown(0.6)
+      }
+    }
+
+    doc.moveDown(0.6)
+    doc.fontSize(14).text("Riflessione guidata (estratto)", { underline: true })
+    doc.moveDown(0.6)
+
+    const snippet = (guided || []).slice(-12)
+    if (!snippet.length) {
+      doc.fontSize(11).text("Nessun dato di riflessione guidata nel periodo.")
+    } else {
+      for (const m of snippet) {
+        const who = m.role === "assistant" ? "Mentor" : "Utente"
+        doc.fontSize(10).fillColor("#333").text(`${who}: ${m.content || ""}`)
+      }
+      doc.fillColor("#000")
+    }
+
+    doc.end()
+  } catch (err) {
+    console.error("❌ therapist/report.pdf error:", err)
+    return reply.code(500).send({ error: "therapist_report_failed" })
+  }
+})
 
 
 // =============================================================

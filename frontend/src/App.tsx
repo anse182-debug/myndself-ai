@@ -417,7 +417,7 @@ const Spinner = () => (
   <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
 )
 
-type TabId = "oggi" | "insight" | "guidata" | "chat"
+type TabId = "oggi" | "insight" | "guidata" | "chat" | "condivisione"
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
@@ -490,6 +490,13 @@ export default function App() {
   const [emotionalExpanded, setEmotionalExpanded] = useState(false)
   const [emotionalTags, setEmotionalTags] = useState<string[]>([])
 
+  // ---------- CONDIVISIONE (therapist share) ----------
+  const [shareToken, setShareToken] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [shareExpiresAt, setShareExpiresAt] = useState<string | null>(null)
+  const [shareLoading, setShareLoading] = useState(false)
+  const [shareError, setShareError] = useState<string | null>(null)
+
   // tab / viste
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
   const [checkinDayIndex, setCheckinDayIndex] = useState<number>(1)
@@ -537,7 +544,21 @@ export default function App() {
   setCheckinDayIndex(getDayIndex())
 }, [session?.user?.id])
 
+useEffect(() => {
+  if (typeof window === "undefined") return
 
+  const t = window.localStorage.getItem("myndself_therapist_share_token")
+  const u = window.localStorage.getItem("myndself_therapist_share_url")
+  const ex = window.localStorage.getItem("myndself_therapist_share_expiresAt")
+
+  if (t && u && ex) {
+    setShareToken(t)
+    setShareUrl(u)
+    setShareExpiresAt(ex)
+  }
+}, [])
+
+  
   const [magicLinkEmail, setMagicLinkEmail] = useState("")
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
@@ -588,7 +609,105 @@ const handleLogin = async () => {
     setSession(null)
     showToast("Sei uscito dall'account", "info")
   }
+const generateShare = async () => {
+  setShareLoading(true)
+  setShareError(null)
 
+  try {
+    const token = session?.access_token
+    if (!token) {
+      setShareError("Sessione non valida. Fai login di nuovo.")
+      return
+    }
+
+    const res = await fetch(`${API_BASE}/api/therapist/share`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ expires_days: 30 }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || !data?.ok) {
+      setShareError(data?.error || "Errore nella generazione del link.")
+      return
+    }
+
+    const fullUrl =
+      data.report_url?.startsWith("http")
+        ? data.report_url
+        : `${API_BASE}${data.report_url}`
+
+    setShareToken(data.token)
+    setShareUrl(fullUrl)
+    setShareExpiresAt(data.expires_at)
+
+    // salva: il token viene mostrato una volta sola → preservalo
+    window.localStorage.setItem("myndself_therapist_share_token", data.token)
+    window.localStorage.setItem("myndself_therapist_share_url", fullUrl)
+    window.localStorage.setItem("myndself_therapist_share_expiresAt", data.expires_at)
+
+    showToast("Link di condivisione creato ✅", "success")
+  } catch (e: any) {
+    console.error(e)
+    setShareError(e?.message || "Errore inatteso.")
+  } finally {
+    setShareLoading(false)
+  }
+}
+
+  const revokeShare = async () => {
+  setShareLoading(true)
+  setShareError(null)
+
+  try {
+    const token = session?.access_token
+    if (!token) {
+      setShareError("Sessione non valida. Fai login di nuovo.")
+      return
+    }
+    if (!shareToken) {
+      setShareError("Nessun link attivo da revocare.")
+      return
+    }
+
+    const res = await fetch(`${API_BASE}/api/therapist/revoke`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ token: shareToken }),
+    })
+
+    const data = await res.json()
+
+    if (!res.ok || !data?.ok) {
+      setShareError(data?.error || "Errore nella revoca.")
+      return
+    }
+
+    setShareToken(null)
+    setShareUrl(null)
+    setShareExpiresAt(null)
+
+    window.localStorage.removeItem("myndself_therapist_share_token")
+    window.localStorage.removeItem("myndself_therapist_share_url")
+    window.localStorage.removeItem("myndself_therapist_share_expiresAt")
+
+    showToast("Link revocato ✅", "success")
+  } catch (e: any) {
+    console.error(e)
+    setShareError(e?.message || "Errore inatteso.")
+  } finally {
+    setShareLoading(false)
+  }
+}
+
+  
   // ---------- RIFLESSIONE DEL GIORNO ----------
   const [isReflecting, setIsReflecting] = useState(false)
   const [showReflectionDone, setShowReflectionDone] = useState(false)
@@ -1132,6 +1251,7 @@ const handleChatSend = async () => {
       { id: "insight", label: "Insight" },
       { id: "guidata", label: "Guidata" },
       { id: "chat", label: "Chat" },
+      { id: "condivisione", label: "Condivisione" },
     ]
     // ---------- RENDER ----------
     return (
@@ -1989,6 +2109,93 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     </div>
                   </section>
                 )}
+
+{/* TAB: CONDIVISIONE */}
+{currentTab === "condivisione" && (
+  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
+    <header className="space-y-1">
+      <h2 className="text-sm font-semibold">Condivisione</h2>
+      <p className="text-xs text-gray-400">
+        Genera un link per condividere il tuo report con un terapeuta. Puoi revocarlo in qualsiasi momento.
+      </p>
+    </header>
+
+    {shareError && (
+      <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-100">
+        {shareError}
+      </div>
+    )}
+
+    {!shareToken ? (
+      <button
+        onClick={generateShare}
+        disabled={shareLoading}
+        className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold py-2 hover:bg-emerald-300 disabled:opacity-60"
+      >
+        {shareLoading && <Spinner />}
+        {shareLoading ? "Generazione in corso…" : "Genera link di condivisione"}
+      </button>
+    ) : (
+      <div className="space-y-4">
+        <div className="rounded-xl border border-white/10 bg-gray-950/40 p-4 space-y-2">
+          <div className="text-[11px] text-gray-400">
+            Valido fino al:{" "}
+            <span className="text-gray-200 font-semibold">
+              {shareExpiresAt
+                ? new Date(shareExpiresAt).toLocaleDateString("it-CH")
+                : "—"}
+            </span>
+          </div>
+
+          <label className="text-[11px] text-gray-400">Link terapeuta</label>
+          <input
+            readOnly
+            value={shareUrl ?? ""}
+            onFocus={(e) => e.currentTarget.select()}
+            className="w-full rounded-md bg-gray-900 border border-white/10 px-3 py-2 text-xs text-gray-50"
+          />
+
+          <div className="flex gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => {
+                if (shareUrl) navigator.clipboard.writeText(shareUrl)
+                showToast("Link copiato 📎", "success")
+              }}
+              className="flex-1 rounded-md bg-white/5 border border-white/10 px-3 py-2 text-xs hover:bg-white/10"
+            >
+              Copia link
+            </button>
+
+            <a
+              href={shareUrl ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 text-center rounded-md bg-emerald-400 text-gray-950 px-3 py-2 text-xs font-semibold hover:bg-emerald-300"
+            >
+              Apri / PDF
+            </a>
+          </div>
+
+          <p className="text-[11px] text-gray-500 pt-2">
+            Il link apre direttamente un PDF. Puoi anche scaricarlo e inviarlo manualmente al terapeuta.
+          </p>
+        </div>
+
+        <button
+          onClick={revokeShare}
+          disabled={shareLoading}
+          className="w-full inline-flex items-center justify-center gap-2 rounded-md border border-rose-400/30 bg-rose-500/10 text-rose-100 text-xs py-2 hover:bg-rose-500/15 disabled:opacity-60"
+        >
+          {shareLoading && <Spinner />}
+          {shareLoading ? "Revoca in corso…" : "Revoca link"}
+        </button>
+      </div>
+    )}
+  </section>
+)}
+
+                
               </div>
 
               {/* COLONNA DESTRA: INSIGHT VELOCI + PROFILO EMOTIVO */}

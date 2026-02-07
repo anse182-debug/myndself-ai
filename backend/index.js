@@ -2254,7 +2254,29 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     doc.pipe(reply.raw)
 
     // ---- CONTENUTO PDF
-    doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
+    doc
+  .fontSize(22)
+  .fillColor("#10B981") // emerald
+  .text("MyndSelf.ai", { align: "left" })
+
+doc.moveDown(0.2)
+
+doc
+  .fontSize(13)
+  .fillColor("#000")
+  .text("Report di osservazione emotiva", { align: "left" })
+
+doc.moveDown(0.5)
+
+doc
+  .moveTo(doc.x, doc.y)
+  .lineTo(550, doc.y)
+  .strokeColor("#10B981")
+  .lineWidth(1)
+  .stroke()
+
+doc.moveDown(1)
+
     doc.moveDown(0.4)
     doc
       .fontSize(11)
@@ -2277,7 +2299,7 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     const entriesCount = (entries || []).length
     const guidedCount = (guided || []).length
 
-    doc.fontSize(14).fillColor("#000").text("Snapshot", { underline: true })
+    doc.fontSize(14).fillColor("#10B981").text("Snapshot", { underline: true })
     doc.moveDown(0.6)
     doc.fontSize(11).fillColor("#000").text(`• Check-in nel periodo: ${entriesCount}`)
     doc.fontSize(11).fillColor("#000").text(`• Messaggi riflessione guidata: ${guidedCount}`)
@@ -2294,7 +2316,7 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     doc.fillColor("#000").moveDown(1)
 
     // ---------- CHECK-IN (estratto) ----------
-    doc.fontSize(14).fillColor("#000").text("Ultimi check-in (estratto)", {
+    doc.fontSize(14).fillColor("#10B981").text("Ultimi check-in (estratto)", {
       underline: true,
     })
     doc.moveDown(0.6)
@@ -2305,34 +2327,39 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     } else {
       const last = entries.slice(-10).reverse()
       for (const e of last) {
-        doc.fillColor("#000")
-        const when = e.at ? fmtDateIT(e.at) : "—"
-        const mood = e.mood || "n/d"
+  const when = e.at ? fmtDateIT(e.at) : "—"
+  const mood = e.mood || "n/d"
+  const noteTxt = e.note && String(e.note).trim() ? String(e.note).trim() : ""
+  const reflTxt = e.reflection && String(e.reflection).trim() ? String(e.reflection).trim() : ""
+  const tagsArr = Array.isArray(e.tags) ? e.tags : []
 
-        doc.fontSize(11).text(`${when} — ${mood}`)
+  // separatore soft
+  doc.moveTo(48, doc.y).lineTo(548, doc.y).strokeColor("#E5E7EB").lineWidth(1).stroke()
+  doc.moveDown(0.5)
 
-        if (e.note && String(e.note).trim()) {
-          doc.fontSize(10).fillColor("#333").text(`Nota: ${String(e.note).trim()}`)
-        }
+  // riga principale
+  doc.fillColor("#111").fontSize(11).text(`${when} — ${mood}`)
 
-        if (e.reflection && String(e.reflection).trim()) {
-          doc
-            .fontSize(10)
-            .fillColor("#333")
-            .text(`Riflessione: ${String(e.reflection).trim()}`)
-        }
+  // blocchi secondari
+  if (noteTxt) {
+    doc.fillColor("#374151").fontSize(10).text(`Nota: ${noteTxt}`)
+  }
 
-        const tagsArr = Array.isArray(e.tags) ? e.tags : []
-        if (tagsArr.length) {
-          doc.fontSize(10).fillColor("#333").text(`Tag: ${tagsArr.join(", ")}`)
-        }
+  if (reflTxt) {
+    doc.fillColor("#374151").fontSize(10).text(`Riflessione: ${reflTxt}`)
+  }
 
-        doc.fillColor("#000").moveDown(0.8)
-      }
+  if (tagsArr.length) {
+    doc.fillColor("#6B7280").fontSize(9).text(`Tag: ${tagsArr.join(", ")}`)
+  }
+
+  doc.fillColor("#000").moveDown(0.6)
+}
+
     }
 
     // ---------- GUIDED HISTORY (estratto) ----------
-    doc.fontSize(14).fillColor("#000").text("Riflessione guidata (estratto)", {
+    doc.fontSize(14).fillColor("#10B981").text("Riflessione guidata (estratto)", {
       underline: true,
     })
     doc.moveDown(0.6)
@@ -2355,6 +2382,20 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
         doc.fillColor("#000").moveDown(0.6)
       }
     }
+doc.addPage()
+
+doc.fontSize(9)
+  .fillColor("#666")
+  .text(
+    "Questo report è uno strumento di supporto alla riflessione. Non costituisce diagnosi o indicazione terapeutica.",
+    { align: "center" }
+  )
+
+doc.moveDown(0.5)
+
+doc.fontSize(9)
+  .fillColor("#10B981")
+  .text("MyndSelf.ai — Emotional Operating System", { align: "center" })
 
     // chiudi il documento
     doc.end()

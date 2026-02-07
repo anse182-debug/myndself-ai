@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 8080
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_KEY
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const WELCOME_FROM_EMAIL =
   process.env.WELCOME_FROM_EMAIL || "MyndSelf.ai <info@myndself.ai>"

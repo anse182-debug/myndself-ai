@@ -2182,7 +2182,7 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     const to = new Date()
     const from = new Date(to.getTime() - lookbackDays * 24 * 60 * 60 * 1000)
 
-    // 2) carica dati (service role bypassa RLS)
+    // 2) carica dati check-in (service role bypassa RLS)
     const { data: entries, error: eErr } = await supabase
       .from("mood_entries")
       .select("at, mood, tags, note, reflection")
@@ -2192,18 +2192,21 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .order("at", { ascending: true })
 
     if (eErr) throw eErr
+    console.log("PDF entries count:", entries?.length || 0)
 
-    console.log("PDF entries count:", entries?.length)
-
-    const { data: guided, error: gErr } = await supabase
-      .from("guided_history")
-      .select("created_at, role, content")
+    // 2b) carica GUIDED da chat_sessions (tabella reale)
+    // NB: in screenshot hai: user_id UUID, messages JSONB, reply TEXT, type TEXT, step INT4, created_at
+    const { data: guidedSessions, error: gErr } = await supabase
+      .from("chat_sessions")
+      .select("created_at, type, step, messages, reply")
       .eq("user_id", userId)
+      .eq("type", "guided")
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString())
       .order("created_at", { ascending: true })
 
     if (gErr) throw gErr
+    console.log("PDF guided sessions count:", guidedSessions?.length || 0)
 
     // 3) aggregazioni leggere (tag)
     const tagCounts = {}
@@ -2222,185 +2225,233 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       "Content-Disposition",
       `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
     )
-
-    // IMPORTANT: diciamo a Fastify che gestiamo noi lo stream
     reply.hijack()
 
     const doc = new PDFDocument({ size: "A4", margin: 48 })
 
-    // se il client chiude la connessione, fermiamo il PDF subito
     const onClose = () => {
-      try {
-        doc.end()
-      } catch {}
+      try { doc.end() } catch {}
     }
     reply.raw.on("close", onClose)
 
-    // preveniamo crash per errori di stream
     doc.on("error", (e) => {
       console.error("❌ pdfkit error:", e)
-      try {
-        reply.raw.destroy(e)
-      } catch {}
+      try { reply.raw.destroy(e) } catch {}
     })
     reply.raw.on("error", (e) => {
       console.error("❌ response stream error:", e)
-      try {
-        doc.end()
-      } catch {}
+      try { doc.end() } catch {}
     })
 
-    // pipe DOPO aver agganciato i listener
     doc.pipe(reply.raw)
 
-    // ---- CONTENUTO PDF
-    doc
-  .fontSize(22)
-  .fillColor("#10B981") // emerald
-  .text("MyndSelf.ai", { align: "left" })
-
-doc.moveDown(0.2)
-
-doc
-  .fontSize(13)
-  .fillColor("#000")
-  .text("Report di osservazione emotiva", { align: "left" })
-
-doc.moveDown(0.5)
-
-doc
-  .moveTo(doc.x, doc.y)
-  .lineTo(550, doc.y)
-  .strokeColor("#10B981")
-  .lineWidth(1)
-  .stroke()
-
-doc.moveDown(1)
-
-    doc.moveDown(0.4)
-    doc
-      .fontSize(11)
-      .fillColor("#555")
-      .text(
-        `Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`
-      )
-    doc.fillColor("#000").moveDown(1)
-
-    doc
-      .fontSize(10)
-      .fillColor("#444")
-      .text(
-        "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
-        { align: "left" }
-      )
-    doc.fillColor("#000").moveDown(1)
-
-    // ---------- SNAPSHOT ----------
-    const entriesCount = (entries || []).length
-    const guidedCount = (guided || []).length
-
-    doc.fontSize(14).fillColor("#10B981").text("Snapshot", { underline: true })
-    doc.moveDown(0.6)
-    doc.fontSize(11).fillColor("#000").text(`• Check-in nel periodo: ${entriesCount}`)
-    doc.fontSize(11).fillColor("#000").text(`• Messaggi riflessione guidata: ${guidedCount}`)
-    doc.moveDown(0.4)
-
-    if (topTags.length > 0) {
-      doc.fontSize(11).fillColor("#000").text("• Tag più ricorrenti:")
-      for (const t of topTags) {
-        doc.fontSize(10).fillColor("#333").text(`   - ${t.tag}: ${t.count}`)
-      }
-    } else {
-      doc.fontSize(10).fillColor("#555").text("• Tag più ricorrenti: (nessuno)")
+    // -------------------------
+    // Helpers stile “MyndSelf”
+    // -------------------------
+    const COLORS = {
+      bg: "#0B1220",
+      card: "#0F1B2D",
+      border: "#1F3B2E",
+      emerald: "#2EEB80",
+      text: "#E5E7EB",
+      muted: "#9CA3AF",
+      soft: "#BFEED7",
+      warning: "#F59E0B",
+      line: "#22314A",
     }
-    doc.fillColor("#000").moveDown(1)
 
-    // ---------- CHECK-IN (estratto) ----------
-    doc.fontSize(14).fillColor("#10B981").text("Ultimi check-in (estratto)", {
-      underline: true,
-    })
+    const ensureSpace = (needed = 80) => {
+      const bottom = doc.page.height - doc.page.margins.bottom
+      if (doc.y + needed > bottom) {
+        doc.addPage()
+      }
+    }
+
+    const sectionTitle = (title) => {
+      ensureSpace(40)
+      doc.moveDown(0.6)
+      doc.fontSize(12).fillColor(COLORS.emerald).text(title)
+      doc.moveDown(0.2)
+      doc
+        .moveTo(doc.page.margins.left, doc.y)
+        .lineTo(doc.page.width - doc.page.margins.right, doc.y)
+        .strokeColor(COLORS.line)
+        .stroke()
+      doc.moveDown(0.6)
+    }
+
+    const card = ({ title, subtitle, bodyLines }) => {
+      ensureSpace(140)
+      const x = doc.page.margins.left
+      const w = doc.page.width - doc.page.margins.left - doc.page.margins.right
+      const yStart = doc.y
+
+      // calcolo altezza dinamica
+      const padding = 12
+      const lineH = 14
+      const titleH = 16
+      const subtitleH = subtitle ? 14 : 0
+      const bodyH = (bodyLines?.length || 0) * lineH + 6
+      const h = padding * 2 + titleH + subtitleH + bodyH
+
+      // box
+      doc
+        .roundedRect(x, yStart, w, h, 10)
+        .fillColor(COLORS.card)
+        .fill()
+
+      // bordo sinistro “emerald”
+      doc
+        .rect(x, yStart, 5, h)
+        .fillColor(COLORS.emerald)
+        .fill()
+
+      // testo
+      doc.fillColor(COLORS.text)
+      doc.fontSize(11).text(title, x + padding + 6, yStart + padding, { width: w - padding * 2 - 6 })
+
+      if (subtitle) {
+        doc
+          .fillColor(COLORS.muted)
+          .fontSize(9)
+          .text(subtitle, x + padding + 6, doc.y + 2, { width: w - padding * 2 - 6 })
+      }
+
+      doc.moveDown(0.2)
+      doc.fillColor(COLORS.soft).fontSize(10)
+
+      if (bodyLines?.length) {
+        for (const line of bodyLines) {
+          doc.text(line, { width: w - padding * 2 - 6 })
+        }
+      }
+
+      doc.y = yStart + h + 10
+      doc.fillColor(COLORS.text)
+    }
+
+    const safeTrim = (s, max = 220) => {
+      if (!s) return ""
+      const t = String(s).trim()
+      if (t.length <= max) return t
+      return t.slice(0, max - 1) + "…"
+    }
+
+    const formatDT = (d) => {
+      const dt = new Date(d)
+      if (Number.isNaN(dt.getTime())) return String(d)
+      return dt.toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    }
+
+    // -------------------------
+    // Header
+    // -------------------------
+    doc.fontSize(20).fillColor(COLORS.text).text("MyndSelf.ai — Report per terapeuta")
+    doc.moveDown(0.2)
+    doc.fontSize(10).fillColor(COLORS.muted)
+      .text(`Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`)
+
     doc.moveDown(0.6)
+    doc.fontSize(9).fillColor(COLORS.muted).text(
+      "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche."
+    )
+    doc.fillColor(COLORS.text).moveDown(0.6)
 
+    // -------------------------
+    // Snapshot (molto leggero)
+    // -------------------------
+    sectionTitle("Snapshot")
+    const total = entries?.length || 0
+    const last = total ? entries[total - 1] : null
+    const lastMood = last?.mood ? safeTrim(last.mood, 80) : "—"
+    const lastDate = last?.at ? formatDT(last.at) : "—"
+
+    card({
+      title: `Check-in totali nel periodo: ${total}`,
+      subtitle: `Ultimo check-in: ${lastDate}`,
+      bodyLines: [
+        `Ultimo mood: ${lastMood}`,
+        topTags?.length ? `Top tag: ${topTags.map(t => `${t.tag} (${t.count})`).join(", ")}` : "Top tag: —",
+      ],
+    })
+
+    // -------------------------
+    // ✅ CHECK-IN (prima, in card style)
+    // -------------------------
+    sectionTitle("Ultimi check-in (card)")
     if (!entries || entries.length === 0) {
-      doc.fontSize(11).fillColor("#000").text("Nessun check-in nel periodo selezionato.")
-      doc.moveDown(1)
+      doc.fillColor(COLORS.muted).fontSize(10).text("Nessuna riflessione trovata nel periodo selezionato.")
+      doc.fillColor(COLORS.text)
     } else {
-      const last = entries.slice(-10).reverse()
-      for (const e of last) {
-  const when = e.at ? fmtDateIT(e.at) : "—"
-  const mood = e.mood || "n/d"
-  const noteTxt = e.note && String(e.note).trim() ? String(e.note).trim() : ""
-  const reflTxt = e.reflection && String(e.reflection).trim() ? String(e.reflection).trim() : ""
-  const tagsArr = Array.isArray(e.tags) ? e.tags : []
+      const lastN = entries.slice(-12) // puoi alzare/abbassare
+      for (const r of lastN) {
+        const when = formatDT(r.at)
+        const moodLine = r.mood ? safeTrim(r.mood, 120) : "—"
+        const noteLine = r.note ? safeTrim(r.note, 220) : ""
+        const reflLine = r.reflection ? safeTrim(r.reflection, 260) : ""
+        const tagsArr = Array.isArray(r.tags) ? r.tags : []
 
-  // separatore soft
-  doc.moveTo(48, doc.y).lineTo(548, doc.y).strokeColor("#E5E7EB").lineWidth(1).stroke()
-  doc.moveDown(0.5)
-
-  // riga principale
-  doc.fillColor("#111").fontSize(11).text(`${when} — ${mood}`)
-
-  // blocchi secondari
-  if (noteTxt) {
-    doc.fillColor("#374151").fontSize(10).text(`Nota: ${noteTxt}`)
-  }
-
-  if (reflTxt) {
-    doc.fillColor("#374151").fontSize(10).text(`Riflessione: ${reflTxt}`)
-  }
-
-  if (tagsArr.length) {
-    doc.fillColor("#6B7280").fontSize(9).text(`Tag: ${tagsArr.join(", ")}`)
-  }
-
-  doc.fillColor("#000").moveDown(0.6)
-}
-
-    }
-
-    // ---------- GUIDED HISTORY (estratto) ----------
-    doc.fontSize(14).fillColor("#10B981").text("Riflessione guidata (estratto)", {
-      underline: true,
-    })
-    doc.moveDown(0.6)
-
-    if (!guided || guided.length === 0) {
-      doc.fontSize(11).fillColor("#000").text("Nessun contenuto di riflessione guidata nel periodo.")
-      doc.moveDown(1)
-    } else {
-      const lastGuided = guided.slice(-12) // ultimi 12 turni
-      for (const g of lastGuided) {
-        const when = g.created_at ? fmtDateIT(g.created_at) : "—"
-        const who = g.role === "assistant" ? "Mentor" : "User"
-        const text = (g.content || "").trim()
-
-        if (!text) continue
-
-        doc.fillColor("#000")
-        doc.fontSize(10).text(`${when} — ${who}:`)
-        doc.fontSize(10).fillColor("#333").text(text)
-        doc.fillColor("#000").moveDown(0.6)
+        card({
+          title: when,
+          subtitle: moodLine,
+          bodyLines: [
+            noteLine ? `Nota: ${noteLine}` : null,
+            tagsArr.length ? `Tag: ${tagsArr.slice(0, 10).join(", ")}${tagsArr.length > 10 ? "…" : ""}` : null,
+            reflLine ? `Mentor: ${reflLine}` : null,
+          ].filter(Boolean),
+        })
       }
     }
-doc.addPage()
 
-doc.fontSize(9)
-  .fillColor("#666")
-  .text(
-    "Questo report è uno strumento di supporto alla riflessione. Non costituisce diagnosi o indicazione terapeutica.",
-    { align: "center" }
-  )
+    // -------------------------
+    // Guided (da chat_sessions)
+    // -------------------------
+    sectionTitle("Estratto riflessione guidata (guided sessions)")
 
-doc.moveDown(0.5)
+    if (!guidedSessions || guidedSessions.length === 0) {
+      doc.fillColor(COLORS.muted).fontSize(10).text("Nessuna sessione guidata trovata nel periodo selezionato.")
+      doc.fillColor(COLORS.text)
+    } else {
+      // prendiamo le ultime 5 sessioni guidate (o tutte se vuoi)
+      const lastGuided = guidedSessions.slice(-5)
 
-doc.fontSize(9)
-  .fillColor("#10B981")
-  .text("MyndSelf.ai — Emotional Operating System", { align: "center" })
+      for (const s of lastGuided) {
+        const created = formatDT(s.created_at)
+        const step = s.step != null ? `step ${s.step}` : "step —"
 
-    // chiudi il documento
+        // messages è jsonb: può essere [] o array di {role, content}
+        const msgs = Array.isArray(s.messages) ? s.messages : []
+        const transcriptLines = []
+
+        // includo max 10 righe per sessione (per non esplodere PDF)
+        for (const m of msgs.slice(0, 10)) {
+          const role = (m?.role || "").toString()
+          const content = safeTrim(m?.content || "", 160)
+          if (!content) continue
+          const prefix = role === "assistant" ? "Mentor:" : "Utente:"
+          transcriptLines.push(`${prefix} ${content}`)
+        }
+
+        // ✅ se messages è vuoto, almeno la reply
+        const replyLine = s.reply ? safeTrim(s.reply, 260) : ""
+
+        if (transcriptLines.length === 0 && replyLine) {
+          transcriptLines.push(`Mentor: ${replyLine}`)
+        } else if (replyLine) {
+          transcriptLines.push(`—`)
+          transcriptLines.push(`Reply finale: ${replyLine}`)
+        }
+
+        card({
+          title: `Sessione guidata · ${created}`,
+          subtitle: step,
+          bodyLines: transcriptLines.length ? transcriptLines : ["(sessione senza contenuto testuale salvato)"],
+        })
+      }
+    }
+
+    // chiudi PDF
     doc.end()
-
-    // aspetta che lo stream finisca prima di uscire dall’handler
     await new Promise((resolve) => reply.raw.on("finish", resolve))
   } catch (err) {
     console.error("❌ therapist/report.pdf error:", err)
@@ -2408,40 +2459,6 @@ doc.fontSize(9)
   }
 })
 
-
-// =============================================================
-// THERAPIST REVOKE: revoca un token (robusto via JWT)
-// POST /api/therapist/revoke
-// Header: Authorization: Bearer <supabase_access_token>
-// Body: { token: "ms_..." }
-// =============================================================
-app.post("/api/therapist/revoke", async (req, reply) => {
-  try {
-    const user = await requireSupabaseUser(req, reply)
-    if (!user) return
-
-    const { token } = req.body || {}
-    if (!token) return reply.code(400).send({ error: "missing_token" })
-
-    const token_hash = sha256(String(token))
-
-    const { data, error } = await supabase
-      .from("therapist_shares")
-      .update({ revoked: true })
-      .eq("user_id", user.id)
-      .eq("token_hash", token_hash)
-      .select("id")
-      .maybeSingle()
-
-    if (error) throw error
-    if (!data) return reply.code(404).send({ error: "token_not_found" })
-
-    return reply.send({ ok: true })
-  } catch (err) {
-    console.error("❌ therapist/revoke error:", err)
-    return reply.code(500).send({ error: "therapist_revoke_failed" })
-  }
-})
 
 // =============================================================
 // THERAPIST REVOKE ALL: revoca tutti i token attivi dell’utente

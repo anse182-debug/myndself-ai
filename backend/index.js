@@ -32,7 +32,7 @@ const app = Fastify({ logger: false })
 await app.register(cors, { origin: "*", methods: ["GET", "POST", "OPTIONS"] })
 
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 const THERAPIST_SHARE_TTL_DAYS = Number(process.env.THERAPIST_SHARE_TTL_DAYS || 30)
 
@@ -2189,6 +2189,7 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .gte("at", from.toISOString())
       .lte("at", to.toISOString())
       .order("at", { ascending: true })
+    console.log("PDF entries count:", entries?.length)
 
     if (eErr) throw eErr
 
@@ -2199,6 +2200,7 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString())
       .order("created_at", { ascending: true })
+    
 
     if (gErr) throw gErr
 
@@ -2224,6 +2226,7 @@ reply.header(
 reply.hijack()
 
 const doc = new PDFDocument({ size: "A4", margin: 48 })
+
 
 // se il client chiude la connessione, fermiamo il PDF subito
 const onClose = () => {
@@ -2256,6 +2259,10 @@ doc.fontSize(10).fillColor("#444").text(
   { align: "left" }
 )
 doc.fillColor("#000").moveDown(1)
+    
+    if (!entries || entries.length === 0) {
+  doc.text("Nessuna riflessione trovata nel periodo selezionato.")
+}
 
 // ... (tutto il resto uguale al tuo: sintesi, ultimi check-in, estratto guided)
 

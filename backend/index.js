@@ -2501,7 +2501,7 @@ if (!recent.length) {
     const note = (r.note || "").toString().trim()
     const reflection = (r.reflection || "").toString().trim()
 
-    drawCard({
+    drawCard(doc, {
       title: `${when}  ·  ${moods || "—"}`,
       lines: [
         tags.length ? `Tag: ${tags.slice(0, 6).join(", ")}` : null,
@@ -2513,56 +2513,48 @@ if (!recent.length) {
 }
 
     // --- Section C: Guided extract (chat_sessions) ✅ FIX
-// ---------- C) Estratto riflessione guidata ----------
-doc.moveDown(0.6)
-doc.fontSize(13).fillColor(ACCENT).text("C) Riflessione guidata (estratto)")
-doc.moveDown(0.4)
+sectionTitle(doc, "C) Riflessione guidata (estratto)")
 
 const guided = guidedSessions || []
 if (!guided.length) {
   doc.fillColor(MUTED).fontSize(10).text("Nessuna sessione guidata nel periodo selezionato.")
+  doc.fillColor(TEXT)
 } else {
-  // Mostriamo le 3 più recenti
-  const pick = guided.slice(0, 3)
+  const pick = guided.slice(-3).reverse() // 3 più recenti (compatibile con order asc)
 
   for (const s of pick) {
     const at = s.created_at ? new Date(s.created_at) : null
     const when = at ? fmtDateTimeIT(at) : "—"
 
-    // messages è jsonb: array di {role, content}
     const msgs = Array.isArray(s.messages) ? s.messages : []
-    // prendiamo 6 turni max per evitare PDF infinito
-    const excerpt = msgs.slice(0, 6).map(m => {
-      const role = (m?.role || "").toString().toUpperCase()
-      const content = (m?.content || "").toString().trim()
-      if (!content) return null
-      return `${role}: ${content}`
-    }).filter(Boolean)
+    const excerpt = msgs
+      .slice(0, 8)
+      .map((m) => {
+        const role = (m?.role || "").toString().toUpperCase()
+        const content = (m?.content || "").toString().trim()
+        if (!content) return null
+        return `${role}: ${content}`
+      })
+      .filter(Boolean)
 
     const replyText = (s.reply || "").toString().trim()
+    if (replyText) excerpt.push(`MENTOR (chiusura): ${replyText}`)
 
-    drawCard({
-      title: `${when}  ·  Guided session`,
-      lines: excerpt.length ? excerpt : ["(Nessun messaggio salvato nella sessione)"],
-      body: replyText ? `Chiusura (Mentor): ${replyText}` : "",
+    drawCard(doc, {
+      title: `Sessione guidata · ${when}`,
+      subtitle: `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
+      lines: excerpt.length ? excerpt : ["(Nessun contenuto messaggi salvato nella sessione)"],
     })
+
+    doc.fontSize(9).fillColor(MUTED).text(
+      "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."
+    )
+    doc.fillColor(TEXT)
   }
 }
 
 
-        if (replyText) excerpt.push(`Mentor (chiusura): ${replyText}`)
-
-        drawCard(doc, {
-          title: `Sessione guidata · ${when}`,
-          subtitle: `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
-          lines: excerpt.length ? excerpt : ["(Nessun contenuto messaggi salvato nella sessione)"],
-        })
-
-      doc.fontSize(9).fillColor(MUTED).text(
-        "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."
-      )
-      doc.fillColor(TEXT)
-    }
+       
 
     // --- footer
     doc.moveDown(1.0)

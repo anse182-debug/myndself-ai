@@ -2151,6 +2151,116 @@ app.post("/api/therapist/share", async (req, reply) => {
   }
 })
 
+function ensureSpace(doc, needed, bottom = 48) {
+  const pageBottom = doc.page.height - bottom
+  if (doc.y + needed > pageBottom) doc.addPage()
+}
+
+function ellipsize(text, maxChars = 900) {
+  if (!text) return ""
+  const t = String(text).trim()
+  if (t.length <= maxChars) return t
+  return t.slice(0, maxChars - 1).trimEnd() + "…"
+}
+
+/**
+ * Disegna una card con background + border e testo “a blocchi” senza overlap.
+ * sections: array di { text, fontSize?, color?, bold?, maxLines? }
+ */
+function drawCard(doc, {
+  x,
+  y,
+  w,
+  padding = 14,
+  radius = 12,
+  bg = "#0B1220",
+  border = "#1E3355",
+  sections = [],
+  lineGap = 3,
+  gapBetweenSections = 8
+}) {
+  const innerW = w - padding * 2
+
+  // 1) Calcolo altezza totale necessaria
+  let contentH = 0
+  for (const s of sections) {
+    const fs = s.fontSize ?? 11
+    const text = s.text ?? ""
+    const maxLines = s.maxLines ?? null
+
+    doc.fontSize(fs)
+
+    // altezza “stimata” del testo con wrapping (ma senza render)
+    let h = doc.heightOfString(text, {
+      width: innerW,
+      lineGap
+    })
+
+    // se vuoi maxLines, converti in altezza massima (approx: fs + lineGap)
+    if (maxLines) {
+      const approxLineH = fs + lineGap
+      const maxH = maxLines * approxLineH
+      h = Math.min(h, maxH)
+    }
+
+    contentH += h + gapBetweenSections
+  }
+  if (contentH > 0) contentH -= gapBetweenSections // niente gap dopo l’ultima
+
+  const cardH = contentH + padding * 2
+
+  // 2) Se non c'è spazio, vai a pagina nuova
+  ensureSpace(doc, cardH + 10)
+
+  // 3) Disegno rettangolo card
+  doc
+    .save()
+    .fillColor(bg)
+    .strokeColor(border)
+    .lineWidth(1)
+    .roundedRect(x, doc.y, w, cardH, radius)
+    .fillAndStroke()
+    .restore()
+
+  // 4) Render testo dentro la card
+  let cursorY = doc.y + padding
+  for (const s of sections) {
+    const fs = s.fontSize ?? 11
+    const color = s.color ?? "#E5E7EB"
+    const text = s.text ?? ""
+    const bold = !!s.bold
+    const maxLines = s.maxLines ?? null
+
+    doc
+      .font(bold ? "Helvetica-Bold" : "Helvetica")
+      .fontSize(fs)
+      .fillColor(color)
+
+    const textOpts = {
+      width: innerW,
+      lineGap
+    }
+
+    // trucco: se maxLines, tronchiamo per caratteri in modo conservativo
+    // (PDFKit non ha maxLines nativo). Semplice e affidabile.
+    let renderText = text
+    if (maxLines) {
+      // stima grezza: ~ (innerW/6) chars per riga a 11px (dipende dal font)
+      // meglio conservativo
+      const approxCharsPerLine = Math.max(40, Math.floor(innerW / 5.5))
+      const maxChars = approxCharsPerLine * maxLines
+      renderText = ellipsize(text, maxChars)
+    }
+
+    doc.text(renderText, x + padding, cursorY, textOpts)
+    const usedH = doc.heightOfString(renderText, textOpts)
+    cursorY += usedH + gapBetweenSections
+  }
+
+  // 5) Avanza doc.y sotto la card
+  doc.y = doc.y + cardH + 12
+}
+
 
 // =============================================================
 // THERAPIST PDF REPORT (read-only via token)
@@ -2195,16 +2305,17 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     console.log("PDF entries count:", entries?.length ?? 0)
 
     // 2b) carica guided sessions (chat_sessions)  ✅ FIX
-    const { data: guidedSessions, error: gErr } = await supabase
-      .from("chat_sessions")
-      .select("created_at, messages, reply, type, step")
-      .eq("user_id", userId)
-      .eq("type", "guided")
-      .gte("created_at", from.toISOString())
-      .lte("created_at", to.toISOString())
-      .order("created_at", { ascending: true })
+  const { data: guidedSessions, error: gErr } = await supabase
+  .from("chat_sessions")
+  .select("created_at, messages, reply, type, step")
+  .eq("user_id", userId)
+  .eq("type", "guided")
+  .gte("created_at", from.toISOString())
+  .lte("created_at", to.toISOString())
+  .order("created_at", { ascending: true })
 
-    if (gErr) throw gErr
+if (gErr) throw gErr
+
 
     // 3) aggregazioni leggere (tag)
     const tagCounts = {}
@@ -2367,49 +2478,155 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     })
 
     // --- Section B: Ultimi check-in (card style)
-    sectionTitle(doc, "B) Ultimi check-in (più recenti)")
-    if (!entries || entries.length === 0) {
-      doc.fontSize(10).fillColor(MUTED).text("Nessuna riflessione trovata nel periodo selezionato.")
-      doc.fillColor(TEXT)
-    } else {
-      const last = [...entries].slice(-10).reverse()
-      for (const r of last) {
-        const when = r.at ? fmtDateTimeIT(r.at) : "—"
-        const mood = safe(r.mood).trim() || "—"
-        const tags = Array.isArray(r.tags) && r.tags.length ? r.tags.join(" · ") : ""
-        const note = safe(r.note).trim()
-        const reflection = safe(r.reflection).trim()
+    // ---------- B) Ultimi check-in (più recenti) ----------
+doc.moveDown(0.6)
+doc.fontSize(13).fillColor(ACCENT).text("B) Ultimi check-in (più recenti)")
+doc.moveDown(0.4)
 
-        drawCard(doc, {
-          title: `${when}  ·  ${mood}`,
-          subtitle: tags ? `Tag: ${tags}` : undefined,
-          lines: [
-            note ? `Nota: ${note}` : "Nota: —",
-            reflection ? `Riflessione: ${reflection}` : "Riflessione: —",
-          ],
-        })
-      }
-    }
+const PAGE_W = doc.page.width
+const M = doc.page.margins.left
+const CONTENT_W = PAGE_W - doc.page.margins.left - doc.page.margins.right
+const PAGE_BOTTOM = doc.page.height - doc.page.margins.bottom
+
+// helper: page-break sicuro
+const ensureSpace = (needed) => {
+  if (doc.y + needed >= PAGE_BOTTOM) {
+    doc.addPage()
+    // (se hai un header per pagina, richiamalo qui)
+  }
+}
+
+// helper: disegna card e ritorna la nuova Y (FIX: fontSize coerenti con heightOfString)
+const drawCard = ({ title, lines = [], body = "" }) => {
+  const cardPad = 12
+  const radius = 10
+  const gap = 10
+  const cardX = M
+  const cardW = CONTENT_W
+
+  const titleFont = 11
+  const metaFont = 9
+  const bodyFont = 9
+  const lineGap = 2
+
+  // ---- PREP text (clipping)
+  const linesText = (lines || []).filter(Boolean).join("\n")
+
+  const MAX_BODY_CHARS = 700
+  const safeBody = (body || "").trim()
+  const clippedBody =
+    safeBody.length > MAX_BODY_CHARS ? safeBody.slice(0, MAX_BODY_CHARS) + "…" : safeBody
+
+  // ---- HEIGHTS (IMPORTANT: set fontSize BEFORE heightOfString)
+  doc.fontSize(titleFont)
+  const titleH = doc.heightOfString(title, { width: cardW - cardPad * 2, lineGap }) + 2
+
+  doc.fontSize(metaFont)
+  const linesH = linesText
+    ? doc.heightOfString(linesText, { width: cardW - cardPad * 2, lineGap }) + 4
+    : 0
+
+  doc.fontSize(bodyFont)
+  const bodyH = clippedBody
+    ? doc.heightOfString(clippedBody, { width: cardW - cardPad * 2, lineGap }) + 4
+    : 0
+
+  const cardH = cardPad + titleH + linesH + bodyH + cardPad
+
+  ensureSpace(cardH + gap)
+
+  // sfondo + bordo
+  doc.save()
+  doc.roundedRect(cardX, doc.y, cardW, cardH, radius).fillOpacity(1).fill(CARD_BG)
+  doc.restore()
+
+  doc.save()
+  doc.roundedRect(cardX, doc.y, cardW, cardH, radius).lineWidth(1).stroke(CARD_BORDER)
+  doc.restore()
+
+  // contenuto (posizionamento assoluto => doc.y NON si aggiorna da solo)
+  let y = doc.y + cardPad
+
+  doc.fillColor("#E5E7EB").fontSize(titleFont)
+  doc.text(title, cardX + cardPad, y, { width: cardW - cardPad * 2, lineGap })
+  y += titleH
+
+  if (linesText) {
+    doc.fillColor("#9CA3AF").fontSize(metaFont)
+    doc.text(linesText, cardX + cardPad, y, { width: cardW - cardPad * 2, lineGap })
+    y += linesH
+  }
+
+  if (clippedBody) {
+    doc.fillColor("#E5E7EB").fontSize(bodyFont)
+    doc.text(clippedBody, cardX + cardPad, y, { width: cardW - cardPad * 2, lineGap })
+    y += bodyH
+  }
+
+  doc.y = doc.y + cardH + gap
+}
+
+
+const recent = (entries || []).slice(-6).reverse() // 6 più recenti
+if (!recent.length) {
+  doc.fillColor(MUTED).fontSize(10).text("Nessun check-in nel periodo selezionato.")
+} else {
+  for (const r of recent) {
+    const at = r.at ? new Date(r.at) : null
+    const when = at ? fmtDateTimeIT(at) : "—"
+    const moods = (r.mood || "").toString().trim()
+    const tags = Array.isArray(r.tags) ? r.tags : []
+    const note = (r.note || "").toString().trim()
+    const reflection = (r.reflection || "").toString().trim()
+
+    drawCard({
+      title: `${when}  ·  ${moods || "—"}`,
+      lines: [
+        tags.length ? `Tag: ${tags.slice(0, 6).join(", ")}` : null,
+        note ? `Nota: ${note}` : null,
+      ],
+      body: reflection ? `Riflessione: ${reflection}` : "",
+    })
+  }
+}
 
     // --- Section C: Guided extract (chat_sessions) ✅ FIX
-    sectionTitle(doc, "C) Estratto riflessione guidata (sessioni)")
-    if (!guidedSessions || guidedSessions.length === 0) {
-      doc.fontSize(10).fillColor(MUTED).text("Nessuna sessione guidata nel periodo selezionato.")
-      doc.fillColor(TEXT)
-    } else {
-      // prendi le ultime 3 sessioni guided, così non esplode
-      const lastGuided = [...guidedSessions].slice(-3).reverse()
+// ---------- C) Estratto riflessione guidata ----------
+doc.moveDown(0.6)
+doc.fontSize(13).fillColor(ACCENT).text("C) Riflessione guidata (estratto)")
+doc.moveDown(0.4)
 
-      for (const s of lastGuided) {
-        const when = s.created_at ? fmtDateTimeIT(s.created_at) : "—"
-        const msgs = normalizeMessages(s.messages)
-        const replyText = safe(s.reply).trim()
+const guided = guidedSessions || []
+if (!guided.length) {
+  doc.fillColor(MUTED).fontSize(10).text("Nessuna sessione guidata nel periodo selezionato.")
+} else {
+  // Mostriamo le 3 più recenti
+  const pick = guided.slice(0, 3)
 
-        // Mostriamo un estratto “leggibile”: max 8 messaggi + reply
-        const excerpt = msgs.slice(0, 8).map((m) => {
-          const role = m.role === "assistant" ? "Mentor" : "Utente"
-          return `${role}: ${m.content}`
-        })
+  for (const s of pick) {
+    const at = s.created_at ? new Date(s.created_at) : null
+    const when = at ? fmtDateTimeIT(at) : "—"
+
+    // messages è jsonb: array di {role, content}
+    const msgs = Array.isArray(s.messages) ? s.messages : []
+    // prendiamo 6 turni max per evitare PDF infinito
+    const excerpt = msgs.slice(0, 6).map(m => {
+      const role = (m?.role || "").toString().toUpperCase()
+      const content = (m?.content || "").toString().trim()
+      if (!content) return null
+      return `${role}: ${content}`
+    }).filter(Boolean)
+
+    const replyText = (s.reply || "").toString().trim()
+
+    drawCard({
+      title: `${when}  ·  Guided session`,
+      lines: excerpt.length ? excerpt : ["(Nessun messaggio salvato nella sessione)"],
+      body: replyText ? `Chiusura (Mentor): ${replyText}` : "",
+    })
+  }
+}
+
 
         if (replyText) excerpt.push(`Mentor (chiusura): ${replyText}`)
 

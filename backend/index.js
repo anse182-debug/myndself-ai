@@ -2557,7 +2557,6 @@ if (!guided.length) {
           subtitle: `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
           lines: excerpt.length ? excerpt : ["(Nessun contenuto messaggi salvato nella sessione)"],
         })
-      }
 
       doc.fontSize(9).fillColor(MUTED).text(
         "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."

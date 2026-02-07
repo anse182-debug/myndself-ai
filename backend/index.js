@@ -2190,9 +2190,10 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .gte("at", from.toISOString())
       .lte("at", to.toISOString())
       .order("at", { ascending: true })
-    console.log("PDF entries count:", entries?.length)
 
     if (eErr) throw eErr
+
+    console.log("PDF entries count:", entries?.length)
 
     const { data: guided, error: gErr } = await supabase
       .from("guided_history")
@@ -2201,83 +2202,171 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       .gte("created_at", from.toISOString())
       .lte("created_at", to.toISOString())
       .order("created_at", { ascending: true })
-    
 
     if (gErr) throw gErr
 
     // 3) aggregazioni leggere (tag)
     const tagCounts = {}
     for (const row of entries || []) {
-      for (const t of row.tags || []) tagCounts[t] = (tagCounts[t] || 0) + 1
+      const tagsArr = Array.isArray(row.tags) ? row.tags : []
+      for (const t of tagsArr) tagCounts[t] = (tagCounts[t] || 0) + 1
     }
     const topTags = Object.entries(tagCounts)
       .map(([tag, count]) => ({ tag, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 8)
 
-    // 4) PDF
     // 4) PDF (stream sicuro Fastify)
-reply.header("Content-Type", "application/pdf")
-reply.header(
-  "Content-Disposition",
-  `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
-)
+    reply.header("Content-Type", "application/pdf")
+    reply.header(
+      "Content-Disposition",
+      `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
+    )
 
-// IMPORTANT: diciamo a Fastify che gestiamo noi lo stream
-reply.hijack()
+    // IMPORTANT: diciamo a Fastify che gestiamo noi lo stream
+    reply.hijack()
 
-const doc = new PDFDocument({ size: "A4", margin: 48 })
+    const doc = new PDFDocument({ size: "A4", margin: 48 })
 
+    // se il client chiude la connessione, fermiamo il PDF subito
+    const onClose = () => {
+      try {
+        doc.end()
+      } catch {}
+    }
+    reply.raw.on("close", onClose)
 
-// se il client chiude la connessione, fermiamo il PDF subito
-const onClose = () => {
-  try { doc.end() } catch {}
-}
-reply.raw.on("close", onClose)
+    // preveniamo crash per errori di stream
+    doc.on("error", (e) => {
+      console.error("❌ pdfkit error:", e)
+      try {
+        reply.raw.destroy(e)
+      } catch {}
+    })
+    reply.raw.on("error", (e) => {
+      console.error("❌ response stream error:", e)
+      try {
+        doc.end()
+      } catch {}
+    })
 
-// preveniamo crash per errori di stream
-doc.on("error", (e) => {
-  console.error("❌ pdfkit error:", e)
-  try { reply.raw.destroy(e) } catch {}
-})
-reply.raw.on("error", (e) => {
-  console.error("❌ response stream error:", e)
-  try { doc.end() } catch {}
-})
+    // pipe DOPO aver agganciato i listener
+    doc.pipe(reply.raw)
 
-// pipe DOPO aver agganciato i listener
-doc.pipe(reply.raw)
+    // ---- CONTENUTO PDF
+    doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
+    doc.moveDown(0.4)
+    doc
+      .fontSize(11)
+      .fillColor("#555")
+      .text(
+        `Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`
+      )
+    doc.fillColor("#000").moveDown(1)
 
-// ---- CONTENUTO PDF (quello che avevi già)
-doc.fontSize(20).text("MyndSelf.ai — Report per terapeuta")
-doc.moveDown(0.4)
-doc.fontSize(11).fillColor("#555")
-  .text(`Periodo: ${fmtDateIT(from)} – ${fmtDateIT(to)} (ultimi ${lookbackDays} giorni)`)
-doc.fillColor("#000").moveDown(1)
+    doc
+      .fontSize(10)
+      .fillColor("#444")
+      .text(
+        "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
+        { align: "left" }
+      )
+    doc.fillColor("#000").moveDown(1)
 
-doc.fontSize(10).fillColor("#444").text(
-  "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche.",
-  { align: "left" }
-)
-doc.fillColor("#000").moveDown(1)
-    
+    // ---------- SNAPSHOT ----------
+    const entriesCount = (entries || []).length
+    const guidedCount = (guided || []).length
+
+    doc.fontSize(14).fillColor("#000").text("Snapshot", { underline: true })
+    doc.moveDown(0.6)
+    doc.fontSize(11).fillColor("#000").text(`• Check-in nel periodo: ${entriesCount}`)
+    doc.fontSize(11).fillColor("#000").text(`• Messaggi riflessione guidata: ${guidedCount}`)
+    doc.moveDown(0.4)
+
+    if (topTags.length > 0) {
+      doc.fontSize(11).fillColor("#000").text("• Tag più ricorrenti:")
+      for (const t of topTags) {
+        doc.fontSize(10).fillColor("#333").text(`   - ${t.tag}: ${t.count}`)
+      }
+    } else {
+      doc.fontSize(10).fillColor("#555").text("• Tag più ricorrenti: (nessuno)")
+    }
+    doc.fillColor("#000").moveDown(1)
+
+    // ---------- CHECK-IN (estratto) ----------
+    doc.fontSize(14).fillColor("#000").text("Ultimi check-in (estratto)", {
+      underline: true,
+    })
+    doc.moveDown(0.6)
+
     if (!entries || entries.length === 0) {
-  doc.text("Nessuna riflessione trovata nel periodo selezionato.")
-}
+      doc.fontSize(11).fillColor("#000").text("Nessun check-in nel periodo selezionato.")
+      doc.moveDown(1)
+    } else {
+      const last = entries.slice(-10).reverse()
+      for (const e of last) {
+        doc.fillColor("#000")
+        const when = e.at ? fmtDateIT(e.at) : "—"
+        const mood = e.mood || "n/d"
 
-// ... (tutto il resto uguale al tuo: sintesi, ultimi check-in, estratto guided)
+        doc.fontSize(11).text(`${when} — ${mood}`)
 
-// chiudi il documento
-doc.end()
+        if (e.note && String(e.note).trim()) {
+          doc.fontSize(10).fillColor("#333").text(`Nota: ${String(e.note).trim()}`)
+        }
 
-// aspetta che lo stream finisca prima di uscire dall’handler
-await new Promise((resolve) => reply.raw.on("finish", resolve))
+        if (e.reflection && String(e.reflection).trim()) {
+          doc
+            .fontSize(10)
+            .fillColor("#333")
+            .text(`Riflessione: ${String(e.reflection).trim()}`)
+        }
 
+        const tagsArr = Array.isArray(e.tags) ? e.tags : []
+        if (tagsArr.length) {
+          doc.fontSize(10).fillColor("#333").text(`Tag: ${tagsArr.join(", ")}`)
+        }
+
+        doc.fillColor("#000").moveDown(0.8)
+      }
+    }
+
+    // ---------- GUIDED HISTORY (estratto) ----------
+    doc.fontSize(14).fillColor("#000").text("Riflessione guidata (estratto)", {
+      underline: true,
+    })
+    doc.moveDown(0.6)
+
+    if (!guided || guided.length === 0) {
+      doc.fontSize(11).fillColor("#000").text("Nessun contenuto di riflessione guidata nel periodo.")
+      doc.moveDown(1)
+    } else {
+      const lastGuided = guided.slice(-12) // ultimi 12 turni
+      for (const g of lastGuided) {
+        const when = g.created_at ? fmtDateIT(g.created_at) : "—"
+        const who = g.role === "assistant" ? "Mentor" : "User"
+        const text = (g.content || "").trim()
+
+        if (!text) continue
+
+        doc.fillColor("#000")
+        doc.fontSize(10).text(`${when} — ${who}:`)
+        doc.fontSize(10).fillColor("#333").text(text)
+        doc.fillColor("#000").moveDown(0.6)
+      }
+    }
+
+    // chiudi il documento
+    doc.end()
+
+    // aspetta che lo stream finisca prima di uscire dall’handler
+    await new Promise((resolve) => reply.raw.on("finish", resolve))
   } catch (err) {
     console.error("❌ therapist/report.pdf error:", err)
     return reply.code(500).send({ error: "therapist_report_failed" })
   }
 })
+
 
 // =============================================================
 // THERAPIST REVOKE: revoca un token (robusto via JWT)

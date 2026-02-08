@@ -2345,6 +2345,20 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       })
 
     const safe = (s) => (typeof s === "string" ? s : s == null ? "" : String(s))
+    const clampText = (s, max = 420) => {
+  const t = safe(s).replace(/\s+/g, " ").trim()
+  if (!t) return ""
+  return t.length > max ? t.slice(0, max).trim() + "…" : t
+}
+
+// prende le prime N righe (per note in formato "tag · tag · ...")
+const clampLines = (s, maxLines = 3) => {
+  const t = safe(s).trim()
+  if (!t) return ""
+  const lines = t.split("\n").map(x => x.trim()).filter(Boolean)
+  return lines.slice(0, maxLines).join("\n") + (lines.length > maxLines ? "\n…" : "")
+}
+
 
     // Theme MyndSelf (dark)
     const PAGE_BG = "#05070B"
@@ -2541,22 +2555,27 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
       doc.fillColor(TEXT)
     } else {
       for (const r of recent) {
-        const at = r.at ? new Date(r.at) : null
-        const when = at ? fmtDateTimeIT(at) : "—"
-        const moods = safe(r.mood).trim()
-        const tags = Array.isArray(r.tags) ? r.tags : []
-        const note = safe(r.note).trim()
-        const reflection = safe(r.reflection).trim()
+  const at = r.at ? new Date(r.at) : null
+  const when = at ? fmtDateTimeIT(at) : "—"
+  const moods = safe(r.mood).trim()
+  const tags = Array.isArray(r.tags) ? r.tags : []
+  const note = safe(r.note).trim()
+  const reflection = safe(r.reflection).trim()
 
-        drawCard(doc, {
-          title: `${when}  ·  ${moods || "—"}`,
-          lines: [
-            tags.length ? `Tag: ${tags.slice(0, 10).join(", ")}` : null,
-            note ? `Nota: ${note}` : null,
-          ],
-          body: reflection ? `Riflessione: ${reflection}` : "",
-        })
-      }
+  // preview brevi
+  const notePreview = clampText(note, 220)
+  const reflPreview = clampText(reflection, 420)
+
+  drawCard(doc, {
+    title: `${when}  ·  ${moods || "—"}`,
+    subtitle: tags.length ? `Tag: ${tags.slice(0, 6).join(" · ")}` : null,
+    lines: [
+      notePreview ? `Nota: ${notePreview}` : null,
+      reflPreview ? `Riflessione: ${reflPreview}` : null,
+    ].filter(Boolean),
+  })
+}
+
     }
 
     // ---- C) Guided
@@ -2572,25 +2591,36 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
         const at = s.created_at ? new Date(s.created_at) : null
         const when = at ? fmtDateTimeIT(at) : "—"
 
-        const msgs = normalizeMessages(s.messages)
-        // mostra max 8 turni (wrap OK)
-        const excerpt = msgs.slice(0, 8).map((m) => {
-          const role = (m.role || "").toUpperCase()
-          const content = (m.content || "").trim()
-          if (!content) return null
-          return `${role}: ${content}`
-        }).filter(Boolean)
+       const msgsRaw = Array.isArray(s.messages) ? s.messages : []
+const msgs = normalizeMessages(msgsRaw)
 
-        const replyText = safe(s.reply).trim()
+// prendo 2 turni "user" e 2 turni "assistant" max (più umano e corto)
+const userTurns = msgs.filter(m => (m.role || "").toLowerCase() === "user").slice(0, 2)
+const assistantTurns = msgs.filter(m => (m.role || "").toLowerCase() === "assistant").slice(0, 2)
 
-        drawCard(doc, {
-          title: `Sessione guidata · ${when}`,
-          lines: [
-            `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
-            ...excerpt,
-          ],
-          body: replyText ? `Mentor (chiusura): ${replyText}` : "",
-        })
+const replyText = safe(s.reply).trim()
+
+const lines = [
+  `Turni salvati: ${msgs.length}`,
+  userTurns[0]?.content ? `Utente: ${clampText(userTurns[0].content, 220)}` : null,
+  userTurns[1]?.content ? `Utente: ${clampText(userTurns[1].content, 220)}` : null,
+  assistantTurns[0]?.content ? `Mentor: ${clampText(assistantTurns[0].content, 260)}` : null,
+  assistantTurns[1]?.content ? `Mentor: ${clampText(assistantTurns[1].content, 260)}` : null,
+  replyText ? `Chiusura: ${clampText(replyText, 280)}` : null,
+].filter(Boolean)
+
+drawCard(doc, {
+  title: `Sessione guidata · ${when}`,
+  subtitle: `Estratto breve (anti-muro)`,
+  lines,
+})
+
+doc.fontSize(9).fillColor(MUTED).text(
+  "Nota: estratto breve per mantenere il report leggibile. Se serve, possiamo esportare una versione completa su richiesta.",
+  { width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
+)
+doc.fillColor(TEXT)
+
 
         doc.fontSize(9).fillColor(MUTED).text(
           "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."

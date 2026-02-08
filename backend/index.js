@@ -2304,18 +2304,18 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     if (eErr) throw eErr
     console.log("PDF entries count:", entries?.length ?? 0)
 
-    // 2b) carica guided sessions (chat_sessions)  ✅ FIX
-  const { data: guidedSessions, error: gErr } = await supabase
-  .from("chat_sessions")
-  .select("created_at, messages, reply, type, step")
-  .eq("user_id", userId)
-  .eq("type", "guided")
-  .gte("created_at", from.toISOString())
-  .lte("created_at", to.toISOString())
-  .order("created_at", { ascending: true })
+    // 2b) guided sessions (chat_sessions) ✅
+    // NB: prendo le più recenti in modo semplice e poi le mostro in ordine recente->vecchio
+    const { data: guidedSessions, error: gErr } = await supabase
+      .from("chat_sessions")
+      .select("created_at, messages, reply, type, step")
+      .eq("user_id", userId)
+      .eq("type", "guided")
+      .gte("created_at", from.toISOString())
+      .lte("created_at", to.toISOString())
+      .order("created_at", { ascending: false })
 
-if (gErr) throw gErr
-
+    if (gErr) throw gErr
 
     // 3) aggregazioni leggere (tag)
     const tagCounts = {}
@@ -2327,90 +2327,142 @@ if (gErr) throw gErr
       .sort((a, b) => b.count - a.count)
       .slice(0, 8)
 
-    // ---------------- PDF helpers ----------------
+    // ---------------- Helpers ----------------
     const fmtDateIT = (d) =>
-      new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" })
+      new Date(d).toLocaleDateString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      })
 
     const fmtDateTimeIT = (d) =>
-      new Date(d).toLocaleString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" })
+      new Date(d).toLocaleString("it-IT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
 
-    const safe = (s) => (typeof s === "string" ? s : (s == null ? "" : String(s)))
+    const safe = (s) => (typeof s === "string" ? s : s == null ? "" : String(s))
 
-    const PAGE_BG = "#05070B"      // dark
-    const CARD_BG = "#0B1220"      // slightly lighter
+    // Theme MyndSelf (dark)
+    const PAGE_BG = "#05070B"
+    const CARD_BG = "#0B1220"
     const CARD_BORDER = "#173041"
-    const ACCENT = "#2EEB80"       // emerald-ish
+    const ACCENT = "#2EEB80"
     const MUTED = "#A3B3C2"
     const TEXT = "#EAF2FF"
+    const SOFT = "#B6C2D0"
+
+    const paintPageBg = (doc) => {
+      doc.save()
+      doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAGE_BG)
+      doc.restore()
+      doc.fillColor(TEXT)
+    }
 
     const ensureSpace = (doc, needed = 120) => {
       const bottom = doc.page.height - doc.page.margins.bottom
       if (doc.y + needed > bottom) {
         doc.addPage()
-        // repaint bg on new page
-        doc.save()
-        doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAGE_BG)
-        doc.restore()
-        doc.fillColor(TEXT)
+        paintPageBg(doc)
       }
     }
 
     const sectionTitle = (doc, title) => {
-      ensureSpace(doc, 70)
+      ensureSpace(doc, 90)
       doc.moveDown(0.6)
       doc.fontSize(13).fillColor(ACCENT).text(title)
       doc.moveDown(0.2)
       doc.strokeColor("#123").lineWidth(1)
-      doc.moveTo(doc.page.margins.left, doc.y)
+      doc
+        .moveTo(doc.page.margins.left, doc.y)
         .lineTo(doc.page.width - doc.page.margins.right, doc.y)
         .stroke()
       doc.moveDown(0.6)
       doc.fillColor(TEXT)
     }
 
-    const drawCard = (doc, { title, subtitle, lines }) => {
+    // ✅ drawCard NO-OVERLAP: altezza calcolata con heightOfString (wrapping incluso)
+    const drawCard = (doc, { title, lines = [], body = "" }) => {
       const x = doc.page.margins.left
       const w = doc.page.width - doc.page.margins.left - doc.page.margins.right
+      const pad = 14
+      const radius = 10
+      const gap = 10
+      const innerW = w - pad * 2
 
-      // calcolo altezza card (grezzo ma efficace)
-      const lineH = 14
-      const baseH = 18 + 14 + 14
-      const contentH = (lines?.length || 0) * lineH
-      const h = Math.max(72, baseH + contentH + 18)
+      const cleanLines = (lines || []).filter(Boolean).map(safe)
+      const linesText = cleanLines.length ? cleanLines.join("\n") : ""
+      const cleanBody = safe(body).trim()
 
-      ensureSpace(doc, h + 18)
+      // (soft clip per mantenere leggibile)
+      const MAX_BODY_CHARS = 1200
+      const clippedBody =
+        cleanBody.length > MAX_BODY_CHARS
+          ? cleanBody.slice(0, MAX_BODY_CHARS) + "…"
+          : cleanBody
+
+      // misure reali (wrapping)
+      const titleH =
+        doc.heightOfString(safe(title), {
+          width: innerW,
+          lineGap: 2,
+        }) + 2
+
+      const linesH = linesText
+        ? doc.heightOfString(linesText, { width: innerW, lineGap: 2 }) + 6
+        : 0
+
+      const bodyH = clippedBody
+        ? doc.heightOfString(clippedBody, { width: innerW, lineGap: 2 }) + 6
+        : 0
+
+      const cardH = pad + titleH + linesH + bodyH + pad
+
+      ensureSpace(doc, cardH + gap)
 
       const y = doc.y
+
+      // box
       doc.save()
-      doc.roundedRect(x, y, w, h, 10).fill(CARD_BG)
-      doc.roundedRect(x, y, w, h, 10).strokeColor(CARD_BORDER).lineWidth(1).stroke()
+      doc.roundedRect(x, y, w, cardH, radius).fill(CARD_BG)
+      doc.roundedRect(x, y, w, cardH, radius).strokeColor(CARD_BORDER).lineWidth(1).stroke()
       doc.restore()
 
-      const pad = 14
+      // content
       let cy = y + pad
 
-      doc.fontSize(11).fillColor(TEXT).text(safe(title), x + pad, cy, { width: w - pad * 2 })
-      cy += 16
-      if (subtitle) {
-        doc.fontSize(9).fillColor(MUTED).text(safe(subtitle), x + pad, cy, { width: w - pad * 2 })
-        cy += 14
+      doc.fontSize(11).fillColor(TEXT)
+      doc.text(safe(title), x + pad, cy, { width: innerW, lineGap: 2 })
+      cy += titleH
+
+      if (linesText) {
+        doc.fontSize(9).fillColor(MUTED)
+        doc.text(linesText, x + pad, cy, { width: innerW, lineGap: 2 })
+        cy += linesH
       }
 
-      doc.fontSize(10).fillColor(TEXT)
-      for (const l of (lines || [])) {
-        doc.text(safe(l), x + pad, cy, { width: w - pad * 2 })
-        cy += lineH
+      if (clippedBody) {
+        doc.fontSize(9).fillColor(TEXT)
+        doc.text(clippedBody, x + pad, cy, { width: innerW, lineGap: 2 })
+        cy += bodyH
       }
 
-      doc.y = y + h + 10
+      doc.y = y + cardH + gap
       doc.fillColor(TEXT)
     }
 
     const normalizeMessages = (messages) => {
-      // messages può essere [] o array di oggetti {role,content}
-      if (!Array.isArray(messages)) return []
-      return messages
-        .filter((m) => m && (m.role || m.type) && (m.content != null))
+      // messages può essere jsonb già array, oppure stringa JSON, oppure null
+      let arr = messages
+      if (typeof arr === "string") {
+        try { arr = JSON.parse(arr) } catch { arr = [] }
+      }
+      if (!Array.isArray(arr)) return []
+      return arr
+        .filter((m) => m && (m.role || m.type) && m.content != null)
         .map((m) => ({
           role: safe(m.role || m.type),
           content: safe(m.content),
@@ -2419,7 +2471,10 @@ if (gErr) throw gErr
 
     // ---------------- PDF streaming (Fastify safe) ----------------
     reply.header("Content-Type", "application/pdf")
-    reply.header("Content-Disposition", `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`)
+    reply.header(
+      "Content-Disposition",
+      `inline; filename="myndself_report_${fmtDateIT(to)}.pdf"`
+    )
     reply.hijack()
 
     const doc = new PDFDocument({ size: "A4", margin: 48 })
@@ -2438,16 +2493,10 @@ if (gErr) throw gErr
 
     doc.pipe(reply.raw)
 
-    // --- page bg (full dark)
-    doc.save()
-    doc.rect(0, 0, doc.page.width, doc.page.height).fill(PAGE_BG)
-    doc.restore()
-    doc.fillColor(TEXT)
+    // ---- page bg
+    paintPageBg(doc)
 
-    // --- header
-    // Se vuoi il logo: metti un PNG nel backend e decommenta:
-    // doc.image(path.join(process.cwd(), "assets/logo.png"), doc.page.margins.left, 38, { width: 42 })
-
+    // ---- header
     doc.fontSize(20).fillColor(TEXT).text("MyndSelf.ai", { continued: true })
     doc.fillColor(ACCENT).text(" — Therapist Report")
     doc.moveDown(0.3)
@@ -2457,107 +2506,102 @@ if (gErr) throw gErr
     )
     doc.moveDown(0.8)
 
-    doc.fontSize(9).fillColor("#B6C2D0").text(
-      "Nota: report non-clinico basato su check-in e riflessioni dell’utente. Non contiene diagnosi né indicazioni terapeutiche. " +
+    doc.fontSize(9).fillColor(SOFT).text(
+      "Nota: report non-clinico basato su check-in e riflessioni dell’utente. " +
+      "Non contiene diagnosi né indicazioni terapeutiche. " +
       "Usare come supporto alla conversazione, non come sostituto di valutazioni professionali."
     )
     doc.moveDown(1.0)
     doc.fillColor(TEXT)
 
-    // --- Section A: Snapshot
+    // ---- A) Snapshot
     sectionTitle(doc, "A) Snapshot")
     const total = entries?.length ?? 0
-    const last7 = (entries || []).filter((r) => new Date(r.at) >= new Date(to.getTime() - 7 * 86400000)).length
+    const last7 = (entries || []).filter((r) => {
+      const at = r.at ? new Date(r.at) : null
+      return at && at >= new Date(to.getTime() - 7 * 86400000)
+    }).length
 
     drawCard(doc, {
       title: "Attività nel periodo",
-      subtitle: `Totale check-in: ${total} · Ultimi 7 giorni: ${last7}`,
       lines: [
-        topTags.length ? `Top tag: ${topTags.map((t) => `${t.tag} (${t.count})`).join(" · ")}` : "Top tag: —",
+        `Totale check-in: ${total} · Ultimi 7 giorni: ${last7}`,
+        topTags.length
+          ? `Top tag: ${topTags.map((t) => `${t.tag} (${t.count})`).join(" · ")}`
+          : "Top tag: —",
       ],
     })
 
-    // --- Section B: Ultimi check-in (card style)
-    // ---------- B) Ultimi check-in (più recenti) ----------
-doc.moveDown(0.6)
-doc.fontSize(13).fillColor(ACCENT).text("B) Ultimi check-in (più recenti)")
-doc.moveDown(0.4)
+    // ---- B) Ultimi check-in
+    sectionTitle(doc, "B) Ultimi check-in (più recenti)")
 
-const PAGE_W = doc.page.width
-const M = doc.page.margins.left
-const CONTENT_W = PAGE_W - doc.page.margins.left - doc.page.margins.right
-const PAGE_BOTTOM = doc.page.height - doc.page.margins.bottom
+    const recent = (entries || []).slice(-6).reverse() // 6 più recenti
+    if (!recent.length) {
+      doc.fillColor(MUTED).fontSize(10).text("Nessun check-in nel periodo selezionato.")
+      doc.fillColor(TEXT)
+    } else {
+      for (const r of recent) {
+        const at = r.at ? new Date(r.at) : null
+        const when = at ? fmtDateTimeIT(at) : "—"
+        const moods = safe(r.mood).trim()
+        const tags = Array.isArray(r.tags) ? r.tags : []
+        const note = safe(r.note).trim()
+        const reflection = safe(r.reflection).trim()
 
+        drawCard(doc, {
+          title: `${when}  ·  ${moods || "—"}`,
+          lines: [
+            tags.length ? `Tag: ${tags.slice(0, 10).join(", ")}` : null,
+            note ? `Nota: ${note}` : null,
+          ],
+          body: reflection ? `Riflessione: ${reflection}` : "",
+        })
+      }
+    }
 
-const recent = (entries || []).slice(-6).reverse() // 6 più recenti
-if (!recent.length) {
-  doc.fillColor(MUTED).fontSize(10).text("Nessun check-in nel periodo selezionato.")
-} else {
-  for (const r of recent) {
-    const at = r.at ? new Date(r.at) : null
-    const when = at ? fmtDateTimeIT(at) : "—"
-    const moods = (r.mood || "").toString().trim()
-    const tags = Array.isArray(r.tags) ? r.tags : []
-    const note = (r.note || "").toString().trim()
-    const reflection = (r.reflection || "").toString().trim()
+    // ---- C) Guided
+    sectionTitle(doc, "C) Riflessione guidata (estratto)")
 
-    drawCard(doc, {
-      title: `${when}  ·  ${moods || "—"}`,
-      lines: [
-        tags.length ? `Tag: ${tags.slice(0, 6).join(", ")}` : null,
-        note ? `Nota: ${note}` : null,
-      ],
-      body: reflection ? `Riflessione: ${reflection}` : "",
-    })
-  }
-}
+    const guided = guidedSessions || []
+    if (!guided.length) {
+      doc.fillColor(MUTED).fontSize(10).text("Nessuna sessione guidata nel periodo selezionato.")
+      doc.fillColor(TEXT)
+    } else {
+      const pick = guided.slice(0, 3) // già in ordine DESC
+      for (const s of pick) {
+        const at = s.created_at ? new Date(s.created_at) : null
+        const when = at ? fmtDateTimeIT(at) : "—"
 
-    // --- Section C: Guided extract (chat_sessions) ✅ FIX
-sectionTitle(doc, "C) Riflessione guidata (estratto)")
+        const msgs = normalizeMessages(s.messages)
+        // mostra max 8 turni (wrap OK)
+        const excerpt = msgs.slice(0, 8).map((m) => {
+          const role = (m.role || "").toUpperCase()
+          const content = (m.content || "").trim()
+          if (!content) return null
+          return `${role}: ${content}`
+        }).filter(Boolean)
 
-const guided = guidedSessions || []
-if (!guided.length) {
-  doc.fillColor(MUTED).fontSize(10).text("Nessuna sessione guidata nel periodo selezionato.")
-  doc.fillColor(TEXT)
-} else {
-  const pick = guided.slice(-3).reverse() // 3 più recenti (compatibile con order asc)
+        const replyText = safe(s.reply).trim()
 
-  for (const s of pick) {
-    const at = s.created_at ? new Date(s.created_at) : null
-    const when = at ? fmtDateTimeIT(at) : "—"
+        drawCard(doc, {
+          title: `Sessione guidata · ${when}`,
+          lines: [
+            `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
+            ...excerpt,
+          ],
+          body: replyText ? `Mentor (chiusura): ${replyText}` : "",
+        })
 
-    const msgs = Array.isArray(s.messages) ? s.messages : []
-    const excerpt = msgs
-      .slice(0, 8)
-      .map((m) => {
-        const role = (m?.role || "").toString().toUpperCase()
-        const content = (m?.content || "").toString().trim()
-        if (!content) return null
-        return `${role}: ${content}`
-      })
-      .filter(Boolean)
+        doc.fontSize(9).fillColor(MUTED).text(
+          "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."
+        )
+        doc.fillColor(TEXT)
+        doc.moveDown(0.3)
+      }
+    }
 
-    const replyText = (s.reply || "").toString().trim()
-    if (replyText) excerpt.push(`MENTOR (chiusura): ${replyText}`)
-
-    drawCard(doc, {
-      title: `Sessione guidata · ${when}`,
-      subtitle: `Turni mostrati: ${Math.min(msgs.length, 8)} / ${msgs.length}`,
-      lines: excerpt.length ? excerpt : ["(Nessun contenuto messaggi salvato nella sessione)"],
-    })
-
-    doc.fontSize(9).fillColor(MUTED).text(
-      "Nota: l’estratto mostra solo una parte dei turni per mantenere il report leggibile."
-    )
-    doc.fillColor(TEXT)
-  }
-}
-
-
-       
-
-    // --- footer
-    doc.moveDown(1.0)
+    // ---- footer
+    doc.moveDown(0.8)
     doc.fontSize(8).fillColor("#7F93A6").text(
       `Generato da MyndSelf.ai · ${fmtDateTimeIT(new Date())}`,
       { align: "center" }
@@ -2570,7 +2614,6 @@ if (!guided.length) {
     return reply.code(500).send({ error: "therapist_report_failed" })
   }
 })
-
 
 
 // =============================================================

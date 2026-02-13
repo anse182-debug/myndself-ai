@@ -2554,7 +2554,7 @@ const clampLines = (s, maxLines = 3) => {
       doc.fillColor(MUTED).fontSize(10).text("Nessun check-in nel periodo selezionato.")
       doc.fillColor(TEXT)
     } else {
-      for (const r of recent) {
+ for (const r of recent) {
   const at = r.at ? new Date(r.at) : null
   const when = at ? fmtDateTimeIT(at) : "—"
   const moods = safe(r.mood).trim()
@@ -2576,6 +2576,7 @@ const clampLines = (s, maxLines = 3) => {
   })
 }
 
+
     }
 
     // ---- C) Guided
@@ -2591,7 +2592,7 @@ const clampLines = (s, maxLines = 3) => {
         const at = s.created_at ? new Date(s.created_at) : null
         const when = at ? fmtDateTimeIT(at) : "—"
 
-       const msgsRaw = Array.isArray(s.messages) ? s.messages : []
+        const msgsRaw = Array.isArray(s.messages) ? s.messages : []
 const msgs = normalizeMessages(msgsRaw)
 
 // prendo 2 turni "user" e 2 turni "assistant" max (più umano e corto)
@@ -2620,6 +2621,7 @@ doc.fontSize(9).fillColor(MUTED).text(
   { width: doc.page.width - doc.page.margins.left - doc.page.margins.right }
 )
 doc.fillColor(TEXT)
+
 
 
         doc.fontSize(9).fillColor(MUTED).text(

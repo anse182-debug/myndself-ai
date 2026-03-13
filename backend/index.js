@@ -2285,7 +2285,16 @@ app.get("/api/therapist/report.pdf", async (req, reply) => {
     if (!share) return reply.code(401).send({ error: "invalid_token" })
     if (share.revoked) return reply.code(403).send({ error: "token_revoked" })
     if (share.expires_at && new Date(share.expires_at) < new Date()) {
-      return reply.code(403).send({ error: "token_expired" })
+reply.type("text/html")
+return reply.code(403).send(`
+  <html>
+    <body style="font-family:sans-serif;background:#0b0f17;color:white;padding:40px">
+      <h2>Link non più valido</h2>
+      <p>Il link condiviso è scaduto o è stato revocato.</p>
+      <p>Chiedi al paziente di generare un nuovo link.</p>
+    </body>
+  </html>
+`)
     }
 
     const userId = share.user_id

@@ -674,7 +674,7 @@ const generateShare = async () => {
       return
     }
 
-    const res = await fetch(`${API_BASE}/api/therapist/revoke`, {
+    const res = await fetch(`${API_BASE}/api/therapist/revoke-all`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

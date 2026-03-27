@@ -9,6 +9,10 @@ import pkg from "@supabase/supabase-js"
 import { Resend } from "resend"
 import crypto from "crypto"
 import PDFDocument from "pdfkit"
+import {
+  generateSoftReentryMessage,
+  isSoftReentryEligible,
+} from "./agent/rituals/index.js"
 const { createClient } = pkg
 
 // ====== ENV ======
@@ -2678,6 +2682,28 @@ app.post("/api/therapist/revoke-all", async (req, reply) => {
   } catch (err) {
     console.error("❌ therapist/revoke-all error:", err)
     return reply.code(500).send({ error: "therapist_revoke_all_failed" })
+  }
+})
+
+
+app.post("/agent/ritual-message", async (req, reply) => {
+  try {
+    const context = req.body || {}
+
+    if (isSoftReentryEligible(context)) {
+      const ritual = generateSoftReentryMessage(context)
+      return reply.send({ ritual })
+    }
+
+    return reply.send({
+      ritual: null,
+      reason: "no_matching_mode",
+    })
+  } catch (err) {
+    req.log?.error?.(err)
+    return reply.code(500).send({
+      error: "ritual_message_generation_failed",
+    })
   }
 })
 

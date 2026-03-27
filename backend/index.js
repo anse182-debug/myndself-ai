@@ -2685,6 +2685,80 @@ app.post("/api/therapist/revoke-all", async (req, reply) => {
   }
 })
 
+app.get("/api/ritual-message", async (req, reply) => {
+  try {
+    const userId = String(req.query?.user_id || "").trim()
+
+    if (!userId) {
+      return reply.code(400).send({ error: "missing_user_id" })
+    }
+
+    const now = new Date()
+    const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000)
+
+    const { data: recentEntries, error: recentErr } = await supabase
+      .from("mood_entries")
+      .select("at")
+      .eq("user_id", userId)
+      .gte("at", fourDaysAgo.toISOString())
+      .order("at", { ascending: false })
+
+    if (recentErr) throw recentErr
+
+    const { data: lastEntry, error: lastErr } = await supabase
+      .from("mood_entries")
+      .select("at")
+      .eq("user_id", userId)
+      .order("at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (lastErr) throw lastErr
+
+    const isNewUser = !lastEntry?.at
+    const checkinsLast4d = recentEntries?.length || 0
+
+    let daysSinceLastCheckin = 999
+    if (lastEntry?.at) {
+      const last = new Date(lastEntry.at)
+      daysSinceLastCheckin = Math.floor(
+        (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)
+      )
+    }
+
+    const context = {
+      userId,
+      isNewUser,
+      daysSinceLastCheckin,
+      checkinsLast4d,
+      ritualCount7d: recentEntries?.length || 0,
+      recentEmotionalDensity: "unknown",
+    }
+
+    if (!isSoftReentryEligible(context)) {
+      return reply.send({
+        ritual: null,
+        reason: "no_matching_mode",
+      })
+    }
+
+    const ritual = generateSoftReentryMessage(context)
+
+    return reply.send({
+      ritual,
+      context: {
+        daysSinceLastCheckin,
+        checkinsLast4d,
+        isNewUser,
+      },
+    })
+  } catch (err) {
+    console.error("ritual-message error", err)
+    return reply.code(500).send({
+      error: "ritual_message_generation_failed",
+    })
+  }
+})
 
 app.post("/agent/ritual-message", async (req, reply) => {
   try {

@@ -442,6 +442,15 @@ export default function App() {
     }
   }, [session?.user?.id])
 
+  useEffect(() => {
+  if (!session?.user?.id) return
+
+  ;(async () => {
+    const uid = session.user.id
+    await loadRitualMessage(uid)
+  })()
+}, [session?.user?.id])
+
   const handleDismissBetaBanner = () => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(BETA_BANNER_KEY, "true")
@@ -468,6 +477,9 @@ export default function App() {
     { tag: string; count: number }[]
   >([])
   const [mentorInsight, setMentorInsight] = useState<string | null>(null)
+  const [ritualMessage, setRitualMessage] = useState<string | null>(null)
+  const [ritualMode, setRitualMode] = useState<string | null>(null)
+  const [ritualLoading, setRitualLoading] = useState(false)
   const [weeklyRitual, setWeeklyRitual] = useState<string | null>(null)
   const [weeklyRitualRange, setWeeklyRitualRange] = useState<{
     from: string
@@ -544,6 +556,7 @@ export default function App() {
   setCheckinDayIndex(getDayIndex())
 }, [session?.user?.id])
 
+  
 useEffect(() => {
   if (typeof window === "undefined") return
 
@@ -609,6 +622,38 @@ const handleLogin = async () => {
     setSession(null)
     showToast("Sei uscito dall'account", "info")
   }
+
+  async function loadRitualMessage(userId: string) {
+  setRitualLoading(true)
+
+  try {
+    const res = await fetch(
+      `${API_BASE}/api/ritual-message?user_id=${encodeURIComponent(userId)}`
+    )
+
+    const json = await res.json()
+
+    if (!res.ok) {
+      setRitualMessage(null)
+      setRitualMode(null)
+      return
+    }
+
+    if (json?.ritual?.message) {
+      setRitualMessage(json.ritual.message)
+      setRitualMode(json.ritual.mode || null)
+    } else {
+      setRitualMessage(null)
+      setRitualMode(null)
+    }
+  } catch (err) {
+    console.error("ritual message error", err)
+    setRitualMessage(null)
+    setRitualMode(null)
+  } finally {
+    setRitualLoading(false)
+  }
+}
 const generateShare = async () => {
   setShareLoading(true)
   setShareError(null)
@@ -1753,6 +1798,26 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                         <h2 className="text-sm font-semibold">
                           La riflessione di oggi
                         </h2>
+                        {ritualLoading && !ritualMessage && (
+  <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+    <p className="text-sm text-gray-400">...</p>
+  </div>
+)}
+
+{ritualMessage && (
+  <div
+    className={[
+      "mb-4 rounded-2xl border px-4 py-3",
+      ritualMode === "soft_reentry"
+        ? "border-sky-400/20 bg-sky-500/5"
+        : "border-emerald-400/20 bg-emerald-500/5",
+    ].join(" ")}
+  >
+    <p className="text-sm leading-relaxed text-gray-200">
+      {ritualMessage}
+    </p>
+  </div>
+)}
                        {(() => {
   const d = checkinDayIndex
   const copy = CHECKIN_COPY_7D[d] ?? CHECKIN_COPY_7D[1]

@@ -831,6 +831,7 @@ if (primaryEmotion) {
       // refresh dati per Insight
       await loadInsights(uid)
       await refreshEmotionalProfile(uid)
+      await loadRitualMessage(uid)
     } catch (err: any) {
       console.error(err)
       showToast(
@@ -1807,7 +1808,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 {ritualMessage && (
   <div
     className={[
-      "mb-4 rounded-2xl border px-4 py-3",
+      "mb-6 rounded-2xl border px-4 py-3",
       ritualMode === "soft_reentry"
         ? "border-sky-400/20 bg-sky-500/5"
         : "border-emerald-400/20 bg-emerald-500/5",

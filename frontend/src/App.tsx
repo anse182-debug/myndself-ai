@@ -654,6 +654,18 @@ const handleLogin = async () => {
     setRitualLoading(false)
   }
 }
+
+    function getRitualBoxClasses(mode: string | null) {
+  switch (mode) {
+    case "soft_reentry":
+      return "border-sky-400/20 bg-sky-500/5"
+    case "gentle_containment":
+      return "border-violet-400/20 bg-violet-500/5"
+    default:
+      return "border-emerald-400/20 bg-emerald-500/5"
+  }
+}
+  
 const generateShare = async () => {
   setShareLoading(true)
   setShareError(null)
@@ -1808,10 +1820,8 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 {ritualMessage && (
   <div
     className={[
-      "mb-6 rounded-2xl border px-4 py-3",
-      ritualMode === "soft_reentry"
-        ? "border-sky-400/20 bg-sky-500/5"
-        : "border-emerald-400/20 bg-emerald-500/5",
+      "mb-5 rounded-2xl border px-4 py-3",
+      getRitualBoxClasses(ritualMode),
     ].join(" ")}
   >
     <p className="text-sm leading-relaxed text-gray-200">

@@ -655,12 +655,14 @@ const handleLogin = async () => {
   }
 }
 
-    function getRitualBoxClasses(mode: string | null) {
+   function getRitualBoxClasses(mode: string | null) {
   switch (mode) {
     case "soft_reentry":
       return "border-sky-400/20 bg-sky-500/5"
     case "gentle_containment":
       return "border-violet-400/20 bg-violet-500/5"
+    case "pattern_mirror":
+      return "border-amber-400/20 bg-amber-500/5"
     default:
       return "border-emerald-400/20 bg-emerald-500/5"
   }

@@ -12,6 +12,8 @@ import PDFDocument from "pdfkit"
 import {
   generateSoftReentryMessage,
   isSoftReentryEligible,
+  generateGentleContainmentMessage,
+  isGentleContainmentEligible,
 } from "./agent/rituals/index.js"
 const { createClient } = pkg
 
@@ -2694,29 +2696,77 @@ app.get("/api/ritual-message", async (req, reply) => {
     }
 
     const now = new Date()
-    const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000)
 
-    const { data: recentEntries, error: recentErr } = await supabase
+    const fourDaysAgo = new Date(now.getTime() - 4 * 24 * 60 * 60 * 1000)
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+
+    // ultimi 4 giorni -> per soft_reentry
+    const { data: recentEntries4d, error: recent4dErr } = await supabase
       .from("mood_entries")
-      .select("at")
+      .select("at, note")
       .eq("user_id", userId)
       .gte("at", fourDaysAgo.toISOString())
       .order("at", { ascending: false })
 
-    if (recentErr) throw recentErr
+    if (recent4dErr) throw recent4dErr
 
-    const { data: lastEntry, error: lastErr } = await supabase
+    // ultima entry assoluta
+    const { data: lastEntries, error: lastErr } = await supabase
       .from("mood_entries")
-      .select("at")
+      .select("at, note")
       .eq("user_id", userId)
       .order("at", { ascending: false })
       .limit(1)
-      .maybeSingle()
 
     if (lastErr) throw lastErr
 
+    // ultimi 7 giorni -> per heavy notes
+    const { data: recentEntries7d, error: recent7dErr } = await supabase
+      .from("mood_entries")
+      .select("at, note")
+      .eq("user_id", userId)
+      .gte("at", sevenDaysAgo.toISOString())
+      .order("at", { ascending: false })
+
+    if (recent7dErr) throw recent7dErr
+
+    // ultimi 3 giorni -> per interaction density
+    const { data: recentEntries3d, error: recent3dErr } = await supabase
+      .from("mood_entries")
+      .select("at")
+      .eq("user_id", userId)
+      .gte("at", threeDaysAgo.toISOString())
+      .order("at", { ascending: false })
+
+    if (recent3dErr) throw recent3dErr
+
+    // guided recenti: qui assumiamo che tu abbia già una tabella/history
+    // se il nome è diverso, cambiamo solo questo blocco
+    let hasCompletedGuidedRecently = false
+    let guidedSessions7d = 0
+
+    try {
+      const { data: guidedRecent, error: guidedErr } = await supabase
+        .from("chat_sessions")
+        .select("created_at")
+        .eq("user_id", userId)
+        .gte("created_at", sevenDaysAgo.toISOString())
+        .order("created_at", { ascending: false })
+
+      if (!guidedErr && Array.isArray(guidedRecent)) {
+        guidedSessions7d = guidedRecent.length
+        hasCompletedGuidedRecently = guidedRecent.length > 0
+      }
+    } catch (e) {
+      console.warn("guided_reflections lookup skipped", e)
+    }
+
+    const lastEntry = Array.isArray(lastEntries) ? lastEntries[0] : null
     const isNewUser = !lastEntry?.at
-    const checkinsLast4d = recentEntries?.length || 0
+
+    const checkinsLast4d = recentEntries4d?.length || 0
+    const interactions3d = recentEntries3d?.length || 0
 
     let daysSinceLastCheckin = 999
     if (lastEntry?.at) {
@@ -2726,30 +2776,95 @@ app.get("/api/ritual-message", async (req, reply) => {
       )
     }
 
-    const context = {
+    // proxy pragmatico: nota "pesante" = abbastanza lunga
+    const heavyNotes7d = (recentEntries7d || []).filter((entry) => {
+      const text = String(entry?.note || "").trim()
+      return text.length >= 180
+    }).length
+
+    // score semplice e osservabile
+    let recentIntensityScore = 0
+    if (heavyNotes7d >= 1) recentIntensityScore += 3
+    if (heavyNotes7d >= 2) recentIntensityScore += 2
+    if (interactions3d >= 3) recentIntensityScore += 2
+    if (hasCompletedGuidedRecently) recentIntensityScore += 3
+
+    const softReentryContext = {
       userId,
       isNewUser,
       daysSinceLastCheckin,
       checkinsLast4d,
-      ritualCount7d: recentEntries?.length || 0,
-      recentEmotionalDensity: "unknown",
+      ritualCount7d: recentEntries7d?.length || 0,
+      recentEmotionalDensity: heavyNotes7d >= 2 ? "high" : "unknown",
     }
 
-    if (!isSoftReentryEligible(context)) {
+    const softReentryActive = isSoftReentryEligible(softReentryContext)
+
+    if (softReentryActive) {
+      const ritual = generateSoftReentryMessage(softReentryContext)
+
       return reply.send({
-        ritual: null,
-        reason: "no_matching_mode",
+        ritual,
+        context: {
+          modeDecision: "soft_reentry",
+          daysSinceLastCheckin,
+          checkinsLast4d,
+          isNewUser,
+          heavyNotes7d,
+          interactions3d,
+          hasCompletedGuidedRecently,
+        },
       })
     }
 
-    const ritual = generateSoftReentryMessage(context)
+    const gentleContainmentContext = {
+      userId,
+      isNewUser,
+      isSoftReentry: false,
+      hasCompletedGuidedRecently,
+      guidedSessions7d,
+      heavyNotes7d,
+      interactions3d,
+      recentIntensityScore,
+    }
+
+    const gentleContainmentActive =
+      isGentleContainmentEligible(gentleContainmentContext)
+
+    if (gentleContainmentActive) {
+      const ritual = generateGentleContainmentMessage(
+        gentleContainmentContext
+      )
+
+      return reply.send({
+        ritual,
+        context: {
+          modeDecision: "gentle_containment",
+          daysSinceLastCheckin,
+          checkinsLast4d,
+          isNewUser,
+          heavyNotes7d,
+          interactions3d,
+          hasCompletedGuidedRecently,
+          guidedSessions7d,
+          recentIntensityScore,
+        },
+      })
+    }
 
     return reply.send({
-      ritual,
+      ritual: null,
+      reason: "no_matching_mode",
       context: {
+        modeDecision: "none",
         daysSinceLastCheckin,
         checkinsLast4d,
         isNewUser,
+        heavyNotes7d,
+        interactions3d,
+        hasCompletedGuidedRecently,
+        guidedSessions7d,
+        recentIntensityScore,
       },
     })
   } catch (err) {

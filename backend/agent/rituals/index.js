@@ -14,3 +14,8 @@ export {
   generatePatternMirrorMessage,
   isPatternMirrorEligible,
 } from "./patternMirror.js"
+
+export {
+  generateContinuityReinforcementMessage,
+  isContinuityReinforcementEligible,
+} from "./continuityReinforcement.js"

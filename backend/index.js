@@ -16,6 +16,8 @@ import {
   isGentleContainmentEligible,
   generatePatternMirrorMessage,
   isPatternMirrorEligible,
+  generateContinuityReinforcementMessage,
+  isContinuityReinforcementEligible,
 } from "./agent/rituals/index.js"
 const { createClient } = pkg
 
@@ -2785,6 +2787,7 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     const checkinsLast4d = recentEntries4d?.length || 0
     const interactions3d = recentEntries3d?.length || 0
+    const checkinsLast7d = recentEntries7d?.length || 0
 
     let daysSinceLastCheckin = 999
     if (lastEntry?.at) {
@@ -2901,6 +2904,45 @@ app.get("/api/ritual-message", async (req, reply) => {
           modeDecision: "pattern_mirror",
           daysSinceLastCheckin,
           checkinsLast4d,
+          isNewUser,
+          heavyNotes7d,
+          interactions3d,
+          hasCompletedGuidedRecently,
+          guidedSessions7d,
+          recentIntensityScore,
+          mirrorEmotion: mirrorRow?.emotion ?? null,
+          mirrorOccurrences7d: mirrorRow?.occurrences_7d ?? null,
+          mirrorDaysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
+        },
+      })
+    }
+
+        // ---------- 4) CONTINUITY REINFORCEMENT ----------
+        const continuityReinforcementContext = {
+      userId,
+      isNewUser,
+      isSoftReentry: softReentryActive,
+      isGentleContainment: gentleContainmentActive,
+      isPatternMirror: patternMirrorActive,
+      checkinsLast4d,
+      checkinsLast7d,
+    }
+
+    const continuityReinforcementActive =
+      isContinuityReinforcementEligible(continuityReinforcementContext)
+
+    if (continuityReinforcementActive) {
+      const ritual = generateContinuityReinforcementMessage(
+        continuityReinforcementContext
+      )
+
+      return reply.send({
+        ritual,
+        context: {
+          modeDecision: "continuity_reinforcement",
+          daysSinceLastCheckin,
+          checkinsLast4d,
+          checkinsLast7d,
           isNewUser,
           heavyNotes7d,
           interactions3d,

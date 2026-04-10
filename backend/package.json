@@ -19,5 +19,9 @@
   },
   "engines": {
     "node": ">=18.x"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test:rituals": "node agent/rituals/softReentry.test.js && node agent/rituals/gentleContainment.test.js"
   }
 }

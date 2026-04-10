@@ -14,6 +14,8 @@ import {
   isSoftReentryEligible,
   generateGentleContainmentMessage,
   isGentleContainmentEligible,
+  generatePatternMirrorMessage,
+  isPatternMirrorEligible,
 } from "./agent/rituals/index.js"
 const { createClient } = pkg
 
@@ -2701,7 +2703,7 @@ app.get("/api/ritual-message", async (req, reply) => {
     const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-    // ultimi 4 giorni -> per soft_reentry
+    // ultimi 4 giorni -> soft_reentry
     const { data: recentEntries4d, error: recent4dErr } = await supabase
       .from("mood_entries")
       .select("at, note")
@@ -2721,7 +2723,7 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     if (lastErr) throw lastErr
 
-    // ultimi 7 giorni -> per heavy notes
+    // ultimi 7 giorni -> heavy notes
     const { data: recentEntries7d, error: recent7dErr } = await supabase
       .from("mood_entries")
       .select("at, note")
@@ -2731,7 +2733,7 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     if (recent7dErr) throw recent7dErr
 
-    // ultimi 3 giorni -> per interaction density
+    // ultimi 3 giorni -> interaction density
     const { data: recentEntries3d, error: recent3dErr } = await supabase
       .from("mood_entries")
       .select("at")
@@ -2741,25 +2743,41 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     if (recent3dErr) throw recent3dErr
 
-    // guided recenti: qui assumiamo che tu abbia già una tabella/history
-    // se il nome è diverso, cambiamo solo questo blocco
+    // chat recenti -> containment
     let hasCompletedGuidedRecently = false
     let guidedSessions7d = 0
 
     try {
-      const { data: guidedRecent, error: guidedErr } = await supabase
+      const { data: recentChats, error: chatsErr } = await supabase
         .from("chat_sessions")
         .select("created_at")
         .eq("user_id", userId)
         .gte("created_at", sevenDaysAgo.toISOString())
         .order("created_at", { ascending: false })
 
-      if (!guidedErr && Array.isArray(guidedRecent)) {
-        guidedSessions7d = guidedRecent.length
-        hasCompletedGuidedRecently = guidedRecent.length > 0
+      if (!chatsErr && Array.isArray(recentChats)) {
+        guidedSessions7d = recentChats.length
+        hasCompletedGuidedRecently = recentChats.length > 0
       }
     } catch (e) {
-      console.warn("guided_reflections lookup skipped", e)
+      console.warn("chat_sessions lookup skipped", e)
+    }
+
+    // pattern mirror view
+    let mirrorRow = null
+    try {
+      const { data: mirrorData, error: mirrorErr } = await supabase
+        .from("v_emotion_mirror_last_7d")
+        .select("emotion, occurrences_7d, days_since_last_seen")
+        .eq("user_id", userId)
+        .order("occurrences_7d", { ascending: false })
+        .limit(1)
+
+      if (!mirrorErr && Array.isArray(mirrorData) && mirrorData.length > 0) {
+        mirrorRow = mirrorData[0]
+      }
+    } catch (e) {
+      console.warn("v_emotion_mirror_last_7d lookup skipped", e)
     }
 
     const lastEntry = Array.isArray(lastEntries) ? lastEntries[0] : null
@@ -2776,19 +2794,18 @@ app.get("/api/ritual-message", async (req, reply) => {
       )
     }
 
-    // proxy pragmatico: nota "pesante" = abbastanza lunga
     const heavyNotes7d = (recentEntries7d || []).filter((entry) => {
       const text = String(entry?.note || "").trim()
       return text.length >= 180
     }).length
 
-    // score semplice e osservabile
     let recentIntensityScore = 0
     if (heavyNotes7d >= 1) recentIntensityScore += 3
     if (heavyNotes7d >= 2) recentIntensityScore += 2
     if (interactions3d >= 3) recentIntensityScore += 2
     if (hasCompletedGuidedRecently) recentIntensityScore += 3
 
+    // ---------- 1) SOFT REENTRY ----------
     const softReentryContext = {
       userId,
       isNewUser,
@@ -2813,10 +2830,15 @@ app.get("/api/ritual-message", async (req, reply) => {
           heavyNotes7d,
           interactions3d,
           hasCompletedGuidedRecently,
+          guidedSessions7d,
+          mirrorEmotion: mirrorRow?.emotion ?? null,
+          mirrorOccurrences7d: mirrorRow?.occurrences_7d ?? null,
+          mirrorDaysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
         },
       })
     }
 
+    // ---------- 2) GENTLE CONTAINMENT ----------
     const gentleContainmentContext = {
       userId,
       isNewUser,
@@ -2848,6 +2870,46 @@ app.get("/api/ritual-message", async (req, reply) => {
           hasCompletedGuidedRecently,
           guidedSessions7d,
           recentIntensityScore,
+          mirrorEmotion: mirrorRow?.emotion ?? null,
+          mirrorOccurrences7d: mirrorRow?.occurrences_7d ?? null,
+          mirrorDaysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
+        },
+      })
+    }
+
+    // ---------- 3) PATTERN MIRROR ----------
+    const patternMirrorContext = {
+      userId,
+      isNewUser,
+      isSoftReentry: false,
+      isGentleContainment: false,
+      emotion: mirrorRow?.emotion ?? null,
+      occurrences7d: mirrorRow?.occurrences_7d ?? 0,
+      daysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
+    }
+
+    const patternMirrorActive =
+      mirrorRow?.emotion &&
+      isPatternMirrorEligible(patternMirrorContext)
+
+    if (patternMirrorActive) {
+      const ritual = generatePatternMirrorMessage(patternMirrorContext)
+
+      return reply.send({
+        ritual,
+        context: {
+          modeDecision: "pattern_mirror",
+          daysSinceLastCheckin,
+          checkinsLast4d,
+          isNewUser,
+          heavyNotes7d,
+          interactions3d,
+          hasCompletedGuidedRecently,
+          guidedSessions7d,
+          recentIntensityScore,
+          mirrorEmotion: mirrorRow?.emotion ?? null,
+          mirrorOccurrences7d: mirrorRow?.occurrences_7d ?? null,
+          mirrorDaysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
         },
       })
     }
@@ -2865,6 +2927,9 @@ app.get("/api/ritual-message", async (req, reply) => {
         hasCompletedGuidedRecently,
         guidedSessions7d,
         recentIntensityScore,
+        mirrorEmotion: mirrorRow?.emotion ?? null,
+        mirrorOccurrences7d: mirrorRow?.occurrences_7d ?? null,
+        mirrorDaysSinceLastSeen: mirrorRow?.days_since_last_seen ?? null,
       },
     })
   } catch (err) {

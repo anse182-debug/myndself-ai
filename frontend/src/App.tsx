@@ -663,6 +663,8 @@ const handleLogin = async () => {
       return "border-violet-400/20 bg-violet-500/5"
     case "pattern_mirror":
       return "border-amber-400/20 bg-amber-500/5"
+    case "continuity_reinforcement":
+      return "border-emerald-400/20 bg-emerald-500/5"
     default:
       return "border-emerald-400/20 bg-emerald-500/5"
   }

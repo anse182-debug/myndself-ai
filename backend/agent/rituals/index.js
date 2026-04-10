@@ -9,3 +9,8 @@ export {
   generateGentleContainmentMessage,
   isGentleContainmentEligible,
 } from "./gentleContainment.js"
+
+export {
+  generatePatternMirrorMessage,
+  isPatternMirrorEligible,
+} from "./patternMirror.js"

@@ -813,6 +813,20 @@ Your task:
   }
 }
 
+async function insertAgentRitualEvent(payload) {
+  try {
+    const { error } = await supabase
+      .from("agent_ritual_events")
+      .insert([payload])
+
+    if (error) {
+      console.error("agent_ritual_events insert error", error)
+    }
+  } catch (err) {
+    console.error("agent_ritual_events unexpected error", err)
+  }
+}
+
 
 app.post("/api/reflection", handleReflection)
 app.post("/api/reflect", handleReflection) // alias compatibilità
@@ -2822,7 +2836,24 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     if (softReentryActive) {
       const ritual = generateSoftReentryMessage(softReentryContext)
-
+await insertAgentRitualEvent({
+  user_id: userId,
+  event_type: "ritual_decided",
+  mode: "soft_reentry",
+  days_since_last_checkin: daysSinceLastCheckin,
+  checkins_last_4d: checkinsLast4d,
+  checkins_last_7d: checkinsLast7d,
+  heavy_notes_7d: heavyNotes7d,
+  interactions_3d: interactions3d,
+  guided_sessions_7d: guidedSessions7d,
+  recent_intensity_score: recentIntensityScore,
+  mirror_emotion: mirrorRow?.emotion ?? null,
+  mirror_occurrences_7d: mirrorRow?.occurrences_7d ?? null,
+  mirror_days_since_last_seen: mirrorRow?.days_since_last_seen ?? null,
+  meta: {
+    decision: "soft_reentry",
+  },
+})
       return reply.send({
         ritual,
         context: {
@@ -2860,7 +2891,24 @@ app.get("/api/ritual-message", async (req, reply) => {
       const ritual = generateGentleContainmentMessage(
         gentleContainmentContext
       )
-
+await insertAgentRitualEvent({
+  user_id: userId,
+  event_type: "ritual_decided",
+  mode: "gentle_containment",
+  days_since_last_checkin: daysSinceLastCheckin,
+  checkins_last_4d: checkinsLast4d,
+  checkins_last_7d: checkinsLast7d,
+  heavy_notes_7d: heavyNotes7d,
+  interactions_3d: interactions3d,
+  guided_sessions_7d: guidedSessions7d,
+  recent_intensity_score: recentIntensityScore,
+  mirror_emotion: mirrorRow?.emotion ?? null,
+  mirror_occurrences_7d: mirrorRow?.occurrences_7d ?? null,
+  mirror_days_since_last_seen: mirrorRow?.days_since_last_seen ?? null,
+  meta: {
+    decision: "gentle_containment",
+  },
+})
       return reply.send({
         ritual,
         context: {
@@ -2897,7 +2945,24 @@ app.get("/api/ritual-message", async (req, reply) => {
 
     if (patternMirrorActive) {
       const ritual = generatePatternMirrorMessage(patternMirrorContext)
-
+await insertAgentRitualEvent({
+  user_id: userId,
+  event_type: "ritual_decided",
+  mode: "pattern_mirror",
+  days_since_last_checkin: daysSinceLastCheckin,
+  checkins_last_4d: checkinsLast4d,
+  checkins_last_7d: checkinsLast7d,
+  heavy_notes_7d: heavyNotes7d,
+  interactions_3d: interactions3d,
+  guided_sessions_7d: guidedSessions7d,
+  recent_intensity_score: recentIntensityScore,
+  mirror_emotion: mirrorRow?.emotion ?? null,
+  mirror_occurrences_7d: mirrorRow?.occurrences_7d ?? null,
+  mirror_days_since_last_seen: mirrorRow?.days_since_last_seen ?? null,
+  meta: {
+    decision: "pattern_mirror",
+  },
+})
       return reply.send({
         ritual,
         context: {
@@ -2935,7 +3000,24 @@ app.get("/api/ritual-message", async (req, reply) => {
       const ritual = generateContinuityReinforcementMessage(
         continuityReinforcementContext
       )
-
+await insertAgentRitualEvent({
+  user_id: userId,
+  event_type: "ritual_decided",
+  mode: "continuity_reinforcement",
+  days_since_last_checkin: daysSinceLastCheckin,
+  checkins_last_4d: checkinsLast4d,
+  checkins_last_7d: checkinsLast7d,
+  heavy_notes_7d: heavyNotes7d,
+  interactions_3d: interactions3d,
+  guided_sessions_7d: guidedSessions7d,
+  recent_intensity_score: recentIntensityScore,
+  mirror_emotion: mirrorRow?.emotion ?? null,
+  mirror_occurrences_7d: mirrorRow?.occurrences_7d ?? null,
+  mirror_days_since_last_seen: mirrorRow?.days_since_last_seen ?? null,
+  meta: {
+    decision: "continuity_reinforcement",
+  },
+})
       return reply.send({
         ritual,
         context: {
@@ -2955,6 +3037,26 @@ app.get("/api/ritual-message", async (req, reply) => {
         },
       })
     }
+
+    await insertAgentRitualEvent({
+  user_id: userId,
+  event_type: "ritual_decided",
+  mode: null,
+  days_since_last_checkin: daysSinceLastCheckin,
+  checkins_last_4d: checkinsLast4d,
+  checkins_last_7d: checkinsLast7d,
+  heavy_notes_7d: heavyNotes7d,
+  interactions_3d: interactions3d,
+  guided_sessions_7d: guidedSessions7d,
+  recent_intensity_score: recentIntensityScore,
+  mirror_emotion: mirrorRow?.emotion ?? null,
+  mirror_occurrences_7d: mirrorRow?.occurrences_7d ?? null,
+  mirror_days_since_last_seen: mirrorRow?.days_since_last_seen ?? null,
+  meta: {
+    decision: "none",
+    reason: "no_matching_mode",
+  },
+})
 
     return reply.send({
       ritual: null,
@@ -3000,6 +3102,37 @@ app.post("/agent/ritual-message", async (req, reply) => {
     return reply.code(500).send({
       error: "ritual_message_generation_failed",
     })
+  }
+})
+
+app.post("/api/ritual-event", async (req, reply) => {
+  try {
+    const {
+      user_id,
+      event_type,
+      mode,
+      outcome,
+      session_id,
+      meta,
+    } = req.body || {}
+
+    if (!user_id || !event_type) {
+      return reply.code(400).send({ error: "missing_fields" })
+    }
+
+    await insertAgentRitualEvent({
+      user_id,
+      event_type,
+      mode: mode ?? null,
+      outcome: outcome ?? null,
+      session_id: session_id ?? null,
+      meta: meta ?? {},
+    })
+
+    return reply.send({ ok: true })
+  } catch (err) {
+    console.error("ritual-event route error", err)
+    return reply.code(500).send({ error: "unexpected_error" })
   }
 })
 

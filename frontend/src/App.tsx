@@ -655,6 +655,27 @@ const handleLogin = async () => {
   }
 }
 
+  async function trackRitualEvent(payload: {
+  user_id: string
+  event_type: string
+  mode?: string | null
+  outcome?: string | null
+  session_id?: string | null
+  meta?: Record<string, any>
+}) {
+  try {
+    await fetch(`${API_BASE}/api/ritual-event`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.error("ritual event tracking error", err)
+  }
+}
+
    function getRitualBoxClasses(mode: string | null) {
   switch (mode) {
     case "soft_reentry":
@@ -809,6 +830,12 @@ const moodPayload = selectedMoods.join(", ")
       const data = await res.json()
       setReflection(data.reflection || "")
       showToast("Riflessione salvata ✅", "success")
+      await trackRitualEvent({
+  user_id: uid,
+  event_type: "ritual_outcome",
+  mode: ritualMode,
+  outcome: "submitted_reflection",
+})
       setMood("")
       setSelectedMoods([])
       setNote("")
@@ -1305,6 +1332,18 @@ const handleChatSend = async () => {
     }, 20000)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+  if (!session?.user?.id) return
+  if (!ritualMessage || !ritualMode) return
+  if (currentTab !== "oggi") return
+
+  trackRitualEvent({
+    user_id: session.user.id,
+    event_type: "ritual_rendered",
+    mode: ritualMode,
+  })
+}, [session?.user?.id, ritualMessage, ritualMode, currentTab])
 
   // ---------- TABS ----------
   const TabsNav = () => {

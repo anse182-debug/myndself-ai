@@ -1974,7 +1974,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       }
     >
       <span>{MOOD_EMOJI[m.value] ?? "✨"}</span>
-      <span>{m.label}</span>
+      <span>{getEmotionLabel(m.label.toLowerCase(), language)}</span>
     </button>
   )
 })}

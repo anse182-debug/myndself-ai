@@ -1,14 +1,10 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import {
-  getDictionary,
-  type Language,
-} from "./i18n/index"
-import Landing from "./Landing";
-import Onboarding from "./Onboarding";
-import TermsPage from "./Terms";
-import PrivacyPage from "./Privacy";
+import Landing from "./Landing"
+import Onboarding from "./Onboarding"
+import TermsPage from "./Terms"
+import PrivacyPage from "./Privacy"
 import { useEffect, useMemo, useState } from "react"
-import { Onboarding } from "./Onboarding"
+import { getDictionary, type Language } from "./i18n"
 import { supabase } from "./lib/supabase"
 import {
   ResponsiveContainer,

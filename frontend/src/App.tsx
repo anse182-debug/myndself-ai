@@ -5,6 +5,7 @@ import TermsPage from "./Terms"
 import PrivacyPage from "./Privacy"
 import { useEffect, useMemo, useState } from "react"
 import { getDictionary } from "./i18n"
+import { getEmotionLabel } from "./emotionLabels"
 import { supabase } from "./lib/supabase"
 import {
   ResponsiveContainer,

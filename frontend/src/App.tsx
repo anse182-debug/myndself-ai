@@ -1369,11 +1369,11 @@ const handleChatSend = async () => {
   // ---------- TABS ----------
   const TabsNav = () => {
     const tabs: { id: TabId; label: string }[] = [
-      { id: "oggi", label: "Oggi" },
-      { id: "insight", label: "Insight" },
-      { id: "guidata", label: "Guidata" },
-      { id: "chat", label: "Chat" },
-      { id: "condivisione", label: "Condivisione" },
+      { id: "oggi", label: dict.tabs.today },
+      { id: "insight", label: dict.tabs.insights },
+      { id: "guidata", label: dict.tabs.guided },
+      { id: "chat", label: dict.tabs.chat },
+      { id: "condivisione", label: dict.tabs.sharing },
     ]
     // ---------- RENDER ----------
     return (

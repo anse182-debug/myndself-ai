@@ -1895,7 +1895,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     <header className="flex items-start justify-between gap-3">
                       <div>
                         <h2 className="text-sm font-semibold">
-                          La riflessione di oggi
+                          {dict.today.title}
                         </h2>
                         {ritualLoading && !ritualMessage && (
   <div className="mb-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
@@ -1939,7 +1939,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     {/* MOOD PRESET CHIPS */}
                     <div className="space-y-2">
                       <p className="text-[11px] text-gray-400">
-                        Come ti senti, a grandi linee?
+                        {dict.today.subtitle}
                       </p>
                       <div className="flex flex-wrap gap-2">
                        {MOOD_PRESETS.map((m) => {
@@ -1984,15 +1984,14 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     {/* NOTE + TAGS */}
                     <div className="space-y-2">
                       <p className="text-[11px] text-gray-400">
-                        Se ti va, racconta con poche parole cosa ti ha colpito
-                        di oggi.
+                        {dict.today.noteLabel}
                       </p>
                       <textarea
                         value={note}
                         onChange={(e) => setNote(e.target.value)}
                         rows={4}
                         className="w-full rounded-md bg-gray-950/70 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-                        placeholder="Ad esempio: quando mi sono svegliato ho sentito..."
+                        placeholder={dict.today.placeholder}
                       />
                     </div>
 
@@ -2069,7 +2068,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                             </span>
                           </>
                         ) : (
-                          "Salva la riflessione di oggi"
+                          {dict.actions.save}
                         )}
                       </button>
                     </div>

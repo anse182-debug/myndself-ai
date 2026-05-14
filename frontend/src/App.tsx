@@ -2085,7 +2085,18 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                     {showReflectionDone && (
   <ReflectionSuccess
     moods={selectedMoods}
-    mirrorText={temporalMirrorText}
+    mirrorText={language === "en"
+  ? temporalMirrorText
+      ?.replace(/Stressato/g, "Stressed")
+      ?.replace(/Calmo/g, "Calm")
+      ?.replace(/Triste/g, "Sad")
+      ?.replace(/Ansioso/g, "Anxious")
+      ?.replace(/Sovraccarico/g, "Overwhelmed")
+      ?.replace(/Frustrato/g, "Frustrated")
+      ?.replace(/Confuso/g, "Confused")
+      ?.replace(/Arrabbiato/g, "Angry")
+      ?.replace(/Stanco/g, "Tired")
+  : temporalMirrorText}
     onShowInsights={() => {
       setShowReflectionDone(false)
       setTemporalMirrorText(null)

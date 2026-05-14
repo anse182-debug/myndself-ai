@@ -424,7 +424,8 @@ export default function App() {
   const [session, setSession] = useState<any>(null)
   const BETA_BANNER_KEY = "myndself_beta_banner_dismissed"
   const [showBetaBanner, setShowBetaBanner] = useState(false)
-
+  
+  const [language, setLanguage] = useState("it")
   useEffect(() => {
     if (typeof window === "undefined") return
     const done = window.localStorage.getItem(ONBOARDING_KEY) === "true"
@@ -531,7 +532,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
   const [checkinDayIndex, setCheckinDayIndex] = useState<number>(1)
 
-  const [language, setLanguage] = useState("it")
+  
 
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])

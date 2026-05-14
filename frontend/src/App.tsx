@@ -1340,7 +1340,7 @@ const handleChatSend = async () => {
     [tagItems]
   )
 
-  const dict = getDictionary(language)
+  //const dict = getDictionary(language)
   // ---------- BANNER EMOTIVO ----------
   const [emotionalNoteIndex, setEmotionalNoteIndex] = useState(0)
   const currentBanner = BANNER_NOTES[emotionalNoteIndex]

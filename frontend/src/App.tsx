@@ -4,7 +4,7 @@ import Onboarding from "./Onboarding"
 import TermsPage from "./Terms"
 import PrivacyPage from "./Privacy"
 import { useEffect, useMemo, useState } from "react"
-//import { getDictionary, type Language } from "./i18n"
+import { getDictionary } from "./i18n"
 import { supabase } from "./lib/supabase"
 import {
   ResponsiveContainer,

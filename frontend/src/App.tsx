@@ -2068,7 +2068,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                             </span>
                           </>
                         ) : (
-                          {dict.actions.save}
+                          dict.actions.save
                         )}
                       </button>
                     </div>

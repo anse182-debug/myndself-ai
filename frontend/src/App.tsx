@@ -4,7 +4,7 @@ import Onboarding from "./Onboarding"
 import TermsPage from "./Terms"
 import PrivacyPage from "./Privacy"
 import { useEffect, useMemo, useState } from "react"
-import { getDictionary, type Language } from "./i18n"
+//import { getDictionary, type Language } from "./i18n"
 import { supabase } from "./lib/supabase"
 import {
   ResponsiveContainer,
@@ -531,7 +531,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
   const [checkinDayIndex, setCheckinDayIndex] = useState<number>(1)
 
-  const [language, setLanguage] = useState<Language>("it")
+  const [language, setLanguage] = useState("it")
 
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])

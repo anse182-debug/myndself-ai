@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { getDictionary, type Language } from "./i18n"
 import Landing from "./Landing";
 import Onboarding from "./Onboarding";
 import TermsPage from "./Terms";

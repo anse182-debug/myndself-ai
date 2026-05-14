@@ -1,18 +1,23 @@
-import { it } from "./it"
-import { en } from "./en"
-
 export const dictionaries = {
-  it,
-  en,
+  it: {
+    test: {
+      hello: "Ciao",
+    },
+  },
+
+  en: {
+    test: {
+      hello: "Hello",
+    },
+  },
 }
 
-export type Language = "it" | "en"
-
 export function getDictionary(
-  language: Language
+  language: string
 ) {
   return (
-    dictionaries[language] ||
-    dictionaries.it
+    dictionaries[
+      language as keyof typeof dictionaries
+    ] || dictionaries.it
   )
 }

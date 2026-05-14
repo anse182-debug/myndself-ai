@@ -29,10 +29,12 @@ export const emotionLabels: Record<
   entusiasmo: { it: "Entusiasmo", en: "Enthusiasm" },
 
   apatia: { it: "Apatia", en: "Apathy" },
+
   "stanchezza mentale": {
     it: "Stanchezza mentale",
     en: "Mental fatigue",
   },
+
   "stanchezza fisica": {
     it: "Stanchezza fisica",
     en: "Physical fatigue",
@@ -79,7 +81,10 @@ export function getEmotionLabel(
   language: string
 ): string {
   const entry = emotionLabels[key]
-  if (!entry) return key
+
+  if (!entry) {
+    return key
+  }
 
   return (
     entry[language as "it" | "en"] ||

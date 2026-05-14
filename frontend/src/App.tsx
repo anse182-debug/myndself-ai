@@ -1729,18 +1729,29 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             </p>
           </div>
         </div>
-<select
-  value={language}
-  onChange={(e) =>
-    setLanguage(
-      e.target.value as Language
-    )
-  }
-  className="text-sm rounded-lg px-2 py-1 bg-white border"
->
-  <option value="it">IT</option>
-  <option value="en">EN</option>
-</select>
+<div className="flex items-center rounded-xl bg-white/5 border border-white/10 p-1">
+  <button
+    onClick={() => setLanguage("it")}
+    className={`px-3 py-1 text-sm rounded-lg transition ${
+      language === "it"
+        ? "bg-[#3EE6B0] text-black font-semibold"
+        : "text-white/70 hover:text-white"
+    }`}
+  >
+    🇮🇹 IT
+  </button>
+
+  <button
+    onClick={() => setLanguage("en")}
+    className={`px-3 py-1 text-sm rounded-lg transition ${
+      language === "en"
+        ? "bg-[#3EE6B0] text-black font-semibold"
+        : "text-white/70 hover:text-white"
+    }`}
+  >
+    🇬🇧 EN
+  </button>
+</div>
         <div className="flex items-center gap-3">
           {session && (
             <button

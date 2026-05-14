@@ -2035,7 +2035,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
           : undefined
       }
     >
-      {tag}
+      {getEmotionLabel(tag.toLowerCase(), language)}
     </button>
   )
 })}

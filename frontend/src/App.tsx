@@ -432,6 +432,24 @@ export default function App() {
     setHasCompletedOnboarding(done)
   }, [])
 
+  useEffect(() => {
+  const savedLanguage =
+    localStorage.getItem("myndself_language")
+
+  if (
+    savedLanguage === "it" ||
+    savedLanguage === "en"
+  ) {
+    setLanguage(savedLanguage)
+  }
+}, [])
+
+  useEffect(() => {
+  localStorage.setItem(
+    "myndself_language",
+    language
+  )
+}, [language])
   // mostra banner beta solo se utente loggato e non l'ha già chiuso
   useEffect(() => {
     if (!session?.user?.id) return
@@ -514,6 +532,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<TabId>("oggi")
   const [checkinDayIndex, setCheckinDayIndex] = useState<number>(1)
 
+  const [language, setLanguage] = useState<Language>("it")
 
   // toasts
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -1322,6 +1341,7 @@ const handleChatSend = async () => {
     [tagItems]
   )
 
+  const dict = getDictionary(language)
   // ---------- BANNER EMOTIVO ----------
   const [emotionalNoteIndex, setEmotionalNoteIndex] = useState(0)
   const currentBanner = BANNER_NOTES[emotionalNoteIndex]
@@ -1709,7 +1729,18 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             </p>
           </div>
         </div>
-
+<select
+  value={language}
+  onChange={(e) =>
+    setLanguage(
+      e.target.value as Language
+    )
+  }
+  className="text-sm rounded-lg px-2 py-1 bg-white border"
+>
+  <option value="it">IT</option>
+  <option value="en">EN</option>
+</select>
         <div className="flex items-center gap-3">
           {session && (
             <button

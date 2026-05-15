@@ -1,20 +1,40 @@
 // backend/agent/rituals/softReentry.js
 
-const SOFT_REENTRY_OPENINGS = [
-  "Possiamo riprendere con calma.",
-  "C'è spazio per iniziare piano.",
-  "Va bene iniziare da poco.",
-  "Possiamo stare su qualcosa di leggero.",
-  "Puoi restare su qualcosa di semplice.",
-]
+const SOFT_REENTRY_OPENINGS = {
+  it: [
+    "Possiamo riprendere con calma.",
+    "C'è spazio per iniziare piano.",
+    "Va bene iniziare da poco.",
+    "Possiamo stare su qualcosa di leggero.",
+    "Puoi restare su qualcosa di semplice.",
+  ],
 
-const SOFT_REENTRY_PRESENCE_FIELDS = [
-  "Non serve fare molto oggi.",
-  "Anche poco va bene.",
-  "Può bastare qualcosa di essenziale.",
-  "Non c'è nulla da forzare.",
-  "Puoi tenerla molto leggera.",
-]
+  en: [
+    "We can ease back into this.",
+    "There's room to begin gently.",
+    "It's okay to start small.",
+    "We can stay with something light.",
+    "You can keep this very simple.",
+  ],
+}
+
+const SOFT_REENTRY_PRESENCE_FIELDS = {
+  it: [
+    "Non serve fare molto oggi.",
+    "Anche poco va bene.",
+    "Può bastare qualcosa di essenziale.",
+    "Non c'è nulla da forzare.",
+    "Puoi tenerla molto leggera.",
+  ],
+
+  en: [
+    "There is no need to do much today.",
+    "Even something small is enough.",
+    "Something simple can be enough.",
+    "There is nothing to force.",
+    "You can keep this very light.",
+  ],
+}
 
 const FORBIDDEN_PATTERNS = [
   /\bbentornat[oa]?\b/i,
@@ -77,7 +97,13 @@ function buildUserSeed(context = {}) {
 
 function pickOpening(context = {}) {
   const seed = buildUserSeed(context)
-  return SOFT_REENTRY_OPENINGS[seededIndex(seed, SOFT_REENTRY_OPENINGS.length)]
+  const language = context.language || "it"
+
+  const templates =
+    SOFT_REENTRY_OPENINGS[language] ||
+    SOFT_REENTRY_OPENINGS.it
+
+  return templates[seededIndex(seed, templates.length)]
 }
 
 function pickPresenceField(context = {}) {
@@ -85,8 +111,15 @@ function pickPresenceField(context = {}) {
     ...context,
     userId: `${context.userId || "anonymous"}:presence`,
   })
-  return SOFT_REENTRY_PRESENCE_FIELDS[
-    seededIndex(seed, SOFT_REENTRY_PRESENCE_FIELDS.length)
+
+  const language = context.language || "it"
+
+  const templates =
+    SOFT_REENTRY_PRESENCE_FIELDS[language] ||
+    SOFT_REENTRY_PRESENCE_FIELDS.it
+
+  return templates[
+    seededIndex(seed, templates.length)
   ]
 }
 
@@ -150,7 +183,10 @@ export function generateSoftReentryMessage(context = {}) {
       },
     }
   } catch {
-    const fallback = "Possiamo riprendere con calma."
+    const fallback =
+  context.language === "en"
+    ? "We can ease back into this."
+    : "Possiamo riprendere con calma."
     return {
       mode: "soft_reentry",
       message: fallback,

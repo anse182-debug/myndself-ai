@@ -1238,7 +1238,16 @@ senza elencarle esplicitamente e senza fare diagnosi.
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: MENTOR_SYSTEM_PROMPT },
+        {
+  role: "system",
+  content: `${MENTOR_SYSTEM_PROMPT}
+
+${
+  normalizedLanguage === "en"
+    ? "Respond in English."
+    : "Rispondi in italiano."
+}`,
+},
         { role: "system", content: contextPrompt },
         ...shortContext,
       ],

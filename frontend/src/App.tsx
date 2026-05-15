@@ -135,9 +135,9 @@ const CHECKIN_COPY_7D: Record<number, CheckinCopy> = {
     closing: "Un titolo non spiega tutto. Ma aiuta a vedere.",
   },
   7: {
-    intro: {dict.todayIntro.line1},
-    question: {dict.todayIntro.line2},
-    closing: {dict.todayIntro.line3},
+    intro: dict.todayIntro.line1,
+    question: dict.todayIntro.line2,
+    closing: dict.todayIntro.line3,
   },
 }
 

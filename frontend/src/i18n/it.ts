@@ -18,7 +18,12 @@ export const it = {
     save: "Salva",
     continue: "Continua",
   },
-
+banner: {
+  title: "NOTA EMOTIVA",
+  heading: "Uno spazio sicuro, non una performance",
+  body:
+    "Qui non devi essere brillante o interessante. Puoi anche scrivere solo due righe sconnesse: valgono comunque come un atto di cura verso di te.",
+},
   test: {
     hello: "Ciao",
   },

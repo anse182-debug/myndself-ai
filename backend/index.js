@@ -1238,15 +1238,16 @@ senza elencarle esplicitamente e senza fare diagnosi.
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        {
+  {
   role: "system",
-  content: `${MENTOR_SYSTEM_PROMPT}
+  content:
+    normalizedLanguage === "en"
+      ? `IMPORTANT: You must respond exclusively in English. Never use Italian.
 
-${
-  normalizedLanguage === "en"
-    ? "Respond in English."
-    : "Rispondi in italiano."
-}`,
+${MENTOR_SYSTEM_PROMPT}`
+      : `IMPORTANTE: Devi rispondere esclusivamente in italiano. Non usare l'inglese.
+
+${MENTOR_SYSTEM_PROMPT}`,
 },
         { role: "system", content: contextPrompt },
         ...shortContext,

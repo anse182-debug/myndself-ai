@@ -1,16 +1,32 @@
 // backend/agent/rituals/patternMirror.js
 
-const RECURRING_TEMPLATES = [
-  `Negli ultimi giorni, "{emotion}" è tornata più di una volta.`,
-  `"{emotion}" continua a riemergere in questi giorni.`,
-  `C'è qualcosa in "{emotion}" che sta tornando spesso.`,
-]
+const RECURRING_TEMPLATES = {
+  it: [
+    `Negli ultimi giorni, "{emotion}" è tornata più di una volta.`,
+    `"{emotion}" continua a riemergere in questi giorni.`,
+    `C'è qualcosa in "{emotion}" che sta tornando spesso.`,
+  ],
 
-const RETURN_TEMPLATES = [
-  `"{emotion}" è riemersa dopo pochi giorni.`,
-  `Negli ultimi giorni, "{emotion}" è tornata a farsi vedere.`,
-  `"{emotion}" tende a ripresentarsi in questa fase.`,
-]
+  en: [
+    `"${"{emotion}"}" has appeared more than once in recent days.`,
+    `"${"{emotion}"}" keeps showing up these days.`,
+    `There is something in "${"{emotion}"}" that has been returning often.`,
+  ],
+}
+
+const RETURN_TEMPLATES = {
+  it: [
+    `"{emotion}" è riemersa dopo pochi giorni.`,
+    `Negli ultimi giorni, "{emotion}" è tornata a farsi vedere.`,
+    `"{emotion}" tende a ripresentarsi in questa fase.`,
+  ],
+
+  en: [
+    `"${"{emotion}"}" has resurfaced after a few days.`,
+    `In recent days, "${"{emotion}"}" has appeared again.`,
+    `"${"{emotion}"}" tends to reappear during this period.`,
+  ],
+}
 
 const FORBIDDEN_PATTERNS = [
   /\bperché\b/i,
@@ -68,6 +84,29 @@ function applyTemplate(template, emotion) {
   return template.replaceAll("{emotion}", emotion)
 }
 
+const EMOTION_TRANSLATIONS = {
+  stressato: "Stressed",
+  calmo: "Calm",
+  triste: "Sad",
+  ansioso: "Anxious",
+  sovraccarico: "Overwhelmed",
+  frustrato: "Frustrated",
+  confuso: "Confused",
+  arrabbiato: "Angry",
+  stanco: "Tired",
+  grato: "Grateful",
+  contento: "Happy",
+  entusiasta: "Excited",
+  annoiato: "Bored",
+}
+
+function localizeEmotion(emotion = "", language = "it") {
+  if (language !== "en") return emotion
+
+  const key = emotion.trim().toLowerCase()
+  return EMOTION_TRANSLATIONS[key] || emotion
+}
+
 function validatePatternMirrorMessage(text = "") {
   const normalized = cleanSpacing(text)
 
@@ -112,11 +151,15 @@ export function isPatternMirrorEligible(context = {}) {
 
 export function generatePatternMirrorMessage(context = {}) {
   const emotion = String(context.emotion || "").trim()
+  const language = context.language || "it"
+  const localizedEmotion = localizeEmotion(emotion, language)
   const occurrences7d = Number(context.occurrences7d || 0)
   const daysSinceLastSeen = context.daysSinceLastSeen
   const seed = buildUserSeed(context)
 
-  let templateSet = RECURRING_TEMPLATES
+  let templateSet =
+  RECURRING_TEMPLATES[language] ||
+  RECURRING_TEMPLATES.it
   let variant = "recurring"
 
   if (
@@ -125,12 +168,17 @@ export function generatePatternMirrorMessage(context = {}) {
     daysSinceLastSeen >= 2 &&
     daysSinceLastSeen <= 5
   ) {
-    templateSet = RETURN_TEMPLATES
+    templateSet =
+  RETURN_TEMPLATES[language] ||
+  RETURN_TEMPLATES.it
     variant = "returning"
   }
 
   const template = templateSet[seededIndex(seed, templateSet.length)]
-  const rawMessage = applyTemplate(template, emotion)
+  const rawMessage = applyTemplate(
+  template,
+  localizedEmotion
+)
 
   try {
     const message = validatePatternMirrorMessage(rawMessage)
@@ -148,7 +196,10 @@ export function generatePatternMirrorMessage(context = {}) {
       },
     }
   } catch {
-    const fallback = `Negli ultimi giorni, "${emotion}" è tornata più di una volta.`
+    const fallback =
+  language === "en"
+    ? `"${localizedEmotion}" has appeared more than once in recent days.`
+    : `Negli ultimi giorni, "${emotion}" è tornata più di una volta.`
     return {
       mode: "pattern_mirror",
       message: fallback,

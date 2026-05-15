@@ -24,6 +24,11 @@ banner: {
   body:
     "You do not need to be brilliant or interesting here. Even two disconnected lines can still be an act of care toward yourself.",
 },
+  todayIntro: {
+  line1: "A week of showing up.",
+  line2: "What would you like to keep observing in the coming days?",
+  line3: "What matters is not perfection. It is continuity.",
+},
   test: {
     hello: "Hello",
   },

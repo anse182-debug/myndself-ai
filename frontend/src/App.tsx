@@ -102,43 +102,53 @@ const getDayIndex = (): number => {
 
 type CheckinCopy = { intro: string; question: string; closing: string }
 
-const CHECKIN_COPY_7D: Record<number, CheckinCopy> = {
-  1: {
-    intro: "Benvenuto. Partiamo semplice.",
-    question: "Con una parola: cosa senti di più adesso?",
-    closing: "Anche un solo click oggi è già un inizio.",
-  },
-  2: {
-    intro: "Ieri hai iniziato a osservarti.",
-    question: "Cosa ti ha influenzato di più oggi: persone, lavoro o tempo per te?",
-    closing: "Non serve essere precisi. Serve essere presenti.",
-  },
-  3: {
-    intro: "Stiamo costruendo continuità.",
-    question: "C’è un’emozione che oggi è rimasta sullo sfondo, ma c’era?",
-    closing: "Notare lo sfondo cambia già il primo piano.",
-  },
-  // ✅ Day4 (nuova versione “morbida”)
-  4: {
-    intro: "Ti ho seguito con attenzione.",
-    question: "Quale emozione è emersa più di una volta questa settimana?",
-    closing: "Notare la ripetizione è già una forma di chiarezza",
-  },
-  5: {
-    intro: "Hai già qualche giorno alle spalle.",
-    question: "Cosa ti ha fatto respirare meglio, anche solo per un momento?",
-    closing: "Piccolo ≠ inutile. Piccolo è sostenibile.",
-  },
-  6: {
-    intro: "Stai creando un ritmo.",
-    question: "Se dovessi dare un titolo a questa settimana finora, quale sarebbe?",
-    closing: "Un titolo non spiega tutto. Ma aiuta a vedere.",
-  },
-  7: {
-    intro: "Una settimana: ci sei.",
-    question: "Cosa vorresti continuare a osservare nei prossimi giorni?",
-    closing: "La cosa importante non è la perfezione. È la continuità.",
-  },
+function getCheckinCopy7D(dict: any): Record<number, CheckinCopy> {
+  return {
+    1: {
+      intro: "Benvenuto. Partiamo semplice.",
+      question: "Con una parola: cosa senti di più adesso?",
+      closing: "Anche un solo click oggi è già un inizio.",
+    },
+    2: {
+      intro: "Ieri hai iniziato a osservarti.",
+      question:
+        "Cosa ti ha influenzato di più oggi: persone, lavoro o tempo per te?",
+      closing: "Non serve essere precisi. Serve essere presenti.",
+    },
+    3: {
+      intro: "Stiamo costruendo continuità.",
+      question:
+        "C’è un’emozione che oggi è rimasta sullo sfondo, ma c’era?",
+      closing:
+        "Notare lo sfondo cambia già il primo piano.",
+    },
+    4: {
+      intro: "Ti ho seguito con attenzione.",
+      question:
+        "Quale emozione è emersa più di una volta questa settimana?",
+      closing:
+        "Notare la ripetizione è già una forma di chiarezza",
+    },
+    5: {
+      intro: "Hai già qualche giorno alle spalle.",
+      question:
+        "Cosa ti ha fatto respirare meglio, anche solo per un momento?",
+      closing:
+        "Piccolo ≠ inutile. Piccolo è sostenibile.",
+    },
+    6: {
+      intro: "Stai creando un ritmo.",
+      question:
+        "Se dovessi dare un titolo a questa settimana finora, quale sarebbe?",
+      closing:
+        "Un titolo non spiega tutto. Ma aiuta a vedere.",
+    },
+    7: {
+      intro: dict.todayIntro.line1,
+      question: dict.todayIntro.line2,
+      closing: dict.todayIntro.line3,
+    },
+  }
 }
 
 
@@ -1345,6 +1355,7 @@ const handleChatSend = async () => {
   )
 
   const dict = getDictionary(language)
+  const CHECKIN_COPY_7D = getCheckinCopy7D(dict)
   // ---------- BANNER EMOTIVO ----------
   const [emotionalNoteIndex, setEmotionalNoteIndex] = useState(0)
   const currentBanner = BANNER_NOTES[emotionalNoteIndex]

@@ -2708,6 +2708,11 @@ app.get("/api/ritual-message", async (req, reply) => {
   try {
     const userId = String(req.query?.user_id || "").trim()
 
+    const language =
+      req.query?.language === "en"
+        ? "en"
+        : "it"
+
     if (!userId) {
       return reply.code(400).send({ error: "missing_user_id" })
     }
@@ -2824,6 +2829,7 @@ app.get("/api/ritual-message", async (req, reply) => {
     // ---------- 1) SOFT REENTRY ----------
     const softReentryContext = {
       userId,
+      language,
       isNewUser,
       daysSinceLastCheckin,
       checkinsLast4d,
@@ -2874,6 +2880,7 @@ await insertAgentRitualEvent({
     // ---------- 2) GENTLE CONTAINMENT ----------
     const gentleContainmentContext = {
       userId,
+      language,
       isNewUser,
       isSoftReentry: false,
       hasCompletedGuidedRecently,
@@ -2930,6 +2937,7 @@ await insertAgentRitualEvent({
     // ---------- 3) PATTERN MIRROR ----------
     const patternMirrorContext = {
       userId,
+      language,
       isNewUser,
       isSoftReentry: false,
       isGentleContainment: false,
@@ -2984,6 +2992,7 @@ await insertAgentRitualEvent({
         // ---------- 4) CONTINUITY REINFORCEMENT ----------
         const continuityReinforcementContext = {
       userId,
+      language,
       isNewUser,
       isSoftReentry: softReentryActive,
       isGentleContainment: gentleContainmentActive,

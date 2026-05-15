@@ -1165,10 +1165,17 @@ app.get("/api/analytics/tags", async (req, reply) => {
 //  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
 // =============================================================
 app.post("/api/chat", async (req, reply) => {
-  const { user_id, messages } = req.body || {}
+const {
+  user_id,
+  messages,
+  language = "it",
+} = req.body || {}
   if (!user_id || !messages)
     return reply.code(400).send({ error: "Missing fields" })
-
+const normalizedLanguage =
+  language === "en"
+    ? "en"
+    : "it"
   try {
     // prendo l'ultimo messaggio dell'utente per la memoria
     const lastUserMessage = [...messages].reverse().find(

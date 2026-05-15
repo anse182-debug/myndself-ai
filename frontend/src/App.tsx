@@ -1878,13 +1878,13 @@ const reflectionDaysCount = moodSeries?.length ?? 0
               <div className="mt-0.5 text-lg">💭</div>
               <div className="flex-1">
                 <p className="text-[11px] font-semibold text-emerald-200 uppercase tracking-wide">
-                  Nota emotiva
+                  {dict.banner.title}
                 </p>
                 <p className="text-xs text-gray-100 font-medium">
-                  {currentBanner.title}
+                  {dict.banner.heading}
                 </p>
                 <p className="text-xs text-gray-200 mt-1">
-                  {currentBanner.body}
+                  {dict.banner.body}
                 </p>
               </div>
             </section>

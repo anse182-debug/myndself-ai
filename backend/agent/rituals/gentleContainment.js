@@ -1,20 +1,40 @@
 // backend/agent/rituals/gentleContainment.js
 
-const GENTLE_CONTAINMENT_OPENINGS = [
-  "Possiamo restare su qualcosa di semplice.",
-  "Oggi possiamo tenere le cose leggere.",
-  "Non serve aprire tutto insieme.",
-  "Possiamo stare vicino a una sola cosa.",
-  "Puoi restare su ciò che senti più accessibile.",
-]
+const GENTLE_CONTAINMENT_OPENINGS = {
+  it: [
+    "Possiamo restare su qualcosa di semplice.",
+    "Oggi possiamo tenere le cose leggere.",
+    "Non serve aprire tutto insieme.",
+    "Possiamo stare vicino a una sola cosa.",
+    "Puoi restare su ciò che senti più accessibile.",
+  ],
 
-const GENTLE_CONTAINMENT_FIELDS = [
-  "Può bastare anche solo nominare quello che c'è.",
-  "Non serve andare più a fondo di quanto senti.",
-  "Anche stare vicino a poco può bastare.",
-  "Puoi lasciarlo semplice, per oggi.",
-  "Non c'è nulla da forzare qui.",
-]
+  en: [
+    "We can stay with something simple.",
+    "Today we can keep things light.",
+    "There is no need to open everything at once.",
+    "We can stay close to just one thing.",
+    "You can stay with what feels most accessible.",
+  ],
+}
+
+const GENTLE_CONTAINMENT_FIELDS = {
+  it: [
+    "Può bastare anche solo nominare quello che c'è.",
+    "Non serve andare più a fondo di quanto senti.",
+    "Anche stare vicino a poco può bastare.",
+    "Puoi lasciarlo semplice, per oggi.",
+    "Non c'è nulla da forzare qui.",
+  ],
+
+  en: [
+    "It can be enough just to name what is here.",
+    "There is no need to go deeper than feels right.",
+    "Staying close to a small part can be enough.",
+    "You can keep it simple for today.",
+    "There is nothing to force here.",
+  ],
+}
 
 const FORBIDDEN_PATTERNS = [
   /\bcapisco\b/i,
@@ -77,8 +97,14 @@ function buildUserSeed(context = {}) {
 
 function pickOpening(context = {}) {
   const seed = buildUserSeed(context)
-  return GENTLE_CONTAINMENT_OPENINGS[
-    seededIndex(seed, GENTLE_CONTAINMENT_OPENINGS.length)
+  const language = context.language || "it"
+
+  const templates =
+    GENTLE_CONTAINMENT_OPENINGS[language] ||
+    GENTLE_CONTAINMENT_OPENINGS.it
+
+  return templates[
+    seededIndex(seed, templates.length)
   ]
 }
 
@@ -87,8 +113,15 @@ function pickField(context = {}) {
     ...context,
     userId: `${context.userId || "anonymous"}:field`,
   })
-  return GENTLE_CONTAINMENT_FIELDS[
-    seededIndex(seed, GENTLE_CONTAINMENT_FIELDS.length)
+
+  const language = context.language || "it"
+
+  const templates =
+    GENTLE_CONTAINMENT_FIELDS[language] ||
+    GENTLE_CONTAINMENT_FIELDS.it
+
+  return templates[
+    seededIndex(seed, templates.length)
   ]
 }
 
@@ -140,7 +173,10 @@ export function generateGentleContainmentMessage(context = {}) {
       },
     }
   } catch {
-    const fallback = "Possiamo restare su qualcosa di semplice."
+    const fallback =
+  context.language === "en"
+    ? "We can stay with something simple."
+    : "Possiamo restare su qualcosa di semplice."
     return {
       mode: "gentle_containment",
       message: fallback,

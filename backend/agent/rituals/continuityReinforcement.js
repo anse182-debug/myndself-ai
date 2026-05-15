@@ -1,20 +1,40 @@
 // backend/agent/rituals/continuityReinforcement.js
 
-const CONTINUITY_OPENINGS = [
-  "C'è già una certa continuità in questi giorni.",
-  "Qualcosa qui sta diventando più stabile.",
-  "Stai creando un ritmo, anche senza forzarlo.",
-  "La tua presenza qui sta prendendo una forma costante.",
-  "In questi giorni si sente più continuità.",
-]
+const CONTINUITY_OPENINGS = {
+  it: [
+    "C'è già una certa continuità in questi giorni.",
+    "Qualcosa qui sta diventando più stabile.",
+    "Stai creando un ritmo, anche senza forzarlo.",
+    "La tua presenza qui sta prendendo una forma costante.",
+    "In questi giorni si sente più continuità.",
+  ],
 
-const CONTINUITY_FIELDS = [
-  "Anche questo conta.",
-  "Si vede già, anche in modo semplice.",
-  "Non serve renderlo perfetto perché sia reale.",
-  "Può restare leggero, ed essere comunque presente.",
-  "È già qualcosa che esiste.",
-]
+  en: [
+    "There is already a sense of continuity these days.",
+    "Something here is becoming more stable.",
+    "A rhythm is taking shape, even without forcing it.",
+    "Your presence here is taking on a steady form.",
+    "There is a stronger sense of continuity these days.",
+  ],
+}
+
+const CONTINUITY_FIELDS = {
+  it: [
+    "Anche questo conta.",
+    "Si vede già, anche in modo semplice.",
+    "Non serve renderlo perfetto perché sia reale.",
+    "Può restare leggero, ed essere comunque presente.",
+    "È già qualcosa che esiste.",
+  ],
+
+  en: [
+    "This matters too.",
+    "It is already visible, even in a simple way.",
+    "It does not need to be perfect to be real.",
+    "It can stay light and still be present.",
+    "It is already something that exists.",
+  ],
+}
 
 const FORBIDDEN_PATTERNS = [
   /\bstreak\b/i,
@@ -87,7 +107,15 @@ function validateContinuityMessage(text = "") {
 
 function pickOpening(context = {}) {
   const seed = buildUserSeed(context)
-  return CONTINUITY_OPENINGS[seededIndex(seed, CONTINUITY_OPENINGS.length)]
+  const language = context.language || "it"
+
+  const templates =
+    CONTINUITY_OPENINGS[language] ||
+    CONTINUITY_OPENINGS.it
+
+  return templates[
+    seededIndex(seed, templates.length)
+  ]
 }
 
 function pickField(context = {}) {
@@ -95,7 +123,16 @@ function pickField(context = {}) {
     ...context,
     userId: `${context.userId || "anonymous"}:field`,
   })
-  return CONTINUITY_FIELDS[seededIndex(seed, CONTINUITY_FIELDS.length)]
+
+  const language = context.language || "it"
+
+  const templates =
+    CONTINUITY_FIELDS[language] ||
+    CONTINUITY_FIELDS.it
+
+  return templates[
+    seededIndex(seed, templates.length)
+  ]
 }
 
 function buildContinuityVariant(context = {}) {
@@ -147,7 +184,10 @@ export function generateContinuityReinforcementMessage(context = {}) {
       },
     }
   } catch {
-    const fallback = "C'è già una certa continuità in questi giorni."
+    const fallback =
+  context.language === "en"
+    ? "There is already a sense of continuity these days."
+    : "C'è già una certa continuità in questi giorni."
     return {
       mode: "continuity_reinforcement",
       message: fallback,

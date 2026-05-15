@@ -24,6 +24,11 @@ banner: {
   body:
     "Qui non devi essere brillante o interessante. Puoi anche scrivere solo due righe sconnesse: valgono comunque come un atto di cura verso di te.",
 },
+  todayIntro: {
+  line1: "Una settimana: ci sei.",
+  line2: "Cosa vorresti continuare a osservare nei prossimi giorni?",
+  line3: "La cosa importante non è la perfezione. È la continuità.",
+},
   test: {
     hello: "Ciao",
   },

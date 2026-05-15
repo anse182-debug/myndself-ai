@@ -5,7 +5,7 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
-import pkg from "@supabase/supabase-js"
+import { createClient } from "@supabase/supabase-js"
 import { Resend } from "resend"
 import crypto from "crypto"
 import PDFDocument from "pdfkit"
@@ -19,7 +19,6 @@ import {
   generateContinuityReinforcementMessage,
   isContinuityReinforcementEligible,
 } from "./agent/rituals/index.js"
-const { createClient } = pkg
 
 // ====== ENV ======
 const PORT = process.env.PORT || 8080

@@ -1270,7 +1270,7 @@ const handleChatSend = async () => {
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: uid, messages: newMessages }),
+      body: JSON.stringify({ user_id: uid, messages: newMessages, language }),
     })
     const data = await res.json()
     if (data.reply) {

@@ -460,7 +460,7 @@ export default function App() {
     if (!dismissed) {
       setShowBetaBanner(true)
     }
-  }, [session?.user?.id])
+  }, [session?.user?.id, language])
 
   useEffect(() => {
   if (!session?.user?.id) return
@@ -469,7 +469,7 @@ export default function App() {
     const uid = session.user.id
     await loadRitualMessage(uid)
   })()
-}, [session?.user?.id])
+}, [session?.user?.id, language])
 
   const handleDismissBetaBanner = () => {
     if (typeof window !== "undefined") {
@@ -575,7 +575,7 @@ export default function App() {
   useEffect(() => {
   if (!session?.user?.id) return
   setCheckinDayIndex(getDayIndex())
-}, [session?.user?.id])
+}, [session?.user?.id, language])
 
   
 useEffect(() => {
@@ -649,8 +649,10 @@ const handleLogin = async () => {
 
   try {
     const res = await fetch(
-      `${API_BASE}/api/ritual-message?user_id=${encodeURIComponent(userId)}`
-    )
+  `${API_BASE}/api/ritual-message?user_id=${encodeURIComponent(
+    userId
+  )}&language=${encodeURIComponent(language)}`
+)
 
     const json = await res.json()
 
@@ -1090,7 +1092,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
         console.error("summary history error", e)
       }
     })()
-  }, [session?.user?.id])
+  }, [session?.user?.id, language])
 
   // ---------- GUIDED REFLECTION ----------
 // ---------- GUIDED REFLECTION ----------
@@ -1319,7 +1321,7 @@ const handleChatSend = async () => {
         console.error("metrics error", err)
       }
     })()
-  }, [session?.user?.id])
+  }, [session?.user?.id, language])
 
   const dailyChartData = useMemo(
     () =>

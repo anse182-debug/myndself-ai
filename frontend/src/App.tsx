@@ -819,7 +819,7 @@ const generateShare = async () => {
     showToast("Link di condivisione creato ✅", "success")
   } catch (e: any) {
     console.error(e)
-    setShareError(e?.message || "Errore inatteso.")
+    setShareError(e?.message || dict.common.unexpectedError)
   } finally {
     setShareLoading(false)
   }
@@ -867,7 +867,7 @@ const generateShare = async () => {
     showToast("Link revocato ✅", "success")
   } catch (e: any) {
     console.error(e)
-    setShareError(e?.message || "Errore inatteso.")
+    setShareError(e?.message || dict.common.unexpectedError)
   } finally {
     setShareLoading(false)
   }
@@ -913,7 +913,7 @@ const moodPayload = selectedMoods.join(", ")
       })
       const data = await res.json()
       setReflection(data.reflection || "")
-      showToast("Riflessione salvata ✅", "success")
+      showToast(dict.reflection.saved, "success")
       await trackRitualEvent({
   user_id: uid,
   event_type: "ritual_outcome",
@@ -962,7 +962,7 @@ if (primaryEmotion) {
     } catch (err: any) {
       console.error(err)
       showToast(
-        "Non sono riuscito a salvare la riflessione. Riprova tra poco.",
+        dict.reflection.saveError,
         "error"
       )
     } finally {
@@ -1225,7 +1225,7 @@ async function sendGuidedTurn() {
     setGuidedStep(prev => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
 
     if (isFinal) {
-      showToast("Riflessione guidata salvata tra le sintesi ✅", "success")
+      showToast(dict.guided.saved, "success")
       try {
         const sumRes = await fetch(
           `${API_BASE}/api/summary-history?user_id=${uid}`
@@ -1238,7 +1238,7 @@ async function sendGuidedTurn() {
     }
   } catch (e) {
     console.error("guided error:", e)
-    showToast("Errore nella riflessione guidata", "error")
+    showToast(dict.guided.error, "error")
   } finally {
     setGuidedLoading(false)
   }
@@ -1343,7 +1343,7 @@ const handleChatSend = async () => {
     }
   } catch (e) {
     console.error("chat error:", e)
-    showToast("Errore nella chat riflessiva", "error")
+    showToast(dict.chat.error, "error")
   } finally {
     setIsChatLoading(false)
   }

@@ -1653,9 +1653,12 @@ const response = await openai.chat.completions.create({
 // POST /api/guided-reflection
 // Body: { user_id: string, messages: [{role,content}], step?: number }
 app.post("/api/guided-reflection", async (req, reply) => {
-  const { user_id, messages = [], step } = req.body || {}
+  const { user_id, messages = [], step, language="it", } = req.body || {}
   if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
-
+const normalizedLanguage =
+  language === "en"
+    ? "en"
+    : "it"
   try {
     // step server-side (fallback): 1..4
     const currentStep = Math.max(1, Math.min(4, Number(step || 1)))
@@ -1714,7 +1717,14 @@ TONO
       temperature: 0.7,
       max_tokens: 220,
       messages: [
-        { role: "system", content: GUIDED_PROMPT },
+        { role: "system", content:
+    normalizedLanguage === "en"
+      ? `IMPORTANT: You must respond exclusively in English. Never use Italian.
+
+${GUIDED_PROMPT}`
+      : `IMPORTANTE: Devi rispondere esclusivamente in italiano. Non usare l'inglese.
+
+${GUIDED_PROMPT}`,},
         { role: "system", content: turnInstruction },
         ...shortContext,
       ],

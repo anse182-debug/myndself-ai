@@ -105,44 +105,95 @@ type CheckinCopy = { intro: string; question: string; closing: string }
 function getCheckinCopy7D(dict: any): Record<number, CheckinCopy> {
   return {
     1: {
-      intro: "Benvenuto. Partiamo semplice.",
-      question: "Con una parola: cosa senti di più adesso?",
-      closing: "Anche un solo click oggi è già un inizio.",
+      intro:
+        dict.language === "en"
+          ? "Welcome. We begin simply."
+          : "Benvenuto. Partiamo semplice.",
+      question:
+        dict.language === "en"
+          ? "In one word: what do you feel most right now?"
+          : "Con una parola: cosa senti di più adesso?",
+      closing:
+        dict.language === "en"
+          ? "Even a single click today is already a beginning."
+          : "Anche un solo click oggi è già un inizio.",
     },
+
     2: {
-      intro: "Ieri hai iniziato a osservarti.",
+      intro:
+        dict.language === "en"
+          ? "Yesterday you began observing yourself."
+          : "Ieri hai iniziato a osservarti.",
       question:
-        "Cosa ti ha influenzato di più oggi: persone, lavoro o tempo per te?",
-      closing: "Non serve essere precisi. Serve essere presenti.",
+        dict.language === "en"
+          ? "What influenced you most today: people, work, or time for yourself?"
+          : "Cosa ti ha influenzato di più oggi: persone, lavoro o tempo per te?",
+      closing:
+        dict.language === "en"
+          ? "Precision is not required. Presence is."
+          : "Non serve essere precisi. Serve essere presenti.",
     },
+
     3: {
-      intro: "Stiamo costruendo continuità.",
+      intro:
+        dict.language === "en"
+          ? "We are building continuity."
+          : "Stiamo costruendo continuità.",
       question:
-        "C’è un’emozione che oggi è rimasta sullo sfondo, ma c’era?",
+        dict.language === "en"
+          ? "Was there an emotion that stayed in the background today, but was still there?"
+          : "C’è un’emozione che oggi è rimasta sullo sfondo, ma c’era?",
       closing:
-        "Notare lo sfondo cambia già il primo piano.",
+        dict.language === "en"
+          ? "Noticing the background already changes the foreground."
+          : "Notare lo sfondo cambia già il primo piano.",
     },
+
     4: {
-      intro: "Ti ho seguito con attenzione.",
+      intro:
+        dict.language === "en"
+          ? "I have been following your journey with care."
+          : "Ti ho seguito con attenzione.",
       question:
-        "Quale emozione è emersa più di una volta questa settimana?",
+        dict.language === "en"
+          ? "Which emotion has appeared more than once this week?"
+          : "Quale emozione è emersa più di una volta questa settimana?",
       closing:
-        "Notare la ripetizione è già una forma di chiarezza",
+        dict.language === "en"
+          ? "Recognizing repetition is already a form of clarity."
+          : "Notare la ripetizione è già una forma di chiarezza",
     },
+
     5: {
-      intro: "Hai già qualche giorno alle spalle.",
+      intro:
+        dict.language === "en"
+          ? "You already have a few days behind you."
+          : "Hai già qualche giorno alle spalle.",
       question:
-        "Cosa ti ha fatto respirare meglio, anche solo per un momento?",
+        dict.language === "en"
+          ? "What helped you breathe a little more easily, even for a moment?"
+          : "Cosa ti ha fatto respirare meglio, anche solo per un momento?",
       closing:
-        "Piccolo ≠ inutile. Piccolo è sostenibile.",
+        dict.language === "en"
+          ? "Small does not mean useless. Small is sustainable."
+          : "Piccolo ≠ inutile. Piccolo è sostenibile.",
     },
+
     6: {
-      intro: "Stai creando un ritmo.",
+      intro:
+        dict.language === "en"
+          ? "A rhythm is taking shape."
+          : "Stai creando un ritmo.",
       question:
-        "Se dovessi dare un titolo a questa settimana finora, quale sarebbe?",
+        dict.language === "en"
+          ? "If you had to give this week a title so far, what would it be?"
+          : "Se dovessi dare un titolo a questa settimana finora, quale sarebbe?",
       closing:
-        "Un titolo non spiega tutto. Ma aiuta a vedere.",
+        dict.language === "en"
+          ? "A title does not explain everything, but it helps you see."
+          : "Un titolo non spiega tutto. Ma aiuta a vedere.",
     },
+
     7: {
       intro: dict.todayIntro.line1,
       question: dict.todayIntro.line2,
@@ -1355,7 +1406,13 @@ const handleChatSend = async () => {
   )
 
   const dict = getDictionary(language)
-  const CHECKIN_COPY_7D = getCheckinCopy7D(dict)
+  const localizedDict = {
+  ...dict,
+  language,
+}
+
+const CHECKIN_COPY_7D =
+  getCheckinCopy7D(localizedDict)
   // ---------- BANNER EMOTIVO ----------
   const [emotionalNoteIndex, setEmotionalNoteIndex] = useState(0)
   const currentBanner = BANNER_NOTES[emotionalNoteIndex]

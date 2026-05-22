@@ -1210,6 +1210,7 @@ async function sendGuidedTurn() {
         user_id: uid,
         messages: msgs,
         step: guidedStep || 1,
+        language,
       }),
     })
 

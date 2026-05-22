@@ -1181,7 +1181,7 @@ async function sendGuidedTurn() {
   const uid = session?.user?.id
   if (!uid)
     return showToast(
-      "Accedi prima per continuare la riflessione guidata",
+      dict.auth.loginRequired,
       "error"
     )
 
@@ -1878,12 +1878,12 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                 </p>
                 <div className="space-y-2">
                   <label className="text-xs text-gray-300">
-                    Email
+                    {dict.auth.emailLabel}
                     <input
                       type="email"
                       value={magicLinkEmail}
                       onChange={(e) => setMagicLinkEmail(e.target.value)}
-                      placeholder="nome@esempio.com"
+                      placeholder={dict.auth.emailPlaceholder}
                       className="mt-1 w-full rounded-md bg-gray-900 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
                     />
                   </label>
@@ -1897,7 +1897,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                   className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-emerald-400 text-gray-950 text-sm font-semibold py-2 hover:bg-emerald-300 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
                   {authLoading && <Spinner />}
-                  {authLoading ? "Invio in corso…" : "Ricevi il link magico"}
+                  {authLoading ? dict.auth.sending : dict.auth.magicLink}
                 </button>
                 <p className="text-[11px] text-gray-500">
                   Nessuna newsletter automatica. Useremo il tuo contatto solo

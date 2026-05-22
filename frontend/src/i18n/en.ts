@@ -32,4 +32,61 @@ banner: {
   test: {
     hello: "Hello",
   },
+
+  auth: {
+  emailPlaceholder: "name@example.com",
+  emailLabel: "Email",
+  magicLink: "Receive magic link",
+  sending: "Sending…",
+  loginRequired: "Please log in to continue.",
+  invalidSession: "Invalid session. Please log in again.",
+},
+
+common: {
+  loading: "Loading…",
+  unexpectedError: "Unexpected error.",
+  retryLater: "Please try again later.",
+  close: "Close",
+  continue: "Continue",
+  cancel: "Cancel",
+  save: "Save",
+},
+
+calendar: {
+  title: "Emotional calendar",
+  subtitle:
+    "A visual look at how you've been feeling recently.",
+  preparing: "Preparing your calendar…",
+  previousMonth: "← previous month",
+  nextMonth: "next month →",
+},
+
+sharing: {
+  created: "Sharing link created ✅",
+  revoked: "Link revoked ✅",
+  generationError: "Error generating the link.",
+  revokeError: "Error revoking the link.",
+  noActiveLink: "No active link to revoke.",
+},
+
+guided: {
+  start:
+    "Would you like to reflect together for a moment? In a few words, what is happening inside you right now?",
+  continue:
+    "Write a short answer to continue 💭",
+  saved:
+    "Guided reflection saved in your summaries ✅",
+  error:
+    "Error during guided reflection",
+},
+
+chat: {
+  error: "Error in reflective chat",
+},
+
+reflection: {
+  saved: "Reflection saved ✅",
+  saveError:
+    "I couldn't save your reflection. Please try again shortly.",
+},
 }

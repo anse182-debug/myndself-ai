@@ -1448,7 +1448,7 @@ const CHECKIN_COPY_7D =
               onClick={() => setCurrentTab("oggi")}
               className="hidden sm:inline-flex items-center text-xs text-gray-400 hover:text-emerald-300"
             >
-              + Aggiungi una riflessione
+              {dict.insights.addReflection}
             </button>
           )}
         </div>
@@ -1510,7 +1510,7 @@ const InsightsTab: React.FC<InsightsTabProps> = ({
   if (loading) {
     return (
       <div className="py-8 text-sm text-gray-400">
-        Sto preparando i tuoi insight…
+        {dict.insights.loading}
       </div>
     )
   }
@@ -1627,15 +1627,14 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       {/* 2️⃣ Uno sguardo del Mentor */}
       <section className="space-y-3">
         <h3 className="text-sm font-semibold text-emerald-200">
-          Uno sguardo del Mentor
+          {dict.insights.mentorTitle}
         </h3>
         <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 p-4 text-sm text-gray-100">
           {mentorInsight ? (
             <p>{mentorInsight}</p>
           ) : (
             <p className="text-gray-300">
-              Appena avrà un po&apos; più di storia alle spalle, il Mentor ti
-              restituirà qui una breve sintesi dei pattern che emergono.
+              {dict.insights.mentorEmpty}
             </p>
           )}
         </div>
@@ -1643,7 +1642,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
           onClick={onStartReflection}
           className="inline-flex items-center text-xs text-emerald-300 hover:text-emerald-200"
         >
-          Riflettiamo insieme ora →
+          {dict.insights.reflectNow}
         </button>
       </section>
 
@@ -1651,12 +1650,12 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
         <div>
           <h2 className="text-sm font-semibold text-emerald-200">
-            Rituale della settimana
+            {dict.insights.weeklyRitualTitle}
           </h2>
 
         {weeklyRitualRange && (
           <p className="text-[11px] text-gray-400 mt-0.5">
-            Ultimi 7 giorni ·{" "}
+            {dict.insights.last7Days} ·{" "}
             {new Date(weeklyRitualRange.from).toLocaleDateString("it-IT", {
               day: "2-digit",
               month: "2-digit",
@@ -1682,8 +1681,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
         {!weeklyRitual && !weeklyRitualError && (
           <p className="text-xs text-gray-400">
-            Quando avrai qualche giorno di riflessioni alle spalle, qui
-            troverai una piccola lettura settimanale del tuo Mentor.
+           {dict.insights.weeklyRitualEmpty}
           </p>
         )}
 
@@ -1699,7 +1697,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       {topTags.length > 0 && (
         <section className="space-y-2 bg-gray-900/40 border border-gray-700/30 rounded-xl p-3">
           <h3 className="text-sm font-semibold text-gray-300">
-            Emozioni più ricorrenti
+            {dict.insights.recurringEmotionsTitle}
           </h3>
           <div className="flex flex-wrap gap-2">
             {topTags.slice(0, 6).map((t, idx) => (
@@ -1716,8 +1714,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             ))}
           </div>
           <p className="text-[11px] text-gray-500">
-            Queste parole mostrano cosa sta occupando più spesso il tuo spazio
-            emotivo in questo periodo.
+            {dict.insights.recurringEmotionsDescription}
           </p>
         </section>
       )}

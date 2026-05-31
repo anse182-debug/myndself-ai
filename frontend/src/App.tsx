@@ -224,6 +224,7 @@ type CalendarDay = {
 type MoodCalendarProps = {
   days: CalendarDay[]
   monthOffset: number
+  language: string
   onChangeMonth: (offset: number) => void
   onSelectDay: (day: CalendarDay | null) => void
 }
@@ -260,6 +261,7 @@ const moodToColor = (mood: string | null): string => {
 const MoodCalendar: React.FC<MoodCalendarProps> = ({
   days,
   monthOffset,
+  language,
   onChangeMonth,
   onSelectDay,
 }) => {
@@ -298,10 +300,13 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
     })
   }
 
-  const monthLabel = base.toLocaleDateString("it-IT", {
+  const monthLabel = base.toLocaleDateString(
+  language === "en" ? "en-US" : "it-IT",
+  {
     month: "long",
     year: "numeric",
-  })
+  }
+)
 
   const weekdayLabels = ["D", "L", "M", "M", "G", "V", "S"]
 
@@ -310,22 +315,26 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
       {/* Header mese */}
       <div className="flex items-center justify-between">
         <button
-          type="button"
-          onClick={() => onChangeMonth(monthOffset - 1)}
-          className="text-xs text-emerald-300 hover:text-emerald-200"
-        >
-          ← mese prec.
-        </button>
+  type="button"
+  onClick={() => onChangeMonth(monthOffset - 1)}
+  className="text-xs text-emerald-300 hover:text-emerald-200"
+>
+  {language === "en"
+    ? "← previous month"
+    : "← mese prec."}
+</button>
         <div className="text-xs font-medium text-gray-200 uppercase tracking-wide">
           {monthLabel}
         </div>
         <button
-          type="button"
-          onClick={() => onChangeMonth(monthOffset + 1)}
-          className="text-xs text-emerald-300 hover:text-emerald-200"
-        >
-          mese succ. →
-        </button>
+  type="button"
+  onClick={() => onChangeMonth(monthOffset + 1)}
+  className="text-xs text-emerald-300 hover:text-emerald-200"
+>
+  {language === "en"
+    ? "next month →"
+    : "mese succ. →"}
+</button>
       </div>
 
       {/* Intestazione giorni settimana */}
@@ -1575,11 +1584,12 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
         {!calendarLoading && !calendarError && (
           <MoodCalendar
-            days={calendarDays}
-            monthOffset={calendarMonthOffset}
-            onChangeMonth={onChangeCalendarMonth}
-            onSelectDay={onSelectCalendarDay}
-          />
+  days={calendarDays}
+  monthOffset={calendarMonthOffset}
+  language={language}
+  onChangeMonth={onChangeCalendarMonth}
+  onSelectDay={onSelectCalendarDay}
+/>
         )}
 
         {reflectionDaysCount > 0 && (

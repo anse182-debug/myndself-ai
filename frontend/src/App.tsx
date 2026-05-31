@@ -378,21 +378,7 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
 
 
 
-const MOOD_PRESETS = [
-  { label: "Calmo", value: "Calmo / centrato" },
-  { label: "Grato", value: "Grato" },
-  { label: "Contento", value: "Contento" },
-  { label: "Entusiasta", value: "Entusiasta" },
-  { label: "Stressato", value: "Stressato" },
-  { label: "Stanco", value: "Stanco / scarico" },
-  { label: "Ansioso", value: "Ansioso / in allerta" },
-  { label: "Triste", value: "Triste" },
-  { label: "Sovraccarico", value: "Sovraccarico" },
-  { label: "Arrabbiato", value: "Arrabbiato" },
-  { label: "Frustrato", value: "Frustrato" },
-  { label: "Confuso", value: "Confuso" },
-  { label: "Annoiato", value: "Annoiato" },
-]
+const MOOD_PRESETS = []
 
 const MOOD_EMOJI: Record<string, string> = {
   "Calmo / centrato": "🧘‍♀️",
@@ -410,33 +396,7 @@ const MOOD_EMOJI: Record<string, string> = {
   Annoiato: "😑",
 }
 
-const QUICK_TAGS = [
-  "Stanchezza mentale",
-  "Stanchezza fisica",
-  "Senso di colpa",
-  "Ansia a bassa intensità",
-  "Ansia forte",
-  "Confusione",
-  "Speranza",
-  "Motivazione",
-  "Serenità",
-  "Frustrazione",
-  "Sovraccarico",
-  "Apprezzamento",
-  "Rabbia",
-  "Impazienza",
-  "Agitazione",
-  "Determinazione",
-  "Entusiasmo",
-  "Apatia",
-  "Noia",
-  "Gratitudine",
-  "Fiducia",
-  "Curiosità",
-  "Solitudine",
-  "Vicinanza",
-]
-
+const QUICK_TAGS = []
 const GUIDED_PROMPTS = [
   "Se dovessi descrivere la tua giornata come una scena di un film, cosa vedresti?",
   "C'è stata un'emozione piccola ma insistente oggi, anche solo sullo sfondo?",
@@ -1419,6 +1379,11 @@ const handleChatSend = async () => {
   )
 
   const dict = getDictionary(language)
+  const MOOD_PRESETS =
+  (dict as any).moodPresets || []
+
+const QUICK_TAGS =
+  (dict as any).quickTags || []
   const localizedDict = {
   ...dict,
   language,

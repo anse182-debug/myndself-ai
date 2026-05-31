@@ -2048,7 +2048,17 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                       </p>
                       <div className="flex flex-wrap gap-2">
                        {QUICK_TAGS.map((tag) => {
-  const active = note.includes(tag)
+  const tagValue =
+  typeof tag === "string"
+    ? tag
+    : tag.value
+
+const tagLabel =
+  typeof tag === "string"
+    ? tag
+    : tag.label
+
+const active = note.includes(tagValue)
   const tagValue =
   typeof tag === "string"
     ? tag
@@ -2064,16 +2074,18 @@ const colorKey = tagValue.toLowerCase()
 
   return (
     <button
-      key={tag}
+      key={tagValue}
       type="button"
       onClick={() => {
         if (active) {
           setNote((prev) =>
-            prev.replace(tag, "").replace("  ", " ")
+            prev.replace(tagValue, "").replace("  ", " ")
           )
         } else {
           setNote((prev) =>
-            prev.length ? `${prev.trim()} · ${tag}` : tag
+            prev.length
+  ? `${prev.trim()} · ${tagValue}`
+  : tagValue
           )
         }
       }}

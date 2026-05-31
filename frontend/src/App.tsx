@@ -1555,18 +1555,18 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       {/* 1️⃣ Calendario emotivo */}
       <section className="bg-gray-900/60 border border-emerald-400/20 rounded-2xl p-5 space-y-3">
         <div>
-          <h2 className="text-sm font-semibold text-emerald-200">
-            Calendario emotivo
-          </h2>
+         <h2 className="text-sm font-semibold text-emerald-200">
+  {dict.calendar.title}
+</h2>
           <p className="text-xs text-gray-400">
-            Uno sguardo visivo a come ti sei sentito negli ultimi giorni.
-          </p>
+  {dict.calendar.subtitle}
+</p>
         </div>
 
         {calendarLoading && (
           <p className="text-xs text-gray-400">
-            Sto preparando il tuo calendario…
-          </p>
+  {dict.calendar.preparing}
+</p>
         )}
 
         {calendarError && (

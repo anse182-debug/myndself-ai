@@ -376,10 +376,6 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
   )
 }
 
-
-
-const MOOD_PRESETS = []
-
 const MOOD_EMOJI: Record<string, string> = {
   "Calmo / centrato": "🧘‍♀️",
   Grato: "🙏",
@@ -396,7 +392,7 @@ const MOOD_EMOJI: Record<string, string> = {
   Annoiato: "😑",
 }
 
-const QUICK_TAGS = []
+
 const GUIDED_PROMPTS = [
   "Se dovessi descrivere la tua giornata come una scena di un film, cosa vedresti?",
   "C'è stata un'emozione piccola ma insistente oggi, anche solo sullo sfondo?",

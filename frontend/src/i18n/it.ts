@@ -89,12 +89,4 @@ reflection: {
   saveError:
     "Non sono riuscito a salvare la riflessione. Riprova tra poco.",
 },
-  calendar: {
-  title: "Calendario emotivo",
-  subtitle:
-    "Uno sguardo visivo a come ti sei sentito negli ultimi giorni.",
-  preparing: "Sto preparando il tuo calendario…",
-  previousMonth: "← mese prec.",
-  nextMonth: "mese succ. →",
-},
 }

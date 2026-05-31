@@ -89,4 +89,12 @@ reflection: {
   saveError:
     "I couldn't save your reflection. Please try again shortly.",
 },
+  calendar: {
+  title: "Emotional calendar",
+  subtitle:
+    "A visual look at how you've been feeling recently.",
+  preparing: "Preparing your calendar…",
+  previousMonth: "← previous month",
+  nextMonth: "next month →",
+},
 }

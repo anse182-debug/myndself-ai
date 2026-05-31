@@ -131,4 +131,37 @@ quickTags: [
   { label: "Loneliness", value: "Solitudine" },
   { label: "Closeness", value: "Vicinanza" },
 ],
+  insights: {
+  loading: "Preparing your insights...",
+
+  mentorTitle: "A note from your Mentor",
+  mentorEmpty:
+    "Once a little more history is available, your Mentor will share a brief summary of the patterns emerging from your reflections.",
+  reflectNow: "Reflect together now →",
+
+  weeklyRitualTitle: "Weekly Ritual",
+  last7Days: "Last 7 days",
+  weeklyRitualEmpty:
+    "After a few days of reflections, you'll find a small weekly reading from your Mentor here.",
+  weeklyRitualNotEnoughData:
+    "A few more reflections are needed before your weekly ritual can be generated.",
+  weeklyRitualError:
+    "I couldn't retrieve your weekly ritual.",
+
+  recurringEmotionsTitle: "Most recurring emotions",
+  recurringEmotionsDescription:
+    "These words highlight what has been occupying your emotional space most often.",
+
+  emotionalCalendarTitle: "Emotional Calendar",
+  emotionalCalendarError:
+    "I couldn't prepare your emotional calendar. Please try again later.",
+
+  legendCalm: "calm / serenity",
+  legendJoy: "joy / openness",
+  legendSadness: "sadness / heaviness",
+  legendAnger: "anger / frustration",
+  legendAnxiety: "anxiety / tension",
+
+  addReflection: "+ Add a reflection",
+},
 }

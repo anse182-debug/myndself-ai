@@ -308,7 +308,10 @@ const MoodCalendar: React.FC<MoodCalendarProps> = ({
   }
 )
 
-  const weekdayLabels = ["D", "L", "M", "M", "G", "V", "S"]
+  const weekdayLabels =
+  language === "en"
+    ? ["S", "M", "T", "W", "T", "F", "S"]
+    : ["D", "L", "M", "M", "G", "V", "S"]
 
   return (
     <div className="space-y-3">

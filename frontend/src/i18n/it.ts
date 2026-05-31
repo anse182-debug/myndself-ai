@@ -131,4 +131,37 @@ quickTags: [
   { label: "Solitudine", value: "Solitudine" },
   { label: "Vicinanza", value: "Vicinanza" },
 ],
+  insights: {
+  loading: "Sto preparando i tuoi insight...",
+
+  mentorTitle: "Uno sguardo del Mentor",
+  mentorEmpty:
+    "Appena avrà un po' più di storia alle spalle, il Mentor ti restituirà qui una breve sintesi dei pattern che emergono.",
+  reflectNow: "Riflettiamo insieme ora →",
+
+  weeklyRitualTitle: "Rituale della settimana",
+  last7Days: "Ultimi 7 giorni",
+  weeklyRitualEmpty:
+    "Quando avrai qualche giorno di riflessioni alle spalle, qui troverai una piccola lettura settimanale del tuo Mentor.",
+  weeklyRitualNotEnoughData:
+    "Per vedere il rituale settimanale servono ancora alcune riflessioni.",
+  weeklyRitualError:
+    "Non sono riuscito a recuperare il rituale.",
+
+  recurringEmotionsTitle: "Emozioni più ricorrenti",
+  recurringEmotionsDescription:
+    "Queste parole mostrano cosa sta occupando più spesso il tuo spazio emotivo.",
+
+  emotionalCalendarTitle: "Calendario emotivo",
+  emotionalCalendarError:
+    "Non riesco a preparare il calendario emotivo. Riprova più tardi.",
+
+  legendCalm: "calma / serenità",
+  legendJoy: "gioia / apertura",
+  legendSadness: "tristezza / pesantezza",
+  legendAnger: "rabbia / frustrazione",
+  legendAnxiety: "ansia / tensione",
+
+  addReflection: "+ Aggiungi una riflessione",
+},
 }

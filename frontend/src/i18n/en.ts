@@ -103,7 +103,7 @@ reflection: {
   { label: "Frustrated", value: "Frustrato" },
   { label: "Confused", value: "Confuso" },
   { label: "Bored", value: "Annoiato" },
-]
+],
 
 quickTags: [
   { label: "Mental fatigue", value: "Stanchezza mentale" },

@@ -1990,7 +1990,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                       <div className="flex flex-wrap gap-2">
                        {MOOD_PRESETS.map((m) => {
   const active = selectedMoods.includes(m.value)
-  const colorKey = m.label.toLowerCase() // "calmo", "grato", ecc.
+  const colorKey = m.value.toLowerCase()
   const hex = EMOTION_COLORS[colorKey]
 
   return (
@@ -2019,7 +2019,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       }
     >
       <span>{MOOD_EMOJI[m.value] ?? "✨"}</span>
-      <span>{getEmotionLabel(m.label.toLowerCase(), language)}</span>
+      <span>{m.label}</span>
     </button>
   )
 })}
@@ -2049,7 +2049,17 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                       <div className="flex flex-wrap gap-2">
                        {QUICK_TAGS.map((tag) => {
   const active = note.includes(tag)
-  const colorKey = tag.toLowerCase()
+  const tagValue =
+  typeof tag === "string"
+    ? tag
+    : tag.value
+
+const tagLabel =
+  typeof tag === "string"
+    ? tag
+    : tag.label
+
+const colorKey = tagValue.toLowerCase()
   const hex = EMOTION_COLORS[colorKey]
 
   return (
@@ -2080,7 +2090,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
           : undefined
       }
     >
-      {getEmotionLabel(tag.toLowerCase(), language)}
+      {tagLabel}
     </button>
   )
 })}

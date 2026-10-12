@@ -1822,7 +1822,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
       {session && (
         <>
           {/* Banner beta */}
-          {showBetaBanner && (
+          {showBetaBanner && currentTab === "oggi" && (
             <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 mt-2">
               <div className="rounded-2xl border border-emerald-400/30 bg-emerald-400/5 px-4 py-3 flex items-start gap-3">
                 <div className="mt-0.5">🌱</div>
@@ -1864,7 +1864,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
           {/* CONTENUTO PRINCIPALE */}
           <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">
             {/* Banner nota emotiva (sopra le tab) */}
-            <section className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 flex gap-3 items-start">
+            {currentTab !== "guidata" && <section className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 flex gap-3 items-start">
               <div className="mt-0.5 text-lg">💭</div>
               <div className="flex-1">
                 <p className="text-[11px] font-semibold text-emerald-200 uppercase tracking-wide">
@@ -1877,7 +1877,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                   {dict.banner.body}
                 </p>
               </div>
-            </section>
+            </section>}
 
             <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(0,1.4fr)] gap-4 lg:gap-6 items-start">
               {/* COLONNA SINISTRA */}

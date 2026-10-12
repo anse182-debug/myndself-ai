@@ -2,7 +2,7 @@ export const it = {
   tabs: {
     today: "Oggi",
     insights: "Insight",
-    guided: "Guidata",
+    guided: "Un momento",
     chat: "Chat",
     sharing: "Condivisione",
   },

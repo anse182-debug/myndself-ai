@@ -5,6 +5,7 @@ import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemor
 
 import { buildReflectionMessages, extractUserEmotionTags } from "./agent/reflection.js"
 import Fastify from "fastify"
+import { registerJourneyRoutes } from "./agent/journey.js"
 import { registerStagingGuard } from "./agent/staging.js"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
@@ -1000,6 +1001,7 @@ app.get("/api/analytics/tags", async (req, reply) => {
 //  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
 // =============================================================
 registerMemoryRoutes(app, { supabase, authenticate: requireSupabaseUser })
+registerJourneyRoutes(app, { supabase, openai, authenticate: requireSupabaseUser })
 
 app.post("/api/chat", async (req, reply) => {
   const user = await requireSupabaseUser(req, reply)

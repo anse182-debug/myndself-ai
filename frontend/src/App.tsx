@@ -1,3 +1,4 @@
+import ReflectionJourney from "./components/ReflectionJourney"
 import MemoryControls, { type MemoryItem } from "./components/MemoryControls"
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./Landing"
@@ -20,7 +21,6 @@ import { BarChart, Bar, CartesianGrid, Legend } from "recharts"
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:8080"
 const ONBOARDING_KEY = "myndself_onboarding_v1_done"
-const MAX_GUIDED_TURNS = 3 // numero massimo di messaggi del Mentor in una riflessione guidata
 
 // 🎨 Colori per emozioni specifiche (pill, tag, ecc.)
 const EMOTION_COLORS: Record<string, string> = {
@@ -209,7 +209,6 @@ type DailyItem = { day: string; entries: number }
 type TagItem = { tag: string; tag_count: number }
 type ChatMessage = { role: "user" | "assistant"; content: string }
 type Toast = { id: string; message: string; type?: "success" | "error" | "info" }
-type GuidedMsg = { role: "user" | "assistant"; content: string }
 type CalendarDay = {
   day: string
   dominantMood: string | null
@@ -537,8 +536,6 @@ export default function App() {
   }
 
   // journaling & insights
-  const [guidedError, setGuidedError] = useState<string | null>(null)
-  const [guidedSending, setGuidedSending] = useState(false)
   const [mood, setMood] = useState("")
   const [selectedMoods, setSelectedMoods] = useState<string[]>([])
   const [temporalMirrorText, setTemporalMirrorText] = useState<string | null>(null)
@@ -1155,103 +1152,6 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
       }
     })()
   }, [session?.user?.id, language])
-
-  // ---------- GUIDED REFLECTION ----------
-// ---------- GUIDED REFLECTION ----------
-const [guidedMessages, setGuidedMessages] = useState<GuidedMsg[]>([])
-const [guidedInput, setGuidedInput] = useState("")
-const [guidedLoading, setGuidedLoading] = useState(false)
-const [guidedActive, setGuidedActive] = useState(false)
-const [guidedStep, setGuidedStep] = useState<number>(0)
-const [guidedFinal, setGuidedFinal] = useState(false)
-
-function startGuidedSession() {
-  setGuidedActive(true)
-  setGuidedFinal(false)
-  setGuidedStep(1)
-  setGuidedMessages([
-    {
-      role: "assistant",
-      content:
-        "Ti va di fare una breve riflessione insieme? In poche parole, cosa sta succedendo dentro di te adesso?",
-    },
-  ])
-}
-
-async function sendGuidedTurn() {
-  const uid = session?.user?.id
-  if (!uid)
-    return showToast(
-      dict.auth.loginRequired,
-      "error"
-    )
-
-  // se non abbiamo ancora iniziato, parto con la prima domanda fissa
-  if (!guidedActive) return startGuidedSession()
-
-  // se non è il turno finale, serve una risposta dell’utente
-  if (!guidedInput.trim() && guidedStep > 0 && !guidedFinal) {
-    return showToast("Scrivi una breve risposta per continuare 💭", "info")
-  }
-
-  // aggiungo il messaggio dell’utente al contesto
-  let msgs = guidedMessages
-  if (guidedInput.trim()) {
-    msgs = [...guidedMessages, { role: "user", content: guidedInput.trim() }]
-    setGuidedMessages(msgs)
-    setGuidedInput("")
-  }
-
-  setGuidedLoading(true)
-  try {
-    const res = await authenticatedFetch(`${API_BASE}/api/guided-reflection`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: uid,
-        messages: msgs,
-        step: guidedStep || 1,
-        language,
-      }),
-    })
-
-    const data = await res.json()
-    const reply =
-      data?.reply ||
-      "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
-    const isFinal = Boolean(data?.isFinal)
-
-    setGuidedMessages(prev => [...prev, { role: "assistant", content: reply }])
-    setGuidedFinal(isFinal)
-    setGuidedStep(prev => (isFinal ? 4 : Math.min(4, (prev || 1) + 1)))
-
-    if (isFinal) {
-      showToast(dict.guided.saved, "success")
-      try {
-        const sumRes = await authenticatedFetch(
-          `${API_BASE}/api/summary-history?user_id=${uid}`
-        )
-        const sumJson = await sumRes.json()
-        if (sumJson?.ok) setSummaryHistory(sumJson.items || [])
-      } catch (e) {
-        console.error("refresh insights error:", e)
-      }
-    }
-  } catch (e) {
-    console.error("guided error:", e)
-    showToast(dict.guided.error, "error")
-  } finally {
-    setGuidedLoading(false)
-  }
-}
-
-function resetGuided() {
-  setGuidedActive(false)
-  setGuidedFinal(false)
-  setGuidedStep(0)
-  setGuidedMessages([])
-  setGuidedInput("")
-}
 
 function buildTemporalMirrorSentence(
   emotion: string,
@@ -2235,77 +2135,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
 
                 {/* TAB: GUIDATA */}
-                {currentTab === "guidata" && (
-                  <section className="bg-gray-900/70 border border-white/10 rounded-2xl p-4 sm:p-5 space-y-4">
-                    <header className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="text-sm font-semibold">
-                          Riflessione guidata
-                        </h2>
-                        <p className="text-xs text-gray-400">
-                          Se non sai da dove iniziare, ti accompagniamo noi con
-                          qualche domanda.
-                        </p>
-                      </div>
-                    </header>
-
-                    <div className="space-y-3">
-                      {guidedMessages.length === 0 && (
-                        <p className="text-xs text-gray-300">
-                          Quando inizi, ti farò qualche domanda alla volta. Tu
-                          puoi rispondere con parole sparse, senza dover essere
-                          lineare.
-                        </p>
-                      )}
-
-                      {guidedMessages.length > 0 && (
-                        <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                          {guidedMessages.map((m, idx) => (
-                            <div
-                              key={idx}
-                              className={`text-sm px-3 py-2 rounded-lg max-w-[80%] ${
-                                m.role === "assistant"
-                                  ? "bg-emerald-500/10 text-emerald-50 self-start"
-                                  : "bg-white/10 text-gray-50 self-end ml-auto"
-                              }`}
-                            >
-                              {m.content}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      <div className="space-y-2 pt-2">
-                        <textarea
-                          value={guidedInput}
-                          onChange={(e) => setGuidedInput(e.target.value)}
-                          rows={3}
-                          placeholder={
-                            guidedMessages.length === 0
-                              ? "Se ti va, dimmi solo da dove vuoi partire oggi…"
-                              : "Scrivi liberamente quello che ti viene in mente ora…"
-                          }
-                          className="w-full rounded-md bg-gray-950/70 border border-white/10 px-3 py-2 text-sm text-gray-50 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-400/60"
-                        />
-                        <div className="flex justify-between items-center gap-2">
-                          <button
-  type="button"
-  onClick={guidedFinal ? resetGuided : sendGuidedTurn}
-  disabled={guidedLoading}
-  className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-400 text-gray-950 text-xs font-semibold hover:bg-emerald-300 transition disabled:opacity-50"
->
-  {guidedFinal
-    ? "Ricomincia una nuova riflessione"
-    : guidedMessages.length === 0
-      ? "Inizia la riflessione guidata"
-      : "Continua"}
-</button>
-
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                )}
+                {currentTab === "guidata" && <ReflectionJourney key={session.user.id} token={session.access_token} apiBase={API_BASE} language={language} />}
 
                 {/* TAB: CHAT MENTOR */}
                 {currentTab === "chat" && (

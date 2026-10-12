@@ -31,7 +31,6 @@ const EMOTION_COLORS: Record<string, string> = {
   entusiasta: "#2EEB80",
   stressato: "#4C66E6",
   stanco: "#6C6C6C",
-  sovraccarico: "#FF4FCC",
   ansioso: "#4C66E6",
   triste: "#4A4A4A",
   arrabbiato: "#FF5454",
@@ -1353,23 +1352,24 @@ const CHECKIN_COPY_7D =
   const TabsNav = () => {
     const tabs: { id: TabId; label: string }[] = [
       { id: "oggi", label: dict.tabs.today },
-      { id: "insight", label: dict.tabs.insights },
       { id: "guidata", label: dict.tabs.guided },
+      { id: "insight", label: dict.tabs.insights },
       { id: "chat", label: dict.tabs.chat },
       { id: "condivisione", label: dict.tabs.sharing },
     ]
     // ---------- RENDER ----------
     return (
-      <nav className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
+      <nav aria-label={language === "en" ? "App sections" : "Sezioni dell’app"} className="w-full max-w-6xl mx-auto px-4 sm:px-6 mb-3">
         <div className="flex justify-between sm:justify-start items-center gap-2 sm:gap-3">
-          <div className="inline-flex items-center gap-1 sm:gap-2 bg-gray-900/70 border border-white/5 rounded-full p-1">
+          <div className="grid w-full grid-cols-3 gap-1 sm:flex sm:w-auto sm:gap-2 bg-gray-900/70 border border-white/5 rounded-2xl sm:rounded-full p-1">
             {tabs.map((t) => {
               const active = currentTab === t.id
               return (
                 <button
                   key={t.id}
                   onClick={() => setCurrentTab(t.id)}
-                  className={`px-3 sm:px-4 py-1 rounded-full text-xs sm:text-sm transition-colors ${
+                  aria-current={active ? "page" : undefined}
+                  className={`min-h-11 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm transition-colors ${
                     active
                       ? "bg-emerald-400 text-gray-950 font-semibold"
                       : "text-gray-300 hover:bg-white/5"
@@ -1846,10 +1846,20 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             </section>
           )}
 
+          {currentTab === "oggi" && <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 my-4">
+            <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/10 p-4 sm:p-5">
+              <h2 className="text-lg font-semibold">{language === "en" ? "A moment for yourself" : "Un momento per te"}</h2>
+              <p className="mt-1 text-sm text-gray-300">{language === "en" ? "Let it out, understand, or find calm. Start with what you need right now." : "Sfogati, metti a fuoco o rallenta. Parti da quello che ti serve adesso."}</p>
+              <button type="button" onClick={() => setCurrentTab("guidata")} className="mt-3 min-h-11 w-full sm:w-auto rounded-xl bg-emerald-400 px-5 py-3 text-sm font-semibold text-gray-950">{language === "en" ? "Start my moment" : "Inizia il mio momento"}</button>
+            </div>
+          </section>}
           {/* Tabs */}
           <TabsNav />
-          <MemoryControls key={session.user.id} token={session.access_token} apiBase={API_BASE}
-            enabled={memoryEnabled} onChange={changeMemoryPreference} language={language} />
+          <details className="w-full max-w-6xl mx-auto mb-3">
+            <summary className="mx-4 sm:mx-6 min-h-11 cursor-pointer rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-300">{language === "en" ? "AI memory settings" : "Impostazioni della memoria AI"} · {memoryEnabled ? (language === "en" ? "On" : "Attiva") : (language === "en" ? "Off" : "Disattivata")}</summary>
+            <div className="mt-3"><MemoryControls key={session.user.id} token={session.access_token} apiBase={API_BASE}
+              enabled={memoryEnabled} onChange={changeMemoryPreference} language={language} /></div>
+          </details>
 
           {/* CONTENUTO PRINCIPALE */}
           <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">

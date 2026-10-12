@@ -7,7 +7,7 @@ function fixture(output = { reply: "Ti ascolto. Cosa ti pesa?", summary: "Mi sen
   const calls = [], saved = []
   const app = Fastify()
   const supabase = { from: () => ({ upsert: async (row, options) => { saved.push({ row, options }); return { error: dbError ? {} : null } }, select: () => ({ eq: () => ({ order: () => ({ limit: async () => ({ data: [], error: null }) }) }) }) }) }
-  registerJourneyRoutes(app, { authenticate: async (req, reply) => { if (req.headers.authorization === "Bearer test") return { id: "test-owner" }; reply.code(401).send({ error: "unauthorized" }); return null }, supabase, openai: { chat: { completions: { create: async config => { calls.push(config); return { choices: [{ message: { content: JSON.stringify(output) } }] } } } } } })
+  registerJourneyRoutes(app, { authenticate: async (req, reply) => { if (req.headers.authorization === "Bearer test") return { id: "test-owner" }; reply.code(401).send({ error: "unauthorized" }); return null }, supabase, openai: { chat: { completions: { create: async config => { calls.push(config); return { choices: [{ message: { content: JSON.stringify(typeof output === "function" ? output(calls.length) : output) } }] } } } } } })
   return { app, calls, saved }
 }
 const auth = { authorization: "Bearer test" }
@@ -23,7 +23,7 @@ test("rejects unbounded text, invalid modes and injected system roles", () => {
 test("each intention changes the instructions; third user turn closes", () => {
   assert.notEqual(buildJourneyMessages({ ...turn, mode: "vent" })[0].content, buildJourneyMessages({ ...turn, mode: "calm" })[0].content)
   const messages = [1, 2, 3].map(() => ({ role: "user", content: "stanco" }))
-  assert.match(buildJourneyMessages({ ...turn, messages })[0].content, /Chiudi con una sintesi/)
+  assert.match(buildJourneyMessages({ ...turn, messages })[0].content, /Chiudi il percorso/)
 })
 
 test("requires authentication on every journey endpoint", async t => {
@@ -38,6 +38,18 @@ test("explicit immediate danger takes the support path without a model call or s
   assert.equal(r.json().urgent, true); assert.equal(r.json().final, false); assert.equal(calls.length, 0); assert.equal(saved.length, 0)
 })
 
+test("negated Italian intent goes through contextual evaluation, rather than the immediate-risk matcher", async t => {
+  const { app, calls } = fixture(); t.after(() => app.close())
+  const r = await app.inject({ method: "POST", url: "/api/journey/turn", headers: auth, payload: { ...turn, messages: [{ role: "user", content: "Non voglio morire. Sono stanco." }] } })
+  assert.equal(r.statusCode, 200); assert.equal(r.json().urgent, false); assert.equal(calls.length, 1)
+})
+
+test("explicit English wish to die follows immediate support without a model call", async t => {
+  const { app, calls } = fixture(); t.after(() => app.close())
+  const r = await app.inject({ method: "POST", url: "/api/journey/turn", headers: auth, payload: { ...turn, language: "en", messages: [{ role: "user", content: "I want to die." }] } })
+  assert.equal(r.json().urgent, true); assert.equal(calls.length, 0)
+})
+
 test("an early closing returns an editable summary without persisting the dialogue", async t => {
   const { app, calls, saved } = fixture(); t.after(() => app.close())
   const r = await app.inject({ method: "POST", url: "/api/journey/turn", headers: auth, payload: { ...turn, finish: true } })
@@ -48,6 +60,12 @@ test("an early closing returns an editable summary without persisting the dialog
 test("malformed generated output fails without pretending success", async t => {
   const { app } = fixture({ reply: "", summary: "" }); t.after(() => app.close())
   assert.equal((await app.inject({ method: "POST", url: "/api/journey/turn", headers: auth, payload: turn })).statusCode, 503)
+})
+
+test("a multiple-question reply gets one corrective retry, rather than reaching the user", async t => {
+  const { app, calls } = fixture(attempt => ({ reply: attempt === 1 ? "Cosa senti? Perché?" : "La stanchezza ti pesa. Cosa senti più chiaramente?", summary: "", urgent: false })); t.after(() => app.close())
+  const r = await app.inject({ method: "POST", url: "/api/journey/turn", headers: auth, payload: turn })
+  assert.equal(r.statusCode, 200); assert.equal(calls.length, 2); assert.equal((r.json().reply.match(/\?/g) || []).length, 1)
 })
 
 test("saving uses authenticated owner, optional ratings and deduplicated session; transcript is excluded", async t => {

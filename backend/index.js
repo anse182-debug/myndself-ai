@@ -5,6 +5,7 @@ import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemor
 
 import { buildReflectionMessages, extractUserEmotionTags } from "./agent/reflection.js"
 import Fastify from "fastify"
+import { registerStagingGuard } from "./agent/staging.js"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
@@ -88,6 +89,8 @@ async function requireSupabaseUser(req, reply) {
   }
   return data.user // { id, email, ... }
 }
+
+if (process.env.STAGING_MODE === "true") registerStagingGuard(app, requireSupabaseUser)
 
 
 // ====== SYSTEM PROMPT (G3) ======

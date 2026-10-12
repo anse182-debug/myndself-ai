@@ -453,6 +453,14 @@ type TabId = "oggi" | "insight" | "guidata" | "chat" | "condivisione"
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
   const [session, setSession] = useState<any>(null)
+  function authenticatedFetch(input: RequestInfo | URL, init: RequestInit = {}) {
+    const headers = new Headers(init.headers)
+    if (session?.access_token && typeof input === "string" && input.startsWith(`${API_BASE}/`)) {
+      headers.set("Authorization", `Bearer ${session.access_token}`)
+    }
+    return globalThis.fetch(input, { ...init, headers })
+  }
+
   const [memoryPreference, setMemoryPreference] = useState<{ userId: string; enabled: boolean } | null>(null)
   const [chatMemorySources, setChatMemorySources] = useState<MemoryItem[]>([])
   const [chatMemorySaveFailed, setChatMemorySaveFailed] = useState(false)
@@ -698,7 +706,7 @@ const handleLogin = async () => {
   setRitualLoading(true)
 
   try {
-    const res = await fetch(
+    const res = await authenticatedFetch(
   `${API_BASE}/api/ritual-message?user_id=${encodeURIComponent(
     userId
   )}&language=${encodeURIComponent(language)}`
@@ -737,7 +745,7 @@ const handleLogin = async () => {
   meta?: Record<string, any>
 }) {
   try {
-    await fetch(`${API_BASE}/api/ritual-event`, {
+    await authenticatedFetch(`${API_BASE}/api/ritual-event`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -775,7 +783,7 @@ const generateShare = async () => {
       return
     }
 
-    const res = await fetch(`${API_BASE}/api/therapist/share`, {
+    const res = await authenticatedFetch(`${API_BASE}/api/therapist/share`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -829,7 +837,7 @@ const generateShare = async () => {
       return
     }
 
-    const res = await fetch(`${API_BASE}/api/therapist/revoke-all`, {
+    const res = await authenticatedFetch(`${API_BASE}/api/therapist/revoke-all`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -895,7 +903,7 @@ if (typeof window !== "undefined") {
           ? window.localStorage.getItem("myndself_onboarding_goal_v1") || ""
           : ""
 const moodPayload = selectedMoods.join(", ")
-      const res = await fetch(`${API_BASE}/api/reflection`, {
+      const res = await authenticatedFetch(`${API_BASE}/api/reflection`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ mood: moodPayload, note, goal, memory_enabled: memoryEnabled }),
@@ -967,7 +975,7 @@ if (primaryEmotion) {
   async function refreshEmotionalProfile(userId: string) {
     try {
       setEmotionProfileLoading(true)
-      const res = await fetch(
+      const res = await authenticatedFetch(
         `${API_BASE}/api/emotional-profile?user_id=${userId}`
       )
       const data = await res.json()
@@ -1008,7 +1016,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
       userId
     )}&month_offset=${monthOffset}`
 
-    const res = await fetch(url)
+    const res = await authenticatedFetch(url)
     if (!res.ok) {
       throw new Error("Non riesco a caricare il calendario emotivo")
     }
@@ -1050,7 +1058,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
     try {
       // 1) dataset grezzo
       const url = `${API_BASE}/api/insights?user_id=${userId}`
-      const res = await fetch(url)
+      const res = await authenticatedFetch(url)
       if (!res.ok) throw new Error("Non riesco a caricare gli insight")
       const json = await res.json()
 
@@ -1078,7 +1086,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
 
       // 3) rituale settimanale
       try {
-        const resRitual = await fetch(
+        const resRitual = await authenticatedFetch(
           `${API_BASE}/api/weekly-ritual?user_id=${encodeURIComponent(userId)}`
         )
 
@@ -1131,7 +1139,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
 
     ;(async () => {
       try {
-        const res = await fetch(
+        const res = await authenticatedFetch(
           `${API_BASE}/api/summary-history?user_id=${uid}`
         )
         const json = await res.json()
@@ -1196,7 +1204,7 @@ async function sendGuidedTurn() {
 
   setGuidedLoading(true)
   try {
-    const res = await fetch(`${API_BASE}/api/guided-reflection`, {
+    const res = await authenticatedFetch(`${API_BASE}/api/guided-reflection`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -1220,7 +1228,7 @@ async function sendGuidedTurn() {
     if (isFinal) {
       showToast(dict.guided.saved, "success")
       try {
-        const sumRes = await fetch(
+        const sumRes = await authenticatedFetch(
           `${API_BASE}/api/summary-history?user_id=${uid}`
         )
         const sumJson = await sumRes.json()
@@ -1288,7 +1296,7 @@ function buildTemporalMirrorSentence(
 
     ;(async () => {
       try {
-        const res = await fetch(
+        const res = await authenticatedFetch(
           `${API_BASE}/api/mentor-history?user_id=${uid}`
         )
         if (!res.ok) return
@@ -1324,7 +1332,7 @@ const handleChatSend = async () => {
   setChatMemorySources([])
   setChatMemorySaveFailed(false)
   try {
-    const res = await fetch(`${API_BASE}/api/chat`, {
+    const res = await authenticatedFetch(`${API_BASE}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
       body: JSON.stringify({ messages: newMessages, language, memory_enabled: memoryEnabled }),
@@ -1358,7 +1366,7 @@ const handleChatSend = async () => {
 
     ;(async () => {
       try {
-        const res = await fetch(`${API_BASE}/api/metrics?user_id=${uid}`)
+        const res = await authenticatedFetch(`${API_BASE}/api/metrics?user_id=${uid}`)
         const data = await res.json()
 
         const days: DailyItem[] = Array.isArray(data.by_day)

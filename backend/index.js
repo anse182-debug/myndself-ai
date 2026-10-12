@@ -1,7 +1,9 @@
+import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemory } from "./agent/memory.js"
 // backend/index.js
 // MyndSelf.ai backend - Fastify + Supabase + OpenAI
 // versione con G3: tono empatico CBT/ACT e memoria leggera
 
+import { buildReflectionMessages, extractUserEmotionTags } from "./agent/reflection.js"
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
@@ -22,7 +24,7 @@ import {
 
 // ====== ENV ======
 const PORT = process.env.PORT || 8080
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY
+const OPENAI_API_KEY = process.env.MYNDSELF_OPENAI_API_KEY || process.env.OPENAI_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_KEY = process.env.SUPABASE_KEY
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -33,15 +35,16 @@ const WEEKLY_RITUAL_CRON_KEY = process.env.WEEKLY_RITUAL_CRON_KEY
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 
-if (!OPENAI_API_KEY) throw new Error("Missing OPENAI_API_KEY")
+if (!OPENAI_API_KEY) throw new Error("Missing MYNDSELF_OPENAI_API_KEY or OPENAI_API_KEY")
 if (!SUPABASE_URL || !SUPABASE_KEY)
   throw new Error("Missing SUPABASE_URL / SUPABASE_KEY")
 
 // ====== INIT ======
 const app = Fastify({ logger: false })
-await app.register(cors, { origin: "*", methods: ["GET", "POST", "OPTIONS"] })
+await app.register(cors, { origin: "*", methods: ["GET", "POST", "DELETE", "OPTIONS"] })
 
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY })
+// Native fetch honors Node's configured HTTPS proxy in the cloud environment.
+const openai = new OpenAI({ apiKey: OPENAI_API_KEY, fetch: globalThis.fetch })
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 const THERAPIST_SHARE_TTL_DAYS = Number(process.env.THERAPIST_SHARE_TTL_DAYS || 30)
@@ -407,26 +410,8 @@ Rispondi sempre in italiano, con massimo 4–6 frasi.
   }
 }
 
-async function saveToMemory({ user_id, content, source = "chat" }) {
-  try {
-    if (!user_id || !content) return
-
-    const embRes = await openai.embeddings.create({
-      model: "text-embedding-3-small",
-      input: content,
-    })
-    const embedding = embRes.data[0]?.embedding
-    if (!embedding) return
-
-    await supabase.from("ai_memory").insert({
-      user_id,
-      content,
-      source,
-      embedding,
-    })
-  } catch (err) {
-    console.warn("⚠️ saveToMemory failed:", err.message)
-  }
+async function saveToMemory({ user_id, content, source = "chat", enabled = false }) {
+  return saveUserMemory({ supabase, openai, userId: user_id, content, source, enabled })
 }
 
 async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
@@ -451,7 +436,7 @@ async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
       return []
     }
 
-    return data || []
+    return await resolveUserMemories(supabase, user_id, data || [])
   } catch (err) {
     console.warn("⚠️ getSimilarMemory failed:", err.message)
     return []
@@ -565,106 +550,6 @@ async function sendWeeklyRitualEmail({ to, ritual, from, toDate }) {
 }
 
 
-// Parole chiave grezze per capire il "cluster" emotivo dal mood testuale
-const GROUP3_KEYWORDS = [
-  "stress",
-  "stressato",
-  "sovraccaric",
-  "ansia",
-  "ansioso",
-  "allerta",
-  "in colpa",
-]
-const GROUP2_KEYWORDS = ["confus", "giù", "meh", "svuotat", "scarico"]
-const GROUP4_KEYWORDS = ["carico", "motivato", "ispirat", "chiaro", "deciso", "energ"]
-
-// 20 domande seme, divise per gruppo 1..4
-const SEED_QUESTIONS = {
-  1: [
-    "Cosa rende questo momento stabile per te oggi?",
-    "C’è qualcosa che oggi è più semplice del solito?",
-    "Se potessi dare un titolo alla tua giornata fin qui, quale sarebbe?",
-    "Quale sensazione nel corpo accompagna questo stare bene?",
-    "C’è un dettaglio piccolo che non vuoi perdere di vista?",
-  ],
-  2: [
-    "Cosa senti che è un po’ diverso dal solito oggi?",
-    "Se questa sensazione avesse un colore, quale sarebbe?",
-    "Quando è iniziata, più o meno?",
-    "È una cosa che torna o sembra nuova?",
-    "C’è qualcosa che vorresti capire meglio di quello che provi?",
-  ],
-  3: [
-    "Qual è la parte della tua giornata che ti pesa di più in questo momento?",
-    "Cosa ti chiede più energia, secondo te?",
-    "C’è un pensiero che torna spesso oggi?",
-    "Questa sensazione ti sorprende o te l’aspettavi?",
-    "Ti va di descrivere cosa succede nel corpo quando la vivi?",
-  ],
-  4: [
-    "Cosa ti ha dato questa energia oggi?",
-    "Dove la senti più forte, nella mente o nel corpo?",
-    "È qualcosa che vuoi portare anche domani?",
-    "C’è una scelta che questa energia ti sta facilitando?",
-    "Qual è la parte di te che senti più presente ora?",
-  ],
-}
-
-// Decide il gruppo 1–4 partendo dal testo "mood"
-function detectGroupFromMood(moodRaw = "") {
-  const mood = (moodRaw || "").toLowerCase()
-  const hasAny = (keywords) => keywords.some((k) => mood.includes(k))
-
-  if (hasAny(GROUP3_KEYWORDS)) return 3
-  if (hasAny(GROUP2_KEYWORDS)) return 2
-  if (hasAny(GROUP4_KEYWORDS)) return 4
-  return 1 // default: zona "ok / neutro"
-}
-
-// Memoria minimale in RAM per non ripetere sempre la stessa domanda
-const seedHistory = {
-  1: [],
-  2: [],
-  3: [],
-  4: [],
-}
-
-function pickSeedQuestion(group) {
-  const all = SEED_QUESTIONS[group]
-  if (!all || all.length === 0) {
-    return "Cosa senti più chiaramente in questo momento?"
-  }
-
-  const used = seedHistory[group] || []
-  const pool = all.filter((q) => !used.includes(q))
-  const list = pool.length > 0 ? pool : all
-
-  const idx = Math.floor(Math.random() * list.length)
-  const chosen = list[idx]
-
-  // aggiorno la storia (semplice, non per utente, solo per evitare ripetizioni continue)
-  seedHistory[group] = [...used, chosen].slice(-all.length)
-
-  return chosen
-}
-
-function extractTags(text) {
-  const base = (text || "").toLowerCase()
-  const emotions = [
-    "calm",
-    "peace",
-    "gratitude",
-    "stress",
-    "hope",
-    "sad",
-    "anger",
-    "focus",
-    "fear",
-    "tired",
-  ]
-  return emotions.filter((e) => base.includes(e))
-}
-
 async function updateEmotionProfile(user_id) {
   try {
     const { data: recent } = await supabase
@@ -712,88 +597,33 @@ async function updateEmotionProfile(user_id) {
 //  REFLECTION (Mentor v2)
 // =============================================================
 async function handleReflection(req, reply) {
-    const { mood, note, user_id, goal } = req.body || {}
-  if (!user_id) return reply.code(400).send({ error: "Missing user_id" })
+  const user = await requireSupabaseUser(req, reply)
+  if (!user) return
+  const user_id = user.id
+  const { mood, note, goal, memory_enabled = false } = req.body || {}
+  if ([mood, note, goal].some(value => value != null && typeof value !== "string")) {
+    return reply.code(400).send({ error: "Invalid reflection text" })
+  }
+  if (!mood?.trim() && !note?.trim()) {
+    return reply.code(400).send({ error: "Provide a mood or a note" })
+  }
+
 
   try {
-    // 1) decidi gruppo emotivo + domanda seme
-    const group = detectGroupFromMood(mood || "")
-    const seedQuestion = pickSeedQuestion(group)
-
-    // 2) normalizza i testi
-    const safeMood =
-      mood && String(mood).trim().length > 0
-        ? String(mood).trim()
-        : "non specificato"
-    const safeNote =
-      note && String(note).trim().length > 0
-        ? String(note).trim()
-        : "nessuna nota aggiuntiva"
-
-    // 3) costruisci il prompt utente per il Mentor
-    const userPrompt = `
-L'utente ha appena registrato una "Riflessione del giorno" in MyndSelf.ai.
-
-DATI DI OGGI
-- Come si sente: "${safeMood}"
-- Nota aggiuntiva: "${safeNote}"
-
-OBIETTIVO DELLA RISPOSTA
-Restituisci una breve riflessione che lo aiuti a vedere con più chiarezza cosa sta provando, senza dare consigli e senza parlare di terapie o professionisti.
-
-STRUTTURA DA SEGUIRE
-- Prima frase: riconosci e normalizza l'emozione o il vissuto descritto.
-- Seconda frase: aiuta a mettere a fuoco un aspetto importante di ciò che prova (senza interpretazioni pesanti).
-- Terza frase: fai una domanda aperta che inviti a proseguire la riflessione.
-
-DOMANDA FINALE OBBLIGATORIA
-Chiudi la risposta usando *esattamente* questa domanda (puoi solo adattare genere/numero se serve):
-
-"${seedQuestion}"
-
-ALTRI VINCOLI
-- Non numerare le frasi.
-- Non aggiungere spiegazioni meta (non dire che sei un'AI, non citare “MyndSelf”).
-- Non superare le 3 frasi brevi.
-    `.trim()
-
-    // 4) chiama il modello con il prompt del Mentor
-        const completion = await openai.chat.completions.create({
+    const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `
-User is doing emotional journaling.
-
-Today's data:
-- Mood: ${mood || "not specified"}
-- Note: ${note || "none"}
-- Stated intention for the next weeks: "${goal || "not provided"}"
-
-Your task:
-- Offer a brief, kind reflection on what the user is experiencing today.
-- When it feels natural, gently connect what you say to the stated intention (without forcing it).
-- Do NOT give practical advice or instructions; do not tell the user what to do.
-- Avoid imperative forms like "you should", "try to", "do this".
-- Use at most 4 sentences in a single paragraph.
-- Always end with one open question that invites the user to look at themself with a bit more curiosity.
-`,
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 200,
+      messages: buildReflectionMessages({ mood: mood || "", note: note || "", goal: goal || "" }),
+      temperature: 0.7,
+      max_tokens: 250,
     })
-
 
     const reflection =
       completion.choices?.[0]?.message?.content?.trim() ||
       "Grazie per aver condiviso. Restiamo un momento con quello che stai sentendo."
-    const tags = extractTags(reflection)
+    const tags = extractUserEmotionTags({ mood: mood || "", note: note || "" })
 
     // 5) salva nel DB come prima
-    await supabase.from("mood_entries").insert({
+    const { error: saveError } = await supabase.from("mood_entries").insert({
       user_id,
       mood,
       note,
@@ -802,10 +632,12 @@ Your task:
       at: new Date().toISOString(),
     })
 
-    await updateEmotionProfile(user_id)
-    await saveToMemory({ user_id, content: reflection, source: "reflection" })
+    if (saveError) throw saveError
 
-    reply.send({ reflection, tags })
+    await updateEmotionProfile(user_id)
+    const memorySaved = await saveToMemory({ user_id, content: JSON.stringify({ mood: mood || "", note: note || "" }), source: "reflection_user", enabled: memory_enabled === true })
+
+    reply.send({ reflection, tags, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
     console.error("❌ Reflection error:", err)
     reply.code(500).send({ error: err.message })
@@ -1164,14 +996,17 @@ app.get("/api/analytics/tags", async (req, reply) => {
 // =============================================================
 //  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
 // =============================================================
+registerMemoryRoutes(app, { supabase, authenticate: requireSupabaseUser })
+
 app.post("/api/chat", async (req, reply) => {
-const {
-  user_id,
-  messages,
-  language = "it",
-} = req.body || {}
-  if (!user_id || !messages)
-    return reply.code(400).send({ error: "Missing fields" })
+  const user = await requireSupabaseUser(req, reply)
+  if (!user) return
+  const user_id = user.id
+  const { messages, language = "it", memory_enabled = false } = req.body || {}
+  if (!Array.isArray(messages) || messages.length === 0 || messages.some(m =>
+    !m || !["user", "assistant"].includes(m.role) || typeof m.content !== "string")) {
+    return reply.code(400).send({ error: "Invalid messages" })
+  }
 const normalizedLanguage =
   language === "en"
     ? "en"
@@ -1183,27 +1018,8 @@ const normalizedLanguage =
     )
     const userText = lastUserMessage?.content || ""
 
-    // profilo emozioni
-    const { data: profile } = await supabase
-      .from("emotion_profile")
-      .select("*")
-      .eq("user_id", user_id)
-      .maybeSingle()
-
-    // ultimi mood
-    const { data: recentMoods } = await supabase
-      .from("mood_entries")
-      .select("mood,note,tags,at")
-      .eq("user_id", user_id)
-      .order("at", { ascending: false })
-      .limit(3)
-
-    const recentText = (recentMoods || [])
-      .map((r) => `• ${r.mood || ""}${r.note ? " – " + r.note : ""}`)
-      .join("\n")
-
     // memoria vettoriale
-    const similarMemories = userText
+    const similarMemories = memory_enabled === true && userText
       ? await getSimilarMemory({
           user_id,
           content: userText,
@@ -1211,29 +1027,8 @@ const normalizedLanguage =
         })
       : []
 
-    const memoryText =
-      similarMemories.length > 0
-        ? similarMemories.map((m) => `• ${m.content}`).join("\n")
-        : "Nessuna riflessione passata particolarmente simile."
-
-    // mantengo il contesto corto (ultimi scambi)
     const shortContext = messages.slice(-10)
-
-    // prompt di contesto aggiuntivo per il Mentor
-    const contextPrompt = `
-Contesto aggiuntivo su questo utente:
-
-- Tag emotivi dominanti (se presenti): ${
-      profile?.dominant_tags?.join(", ") || "nessuno"
-    }
-- Ultimi mood/annotazioni:
-${recentText || "nessuna registrazione recente"}
-- Riflessioni passate simili:
-${memoryText}
-
-Usa queste informazioni solo per dare più profondità alla risposta,
-senza elencarle esplicitamente e senza fare diagnosi.
-`.trim()
+    const contextPrompt = memoryContext(similarMemories)
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
@@ -1260,11 +1055,7 @@ ${MENTOR_SYSTEM_PROMPT}`,
       completion.choices?.[0]?.message?.content?.trim() ||
       "Ti ho ascoltato. Possiamo restare un momento con quello che senti."
 
-    // salvataggi memoria
-    if (userText) {
-      await saveToMemory({ user_id, content: userText, source: "chat" })
-    }
-    await saveToMemory({ user_id, content: replyText, source: "chat_reply" })
+    const memorySaved = await saveToMemory({ user_id, content: userText, source: "chat", enabled: memory_enabled === true })
 
     // salvataggio sessione chat
     await supabase.from("chat_sessions").insert({
@@ -1274,7 +1065,7 @@ ${MENTOR_SYSTEM_PROMPT}`,
       created_at: new Date().toISOString(),
     })
 
-    reply.send({ reply: replyText })
+    reply.send({ reply: replyText, memory_sources: similarMemories, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
     console.error("❌ Chat error:", err)
     reply.code(500).send({ error: err.message })

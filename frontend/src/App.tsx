@@ -1,3 +1,4 @@
+import MemoryControls, { type MemoryItem } from "./components/MemoryControls"
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Landing from "./Landing"
 import Onboarding from "./Onboarding"
@@ -452,6 +453,26 @@ type TabId = "oggi" | "insight" | "guidata" | "chat" | "condivisione"
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
   const [session, setSession] = useState<any>(null)
+  const [memoryPreference, setMemoryPreference] = useState<{ userId: string; enabled: boolean } | null>(null)
+  const [chatMemorySources, setChatMemorySources] = useState<MemoryItem[]>([])
+  const [chatMemorySaveFailed, setChatMemorySaveFailed] = useState(false)
+  const memoryEnabled = memoryPreference?.userId === session?.user?.id && memoryPreference?.enabled === true
+  useEffect(() => {
+    const userId = session?.user?.id
+    setChatMemorySources([])
+    setChatMemorySaveFailed(false)
+    if (!userId) { setMemoryPreference(null); return }
+    let enabled = false
+    try { enabled = localStorage.getItem(`myndself_memory_${userId}`) === "true" } catch {}
+    setMemoryPreference({ userId, enabled })
+  }, [session?.user?.id])
+  function changeMemoryPreference(enabled: boolean) {
+    const userId = session?.user?.id
+    if (!userId) return
+    setMemoryPreference({ userId, enabled })
+    try { localStorage.setItem(`myndself_memory_${userId}`, String(enabled)) } catch {}
+  }
+
   const BETA_BANNER_KEY = "myndself_beta_banner_dismissed"
   const [showBetaBanner, setShowBetaBanner] = useState(false)
   
@@ -876,12 +897,16 @@ if (typeof window !== "undefined") {
 const moodPayload = selectedMoods.join(", ")
       const res = await fetch(`${API_BASE}/api/reflection`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: uid, mood: moodPayload, note, goal }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ mood: moodPayload, note, goal, memory_enabled: memoryEnabled }),
       })
       const data = await res.json()
+      if (!res.ok) throw new Error("Non è stato possibile salvare la riflessione")
       setReflection(data.reflection || "")
       showToast(dict.reflection.saved, "success")
+      if (data.memory_saved === false) showToast(language === "en"
+        ? "Reflection saved, but AI memory could not be updated."
+        : "Riflessione salvata, ma la memoria AI non è stata aggiornata.", "error")
       await trackRitualEvent({
   user_id: uid,
   event_type: "ritual_outcome",
@@ -1296,13 +1321,18 @@ const handleChatSend = async () => {
   setChatMessages(newMessages)
   setChatInput("")
   setIsChatLoading(true)
+  setChatMemorySources([])
+  setChatMemorySaveFailed(false)
   try {
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ user_id: uid, messages: newMessages, language }),
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+      body: JSON.stringify({ messages: newMessages, language, memory_enabled: memoryEnabled }),
     })
     const data = await res.json()
+    if (!res.ok) throw new Error("chat_failed")
+    setChatMemorySources(Array.isArray(data.memory_sources) ? data.memory_sources : [])
+    setChatMemorySaveFailed(data.memory_saved === false)
     if (data.reply) {
       setChatMessages([
         ...newMessages,
@@ -1910,6 +1940,8 @@ const reflectionDaysCount = moodSeries?.length ?? 0
 
           {/* Tabs */}
           <TabsNav />
+          <MemoryControls key={session.user.id} token={session.access_token} apiBase={API_BASE}
+            enabled={memoryEnabled} onChange={changeMemoryPreference} language={language} />
 
           {/* CONTENUTO PRINCIPALE */}
           <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">
@@ -2305,6 +2337,11 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                             {m.content}
                           </div>
                         ))}
+                        {chatMemorySaveFailed && <p role="status" className="text-xs text-amber-300">{language === "en" ? "Reply received, but this text was not saved to AI memory." : "Risposta ricevuta, ma questo testo non è stato salvato nella memoria AI."}</p>}
+                        {chatMemorySources.length > 0 && <details className="text-xs text-gray-400">
+                          <summary>{language === "en" ? "Texts provided to the AI for the latest reply" : "Testi forniti all’AI per l’ultima risposta"}</summary>
+                          {chatMemorySources.map(item => <p key={item.id} className="mt-2 whitespace-pre-wrap">{item.content}</p>)}
+                        </details>}
                         {isChatLoading && (
                           <div className="inline-flex items-center gap-2 text-xs text-gray-400">
                             <Spinner />

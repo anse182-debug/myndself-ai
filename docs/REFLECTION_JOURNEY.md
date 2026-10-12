@@ -54,3 +54,22 @@ Run:
 
 Live smoke tests must use synthetic accounts in the test project and remove
 their records afterward. Suppress welcome-email delivery during browser tests.
+
+## Published test evidence
+
+The iteration is live at https://myndself-test.vercel.app/app under Un momento.
+The test-only database migration succeeded; production was not migrated.
+22 existing and new tests passed, and the frontend build succeeded.
+
+A synthetic authenticated browser session against the actual deployed APIs
+verified intent selection, initial clarity rating, generated dialogue, early
+closure, user-edited summary and next step, post-session rating, felt-understood
+feedback, saved summary retrieval and explicit resumption. A repeated save
+produced one record. An explicit synthetic danger phrase showed the urgent
+support panel and removed ordinary continuation controls. Fixture records and
+the test account were removed. Welcome-email delivery was intercepted.
+Browser requests used the native-fetch transport bridge described in the
+staging deployment guide, with HTTPS verification enabled; API responses were
+real. These checks establish technical behavior, not clinical effectiveness or
+comprehensive crisis detection. Participant testing and professional review
+have not been conducted.

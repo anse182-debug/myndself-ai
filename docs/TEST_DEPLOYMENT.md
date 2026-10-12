@@ -153,3 +153,21 @@ its deployment URL. Remote provider status confirms deployment success; a full
 signed-in smoke test is still outstanding because direct requests to the new
 hosts are cancelled in the current cloud instance. New hostname allowlist
 entries have been saved in the environment draft and need runtime activation.
+
+## Live validation completed
+
+After network-policy activation, frontend GET /app returned 200 and anonymous
+backend GET /api/memory returned 401. A synthetic user in the test project
+successfully authenticated, saved a generated reflection and its embedding,
+received a chat reply with that reflection's verified source, removed the
+memory, and confirmed memory-disabled chat does not save or retrieve memories.
+All synthetic user rows and the user account were removed afterward.
+
+The deployed UI was also exercised with a synthetic authenticated session:
+rendering, default-disabled opt-in, submitting the reflection form, listing
+memory and deleting it all passed. Chromium's proxy-certificate trust remained
+unresolved, so the browser's requests were relayed through native fetch with
+TLS verification enabled, retaining actual deployed URLs and API responses.
+Only welcome-email delivery was intercepted to prevent sending test emails.
+Email magic-link delivery itself was not tested. No production data or service
+configuration was modified. Live frontend: https://myndself-test.vercel.app/app.

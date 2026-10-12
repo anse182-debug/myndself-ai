@@ -49,3 +49,17 @@ Run local regression tests:
     cd frontend && npm run build
 
 All changes target the separate test deployment. Production is not updated.
+
+## Published mobile verification
+
+An authenticated synthetic session on the test site passed viewport checks at
+320, 360 and 390 pixels: no document-level horizontal overflow, primary entry
+visible within the viewport, two-row navigation, navigation/primary targets
+at least 44px high, memory controls reachable, and journey inputs at least
+16px. These are Chromium viewport checks, not physical-device/iOS tests.
+The existing HTTPS-verified native-fetch browser transport was used. Test
+accounts were removed afterward. The redundant beta and emotional-note banners
+are hidden inside the journey while remaining available on the home screen.
+25 local tests and the build passed. AI corpus outputs and qualitative review
+notes remain separate from these interface checks; no clinical validation or
+participant study has occurred.

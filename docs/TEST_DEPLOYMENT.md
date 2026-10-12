@@ -1,7 +1,9 @@
 # Test deployment: Vercel frontend and Render backend
 
 The code supports a separate test deployment. The cloud environment snapshot
-is not a website deployment. No public test URL has been created yet.
+is not a website deployment. Test frontend: https://myndself-test.vercel.app
+Test backend: https://myndself-api-test.onrender.com
+Test Supabase project: weqoitbeyryuznclnzzr (Frankfurt).
 
 ## Prerequisites
 
@@ -130,3 +132,24 @@ Production project listing succeeded for both providers. No new project or
 public deployment was created, and no production data was modified. Update
 credentials/account permissions for resource creation and configure
 RENDER_API_KEY securely before resuming provisioning.
+
+
+## Deployment completed
+
+The refreshed credentials allowed separate project creation. Vercel project
+myndself-test has a READY deployment from staging/ai-memory; Render service
+myndself-api-test is live on its free plan. The dedicated Supabase database
+has copied schema only: 15 tables, 19 views (with original view security options),
+7 policies and one custom function, plus constraints and indexes. No production
+rows were copied. Test backend runs with STAGING_MODE=true: application API
+routes require test-project authentication and reject mismatched user IDs.
+Existing OpenAI and Resend credentials were transferred provider-to-provider
+in memory, without logging or writing their values to files. Production service
+configuration was not changed. No cron credentials or scheduled jobs were copied.
+
+Vercel build variables reference only the test API and public test Supabase key.
+Supabase Auth redirects are configured for the stable test frontend URL and
+its deployment URL. Remote provider status confirms deployment success; a full
+signed-in smoke test is still outstanding because direct requests to the new
+hosts are cancelled in the current cloud instance. New hostname allowlist
+entries have been saved in the environment draft and need runtime activation.

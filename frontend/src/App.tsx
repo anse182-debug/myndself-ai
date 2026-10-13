@@ -1,3 +1,4 @@
+import PersonalDataControls from "./components/PersonalDataControls"
 import ReflectionJourney from "./components/ReflectionJourney"
 import MemoryControls, { type MemoryItem } from "./components/MemoryControls"
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -1860,6 +1861,13 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             <div className="mt-3"><MemoryControls key={session.user.id} token={session.access_token} apiBase={API_BASE}
               enabled={memoryEnabled} onChange={changeMemoryPreference} language={language} /></div>
           </details>
+
+          <PersonalDataControls token={session.access_token} apiBase={API_BASE} language={language} onDeleted={async () => {
+            try {
+              for (const key of Object.keys(localStorage)) if (key.startsWith("myndself_")) localStorage.removeItem(key)
+              await supabase.auth.signOut({ scope: "local" })
+            } finally { setSession(null) }
+          }} />
 
           {/* CONTENUTO PRINCIPALE */}
           <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">

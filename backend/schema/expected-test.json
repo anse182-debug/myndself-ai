@@ -8408,9 +8408,42 @@
   },
   {
     "kind": "function",
+    "name": "delete_personal_account(p_user_id uuid)",
+    "definition": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.delete_personal_account(p_user_id uuid)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare account_email text; t text;\nbegin\n -- Exclusive parent lock waits for guarded writes, then prevents new ones.\n select case when email_confirmed_at is not null then email end into account_email from auth.users where id=p_user_id for update;\n if not found then raise exception 'account_missing'; end if;\n if exists(select 1 from storage.objects where owner_id=p_user_id::text) then raise exception 'storage_cleanup_required'; end if;\n foreach t in array array['mood_entries','summary_entries','mood_chats','emotion_profile','ai_memory','agent_ritual_events','user_flags','weekly_email_log','therapist_shares','mood_summaries','guided_history','chat_sessions','reflection_sessions'] loop\n  execute format('delete from public.%I where user_id::text=$1::text',t) using p_user_id;\n end loop;\n delete from public.therapist_invites where patient_id=p_user_id or (account_email is not null and lower(therapist_email)=lower(account_email));\n delete from public.therapist_links where patient_id=p_user_id or (account_email is not null and lower(therapist_email)=lower(account_email));\n delete from public.subscribers where account_email is not null and lower(email)=lower(account_email);\n delete from auth.users where id=p_user_id;\nend $function$\n"
+    }
+  },
+  {
+    "kind": "function",
+    "name": "export_personal_data(p_user_id uuid)",
+    "definition": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.export_personal_data(p_user_id uuid)\n RETURNS jsonb\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare identity jsonb; result jsonb; rows jsonb; account_email text; t text;\nbegin\n select jsonb_build_object('id',id,'email',email,'created_at',created_at,'user_metadata',raw_user_meta_data),\n case when email_confirmed_at is not null then email end into identity,account_email from auth.users where id=p_user_id;\n if identity is null then raise exception 'account_missing'; end if;\n result := jsonb_build_object('version',1,'exported_at',now(),'account',identity);\n foreach t in array array['mood_entries','summary_entries','mood_chats','emotion_profile','ai_memory','agent_ritual_events','user_flags','weekly_email_log','therapist_shares','mood_summaries','guided_history','chat_sessions','reflection_sessions'] loop\n  execute format('select coalesce(jsonb_agg(to_jsonb(x) - ''token_hash'' - ''embedding''), ''[]''::jsonb) from (select * from public.%I where user_id::text=$1::text limit 5001) x',t) into rows using p_user_id;\n  if jsonb_array_length(rows)>5000 then raise exception 'export_too_large'; end if;\n  result := result || jsonb_build_object(t,rows);\n end loop;\n foreach t in array array['therapist_invites','therapist_links'] loop\n  execute format('select coalesce(jsonb_agg(to_jsonb(x)), ''[]''::jsonb) from (select * from public.%I where patient_id=$1 limit 5001) x',t) into rows using p_user_id;\n  if jsonb_array_length(rows)>5000 then raise exception 'export_too_large'; end if;\n  result := result || jsonb_build_object(t,rows);\n end loop;\n select coalesce(jsonb_agg(to_jsonb(s)), '[]'::jsonb) into rows from public.subscribers s where account_email is not null and lower(s.email)=lower(account_email);\n result := result || jsonb_build_object('subscribers',rows);\n return result;\nend $function$\n"
+    }
+  },
+  {
+    "kind": "function",
     "name": "match_ai_memory(query_embedding vector, match_count integer, ma",
     "definition": {
       "definition": "CREATE OR REPLACE FUNCTION public.match_ai_memory(query_embedding vector, match_count integer, match_user_id uuid)\n RETURNS TABLE(id uuid, user_id uuid, content text, source text, created_at timestamp with time zone, similarity double precision)\n LANGUAGE sql\n STABLE\nAS $function$\r\n  select\r\n    ai_memory.id,\r\n    ai_memory.user_id,\r\n    ai_memory.content,\r\n    ai_memory.source,\r\n    ai_memory.created_at,\r\n    1 - (ai_memory.embedding <=> query_embedding) as similarity\r\n  from ai_memory\r\n  where ai_memory.user_id = match_user_id\r\n  order by ai_memory.embedding <=> query_embedding\r\n  limit match_count;\r\n$function$\n"
+    }
+  },
+  {
+    "kind": "function",
+    "name": "require_existing_account()",
+    "definition": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.require_existing_account()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare account_id text;\nbegin\n account_id := to_jsonb(new)->>tg_argv[0];\n if account_id is not null then\n  perform id from auth.users where id=account_id::uuid for key share;\n  if not found then raise exception 'account_missing'; end if;\n end if;\n return new;\nend $function$\n"
     }
   },
   {
@@ -20965,6 +20998,111 @@
       "sequence_schema": "public",
       "numeric_precision": 64,
       "numeric_precision_radix": 2
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "agent_ritual_events.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON agent_ritual_events FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "ai_memory.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON ai_memory FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "chat_sessions.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON chat_sessions FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "emotion_profile.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON emotion_profile FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "guided_history.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON guided_history FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "mood_chats.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON mood_chats FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "mood_entries.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON mood_entries FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "mood_summaries.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON mood_summaries FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "reflection_sessions.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON reflection_sessions FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "summary_entries.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON summary_entries FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "therapist_invites.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF patient_id ON therapist_invites FOR EACH ROW EXECUTE FUNCTION require_existing_account('patient_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "therapist_links.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF patient_id ON therapist_links FOR EACH ROW EXECUTE FUNCTION require_existing_account('patient_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "therapist_shares.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON therapist_shares FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "user_flags.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON user_flags FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
+    }
+  },
+  {
+    "kind": "trigger",
+    "name": "weekly_email_log.account_exists_guard",
+    "definition": {
+      "definition": "CREATE TRIGGER account_exists_guard BEFORE INSERT OR UPDATE OF user_id ON weekly_email_log FOR EACH ROW EXECUTE FUNCTION require_existing_account('user_id')"
     }
   },
   {

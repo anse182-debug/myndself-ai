@@ -1,5 +1,22 @@
 # Technical audit: first hardening iteration
 
+## Personal-data follow-up
+
+The test-only migration 002 adds service-role RPC for owned-row export and
+atomic active database/Auth deletion, plus account-existence write guards.
+The user chose to retain journal/reflections while the account is active.
+The UI exposes JSON export and typed deletion confirmation with explicit
+external-copy limitations. Backend challenges are session-bound and expire;
+responses are no-store and failures do not claim success. Legacy chat calls
+now explicitly set store:false; provider log retention is not thereby removed.
+Live two-account synthetic verification covered the 16 tables, cross-user
+rejection, anonymous RPC denial, rollback on an injected cleanup failure,
+deletion preserving the other account, rejected deleted sessions and orphan
+writes. Fixtures were removed. 37 backend tests and the frontend build passed.
+See [PERSONAL_DATA.md](PERSONAL_DATA.md) for scope, inventory and remaining
+work: recent reauthentication, external-copy handling, log retention and
+independent review before production. No production migration was applied.
+
 ## CI and branch protection follow-up
 
 Checks now includes a governance job covering release policy and management

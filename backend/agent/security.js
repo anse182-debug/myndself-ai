@@ -31,6 +31,7 @@ export function registerAccessControl(app, authenticate, jobSecrets = {}) {
 
 export function requestBudget(req) {
   const path = req.url.split("?")[0]
+  if (path.startsWith("/api/account")) return { key: `${req.authenticatedUser?.id || req.ip}:privacy`, max: 4 }
   if (path === "/api/subscribe") return { key: `${req.ip}:subscribe`, max: 5 }
   const costly = /\/(chat|mentor-chat|guided-chat|reflection|reflect|guided-reflection|emotional-profile|summary|weekly-ritual)$/.test(path) || path === "/api/journey/turn"
   return { key: `${req.authenticatedUser?.id || req.ip}:${costly ? "ai" : "general"}`, max: costly ? 12 : 120 }

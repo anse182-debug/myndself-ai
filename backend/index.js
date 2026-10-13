@@ -1,3 +1,4 @@
+import { registerPersonalDataRoutes } from "./agent/personal-data.js"
 import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemory } from "./agent/memory.js"
 // backend/index.js
 // MyndSelf.ai backend - Fastify + Supabase + OpenAI
@@ -149,6 +150,7 @@ async function callOpenAIChat({
   max_tokens = 450,
 }) {
   const completion = await openai.chat.completions.create({
+    store: false,
     model: "gpt-4o-mini",
     messages: [
       { role: "system", content: system || "" },
@@ -621,6 +623,7 @@ async function handleReflection(req, reply) {
 
   try {
     const completion = await openai.chat.completions.create({
+    store: false,
       model: "gpt-4o-mini",
       messages: buildReflectionMessages({ mood: mood || "", note: note || "", goal: goal || "" }),
       temperature: 0.7,
@@ -854,6 +857,7 @@ app.get("/api/summary", async (req, reply) => {
       .join("\n\n")
 
             const completion = await openai.chat.completions.create({
+    store: false,
       model: "gpt-4o-mini",
       messages: [
         // prompt generale dell'app
@@ -1008,6 +1012,7 @@ app.get("/api/analytics/tags", async (req, reply) => {
 // =============================================================
 //  CHAT RIFLESSIVA (Mentor + memoria + contesto corto)
 // =============================================================
+registerPersonalDataRoutes(app, { supabase, authenticate: requireSupabaseUser })
 registerMemoryRoutes(app, { supabase, authenticate: requireSupabaseUser })
 registerJourneyRoutes(app, { supabase, openai, authenticate: requireSupabaseUser })
 
@@ -1044,6 +1049,7 @@ const normalizedLanguage =
     const contextPrompt = memoryContext(similarMemories)
 
     const completion = await openai.chat.completions.create({
+    store: false,
       model: "gpt-4o-mini",
       messages: [
   {
@@ -1328,6 +1334,7 @@ Regole importanti:
 `
 
 const response = await openai.chat.completions.create({
+    store: false,
   model: "gpt-4o-mini",
   messages: [
     {
@@ -1433,6 +1440,7 @@ TONO
   : "STEP NON FINALE: valida brevemente ciò che l'utente prova e poi fai UNA sola domanda aperta, semplice, per andare un po' più in profondità."
 
     const completion = await openai.chat.completions.create({
+    store: false,
       model: "gpt-4o-mini",
       temperature: 0.7,
       max_tokens: 220,
@@ -1633,6 +1641,7 @@ Regole importanti:
 `.trim()
 
   const completion = await openai.chat.completions.create({
+    store: false,
     model: "gpt-4o-mini",
     messages: [
       {

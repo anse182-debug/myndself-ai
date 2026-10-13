@@ -31,7 +31,8 @@ transazione con lock advisory e lock del registro. Verifica lo schema finale
 contro il riferimento atteso nella stessa transazione: una differenza annulla
 DDL e registro. Il riferimento va aggiornato e revisionato quando si prepara
 una nuova migrazione. Non supporta istruzioni con controllo delle transazioni
-né operazioni non transazionali come CREATE INDEX CONCURRENTLY. L'applicazione
+né operazioni non transazionali come CREATE INDEX CONCURRENTLY. I blocchi
+interni delle funzioni SQL con dollar quoting sono consentiti. L'applicazione
 non è eseguita automaticamente da setup, startup o CI.
 
 ## Adozione del database già popolato
@@ -54,9 +55,10 @@ non una certificazione della sua correttezza funzionale.
 ## Copertura e limiti
 
 L'introspezione comprende tabelle, viste, sequenze, colonne, vincoli, indici,
-policy RLS, opzioni di relazione, grant di tabella visibili al ruolo di gestione
-e la funzione applicativa match_ai_memory nello schema public. Non confronta
-record, valori correnti delle sequenze, schema Auth/Storage, cron, trigger,
+policy RLS, opzioni di relazione, grant di tabella visibili al ruolo di gestione,
+match_ai_memory, funzioni privacy con ACL e trigger account_exists_guard
+nello schema public. Non confronta
+record, valori correnti delle sequenze, schema Auth/Storage, cron, altri trigger,
 privilegi di colonna/funzione/sequenza, default privileges o impostazioni dei
 provider. Aggiungere copertura quando si introducono oggetti di questi tipi.
 La vista information_schema dipende dalla visibilità del ruolo: usare sempre

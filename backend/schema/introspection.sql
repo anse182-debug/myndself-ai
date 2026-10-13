@@ -11,7 +11,9 @@ with objects as (
  union all
  select 'view',c.relname,jsonb_build_object('definition',pg_get_viewdef(c.oid,true)) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relkind in ('v','m')
  union all
- select 'function',p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',jsonb_build_object('definition',pg_get_functiondef(p.oid)) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='match_ai_memory'
+ select 'function',p.proname||'('||pg_get_function_identity_arguments(p.oid)||')',case when p.proname='match_ai_memory' then jsonb_build_object('definition',pg_get_functiondef(p.oid)) else jsonb_build_object('definition',pg_get_functiondef(p.oid),'acl',p.proacl) end from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('match_ai_memory','export_personal_data','delete_personal_account','require_existing_account')
+ union all
+ select 'trigger',c.relname||'.'||t.tgname,jsonb_build_object('definition',pg_get_triggerdef(t.oid,true)) from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and t.tgname='account_exists_guard'
  union all
  select 'grant',table_name||'.'||grantee||'.'||privilege_type,to_jsonb(g)-'table_catalog'-'grantor' from information_schema.role_table_grants g where table_schema='public'
  union all

@@ -62,7 +62,7 @@ if(command==='adopt') {
     console.log(`Schema and ${ledger.length} migration checksums verified.`)
   } else {
     if(!pending.length) {console.log('No pending migrations.');process.exit(0)}
-    for(const m of pending) assert.ok(!/\b(begin|commit|rollback)\b|\bconcurrently\b/i.test(m.source),'Migration must be transaction-compatible without transaction control')
+    for(const m of pending) assert.ok(!/\b(begin|commit|rollback)\b|\bconcurrently\b/i.test(m.source.replace(/\$([a-z_][a-z_0-9]*)?\$[\s\S]*?\$\1\$/gi, '').replace(/--[^\n]*/g,'')),'Migration must be transaction-compatible without transaction control')
     const selectSchema = sql.trim().replace(/;$/, '')
     const compare = (table, rows) => `do $verify$ begin if exists(
       (select kind,name,definition from ${table} except select kind,name,definition from jsonb_to_recordset(${literal(JSON.stringify(rows))}::jsonb) as x(kind text,name text,definition jsonb))

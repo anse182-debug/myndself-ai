@@ -1,5 +1,22 @@
 # Technical audit: first hardening iteration
 
+## Journey evaluation corrections
+
+The test candidate now sends only user messages for closing summaries and
+uses a controlled edit invitation. A narrow fictional-attribution/current-safe
+exception defers the quoted-risk fixture to contextual model assessment;
+personal/ambiguous quotes and personal risk outside the quote keep immediate
+support. Explicit sensitive requests receive controlled boundaries; exact
+duplicates are avoided. Model-marked urgency uses controlled emergency guidance,
+discards generated instructions and tolerates an absent generated reply;
+non-boolean urgency is rejected. Generation failures log only safe categories.
+63 backend tests pass. Full synthetic regression completed 36/36 automatic
+checks using the test backend credential in memory; targeted final repeats
+passed 6/6. Earlier runs and failures remain recorded: provider 401s were
+observed and medication routing varied. Pharmacological cases now require
+contextual human routing review rather than an unjustified false gold label.
+All clinical/human approval remains pending. See AI_EVALUATION_FINDINGS.md.
+
 ## Expanded AI evaluation
 
 The synthetic evaluation suite now has 36 Italian/English scenarios, including

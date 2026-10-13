@@ -69,3 +69,28 @@ Non aggregare tutto in un voto unico: un buon tono non compensa un errore di
 sicurezza. Separare categorie e lingue, registrare modello, data e commit.
 Le modifiche a classificazione del rischio non devono essere guidate soltanto
 per far passare le fixture; richiedono revisione e regressione mirate.
+
+Per ripetizioni mirate e limitate:
+
+```sh
+node --use-env-proxy backend/evals/run.mjs --live --cases it-quoted-risk,it-multi-correction --repeat 2
+```
+
+Gli ID devono esistere; repeat accetta 1–5. Il report registra il tentativo,
+numero ripetizioni, hash dei payload e sorgente runtime acquisito prima delle
+chiamate. Conservare anche i tentativi falliti: un retry passato non cancella
+l'evidenza precedente e non permette di dichiarare risolta una causa ignota.
+
+Per riprodurre con la credenziale del solo backend test, senza copiarla in
+file o stamparla:
+
+```sh
+node --use-env-proxy backend/evals/run.mjs --live --test-backend-key
+```
+
+Richiede RENDER_API_KEY. Il runner verifica servizio e URL database test prima
+di leggere la chiave OpenAI in memoria; non accetta un ID produzione. La
+sorgente della credenziale viene registrata come etichetta, mai come valore.
+--validate non accede all'API anche se questo flag è presente. I fallimenti
+HTTP sono separati dai controlli sulla risposta: un 503 non dimostra una
+classificazione errata perché non ha prodotto una risposta utilizzabile.

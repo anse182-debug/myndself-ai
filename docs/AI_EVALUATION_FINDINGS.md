@@ -28,3 +28,60 @@ sono in AI_REVIEW.md. Una prossima iterazione deve affrontare queste evidenze,
 rieseguire i casi mirati e la regressione, poi ottenere revisione competente.
 Nessun prompt, matcher o comportamento dell'app è stato cambiato da questa
 estensione della suite; nessuna nuova versione clinica è stata pubblicata.
+
+## Iterazione correttiva
+
+L'eccezione del matcher riguarda solo una frase attribuita esplicitamente a un
+personaggio di un romanzo, accompagnata da dichiarazione attuale di sicurezza.
+Le altre citazioni e le intenzioni personali fuori dalla citazione mantengono
+il ramo immediato. La frase narrativa viene comunque valutata dal modello:
+non è una nuova classificazione clinica generale.
+
+La sintesi usa soltanto messaggi user; quelli assistant non vengono inviati
+al modello durante la chiusura. L'invito a correggere la sintesi è una frase
+controllata, anziché un nuovo consiglio generato. Il prompt chiarisce confini
+su farmaci, sintomi acuti, segretezza, dipendenza, restrizione alimentare e
+credenze insolite. Alcune richieste esplicite ricevono inoltre un limite breve
+controllato prima della risposta, anche se il modello lo omette: promesse,
+esclusività, occultamento alimentare e modifiche farmacologiche. Queste regole
+lessicali non rilevano tutte le richieste né filtrano ogni possibile errore.
+
+La regressione completa dopo le prime correzioni ha dato 36/36 controlli
+automatici passati. Una successiva prova ha confermato che il solo prompt
+poteva ancora omettere limiti: questo ha motivato i testi controllati. Nessuna
+scheda human_review è stata approvata e la revisione competente resta richiesta.
+
+Sono state aggiunte ripetizioni mirate (--cases e --repeat, massimo 5) per
+osservare la variabilità senza chiamare sempre l'intera suite. Una prova di
+sette casi per due tentativi ha dato 14/14; dopo il perfezionamento del tono,
+un'altra ha dato 13/14 con una risposta journey_unavailable. Il caso fallito
+è passato nei tre tentativi diagnostici successivi, quindi la causa di quel
+503 non è stata riprodotta e non viene dichiarata risolta. La risposta fallita
+non ha raggiunto l'utente come riflessione valida.
+
+Il backend registra ora soltanto il tipo tecnico di fallimento generazione
+(formato domanda, formato JSON/output o provider) con codici/stati consentiti,
+senza contenuto, stack o messaggi grezzi. I report mantengono human_review in
+sospeso e release_approved=false anche quando tutti i controlli passano.
+
+## Verifica finale e limiti delle conclusioni
+
+Le diagnosi tecniche successive hanno osservato due risposte 401 di OpenAI
+con la credenziale dell'ambiente cloud. Una regressione completa con la
+credenziale già configurata nel backend test, letta solo in memoria, ha
+completato tutte le richieste senza quei fallimenti di autenticazione.
+Non si presume che la causa del primo 503 ignoto fosse identica.
+
+Quella prova ha evidenziato variazione di instradamento sul cambio di dose.
+Per sospensione/modifica dei farmaci il riferimento urgente è stato corretto
+in null: senza quadro clinico non è giustificato imporre false come gold
+standard. Il caso resta obbligatoriamente da revisionare, non approvato.
+Le prove precedenti con aspettativa false sono conservate e questa modifica
+metodologica non viene presentata come soluzione della variabilità.
+
+La regressione successiva completa ha dato 36/36 controlli automatici passati,
+con revisione clinica sospesa e release_approved=false. I limiti controllati
+non sono duplicati quando già presenti esattamente all'inizio. Se il modello
+marca urgent=true, il backend usa supporto emergenza controllato e scarta
+istruzioni/sintesi generate, anche con testo generato assente. Urgenza con
+tipo diverso da boolean viene rifiutata. I test verificano anche questi casi.

@@ -1,7 +1,7 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import Fastify from "fastify"
-import { registerJourneyRoutes, validateTurn, buildJourneyMessages } from "./journey.js"
+import { registerJourneyRoutes, validateTurn, buildJourneyMessages, hasImmediateRiskStatement, explicitBoundary } from "./journey.js"
 
 function fixture(output = { reply: "Ti ascolto. Cosa ti pesa?", summary: "Mi sento stanco.", urgent: false }, dbError = false) {
   const calls = [], saved = []
@@ -12,6 +12,68 @@ function fixture(output = { reply: "Ti ascolto. Cosa ti pesa?", summary: "Mi sen
 }
 const auth = { authorization: "Bearer test" }
 const turn = { mode: "understand", messages: [{ role: "user", content: "Sono stanco" }] }
+
+test('fictional attribution defers only with explicit present safety and no personal risk outside it',()=>{
+  const quote='Nel romanzo il personaggio dice «voglio morire». Io sono al sicuro.'
+  assert.equal(hasImmediateRiskStatement(quote),false)
+  assert.equal(hasImmediateRiskStatement(quote+' Voglio farmi del male adesso.'),true)
+  assert.equal(hasImmediateRiskStatement(quote+' Io dico «voglio morire».'),true)
+  assert.equal(hasImmediateRiskStatement('Penso «voglio morire».'),true)
+  assert.equal(hasImmediateRiskStatement('Nel romanzo il personaggio dice «voglio morire».'),true)
+  assert.equal(hasImmediateRiskStatement('In the novel the character says "I want to die". I am safe.'),false)
+})
+test('closing excludes assistant assumptions from model context',()=>{
+  const messages=[{role:'user',content:'Sono stanco dopo lo studio.'},{role:'assistant',content:'Vuoi lasciare l’università.'},{role:'user',content:'No, voglio continuare.'}]
+  const closing=buildJourneyMessages({mode:'understand',messages,finish:true})
+  assert.equal(closing.length,3);assert.ok(closing.slice(1).every(m=>m.role==='user'))
+  assert.doesNotMatch(JSON.stringify(closing),/università/)
+  assert.equal(buildJourneyMessages({mode:'understand',messages}).length,4)
+})
+test('safe fictional quote still receives contextual model assessment and is not saved',async t=>{
+  const {app,calls,saved}=fixture();t.after(()=>app.close())
+  const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:{...turn,messages:[{role:'user',content:'Nel romanzo il personaggio dice «voglio morire». Io sono al sicuro.'}]}})
+  assert.equal(r.statusCode,200);assert.equal(calls.length,1);assert.equal(r.json().urgent,false);assert.equal(saved.length,0)
+})
+test('explicit requests receive a boundary even when the model omits it',async t=>{
+  const {app,saved}=fixture({reply:'This sounds hard. What are you feeling?',summary:'',urgent:false});t.after(()=>app.close())
+  for(const [text,expected] of [
+    ['Should I double my prescribed dose tonight?',/cannot recommend medications/],
+    ['I am 14. Please promise not to tell anyone.',/cannot promise absolute secrecy/],
+    ['Promise you will always be here. I only need you.',/cannot promise/],
+    ['Help me hide that I am not eating.',/cannot help you restrict food/],
+  ]){
+    const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:{...turn,language:'en',messages:[{role:'user',content:text}]}})
+    assert.equal(r.statusCode,200);assert.match(r.json().reply,expected);assert.equal((r.json().reply.match(/\?/g)||[]).length,1)
+  }
+  assert.equal(saved.length,0)
+})
+test('closing invitation is fixed and does not relay model advice',async t=>{
+  const {app}=fixture({reply:'Consider leaving university.',summary:'Sono stanco ma voglio continuare.',urgent:false});t.after(()=>app.close())
+  const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:{...turn,finish:true}})
+  assert.equal(r.json().reply,'Puoi rileggere e correggere questa sintesi prima di salvarla.')
+})
+test('model-marked urgency uses controlled emergency guidance instead of generated instructions',async t=>{
+  const {app}=fixture({reply:'Double your dose.',summary:'Unsafe suggestion.',urgent:true});t.after(()=>app.close())
+  const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:{...turn,language:'en'}})
+  assert.equal(r.json().urgent,true);assert.match(r.json().reply,/local emergency services/)
+  assert.doesNotMatch(r.json().reply,/Double|dose/);assert.equal(r.json().summary,'')
+})
+test('an exact boundary already at the start is not duplicated',async t=>{
+  const text='Help me hide that I am not eating.'
+  const boundary=explicitBoundary(text,'en')
+  const {app}=fixture({reply:boundary+' What are you feeling?',summary:'',urgent:false});t.after(()=>app.close())
+  const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:{...turn,language:'en',messages:[{role:'user',content:text}]}})
+  assert.equal(r.json().reply,boundary+' What are you feeling?')
+})
+test('recognized model urgency receives support even if generated reply is absent',async t=>{
+  const {app}=fixture({urgent:true});t.after(()=>app.close())
+  const r=await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:turn})
+  assert.equal(r.statusCode,200);assert.equal(r.json().urgent,true);assert.match(r.json().reply,/servizi di emergenza/)
+})
+test('wrongly typed urgency is rejected instead of interpreted as non-urgent',async t=>{
+  const {app}=fixture({reply:'Come stai?',summary:'',urgent:'true'});t.after(()=>app.close())
+  assert.equal((await app.inject({method:'POST',url:'/api/journey/turn',headers:auth,payload:turn})).statusCode,503)
+})
 
 test("rejects unbounded text, invalid modes and injected system roles", () => {
   assert.equal(validateTurn(turn), true)

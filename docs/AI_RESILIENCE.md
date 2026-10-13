@@ -7,3 +7,7 @@ Richieste identiche simultanee dello stesso utente condividono il lavoro in cors
 Limiti: deduplicazione e capacità sono locali al processo, senza coordinamento tra istanze. Non è un limite di spesa mensile, né una garanzia di fatturazione singola. Gli altri endpoint AI mantengono la configurazione precedente. Nessun contenuto delle conversazioni viene aggiunto ai log.
 
 Verifica: 68 test backend passati; 36 fixture sintetiche validate offline. Nessuna chiamata AI o scrittura database necessaria per questi controlli. Questa modifica non è ancora pubblicata.
+
+## Stato del rilascio
+
+Il commit `2a7a6f6` è stato inviato a `staging/ai-memory`. L’avvio del deploy tramite API Render ha restituito HTTP 401; la lettura dei deploy ha confermato ancora live il commit precedente `0ee1337`. Per completare il rilascio, sul solo servizio `myndself-api-test` selezionare Manual Deploy → Deploy latest commit, poi verificare il commit e il percorso autenticato. Produzione non modificata.

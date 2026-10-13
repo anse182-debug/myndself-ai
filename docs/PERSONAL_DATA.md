@@ -32,8 +32,9 @@ L'export non è un backup consistente per recupero del database completo.
 
 ## Endpoint e schermata
 
-«I miei dati e il mio account» appare sotto i controlli memoria e richiede
-sessione verificata.
+La voce di menu «Impostazioni» raccoglie i controlli memoria e «I miei dati e
+il mio account». I controlli richiedono sessione verificata e compaiono solo
+in questa sezione, separata dai percorsi di riflessione e chat.
 
 - GET /api/account/export: download JSON delle righe proprie, no-store.
 - POST /api/account/deletion-challenge: challenge casuale valido 5 minuti,
@@ -88,3 +89,10 @@ coerente. La prova separata con due account ha controllato tutte le 16 tabelle,
 rollback iniettato e preservazione dell'altro account. 37 test backend, 5 test
 policy e build frontend passati. Queste prove non attestano cancellazione dei
 log dei fornitori né una revisione legale o clinica.
+
+Successivamente, la UI sul commit 31021d2 è stata pubblicata nel test con la
+voce Impostazioni. Verificati a 320/360/390/1280px: controlli assenti da Oggi,
+raggiungibili da menu, voce attiva riconoscibile, nessuna eccedenza orizzontale
+e target menu di almeno 44px. La preferenza memoria rimane invariata quando si
+cambia sezione. Download, cancellazione confermata e logout sono stati
+rieseguiti dalla nuova posizione con un account sintetico poi eliminato.

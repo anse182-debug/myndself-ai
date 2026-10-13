@@ -23,6 +23,13 @@ Il responsabile ha scelto Google Drive. Non è disponibile un collegamento
 Drive utilizzabile in questa sessione; la sola variabile di credenziali Google
 dell'ambiente non dimostra accesso al Drive del responsabile.
 
+Cartella indicata dal responsabile:
+`https://drive.google.com/drive/folders/1Iwp-DF3ZvXXYIGmZ19Q-88w7-y1y_baP`.
+ID da usare come `root_folder_id` del remote:
+`1Iwp-DF3ZvXXYIGmZ19Q-88w7-y1y_baP`.
+Il link identifica la destinazione; non prova accesso, permessi di scrittura,
+spazio disponibile o impostazione di condivisione privata.
+
 Usare una cartella dedicata `MyndSelf Backups`, con accesso generale
 **Limitato**, senza link pubblico. Conservare esclusivamente copie cifrate e
 manifest non sensibili. Il Drive non garantisce automaticamente regione UE,
@@ -47,7 +54,7 @@ dal download. La verifica va eseguita con il reale account del runner.
 
 Il collegamento di un'app Drive alla chat può aiutare a individuare una
 cartella, ma non sostituisce credenziali persistenti e pianificazione del
-runner. Mancano ancora il link della cartella e l'autorizzazione OAuth del
+runner. Manca ancora l'autorizzazione OAuth del
 runner, oltre ai prerequisiti database e cifratura elencati sotto.
 
 ## Configurazione ancora necessaria

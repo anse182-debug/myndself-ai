@@ -1,5 +1,18 @@
 # Technical audit: first hardening iteration
 
+## Backup follow-up (13 October 2026)
+
+Read-only management API inspection confirms the organization is Free, with
+zero listed backups and PITR disabled for both production and test. The user
+chose encrypted external backups while remaining on Free. See
+[BACKUP_RECOVERY.md](BACKUP_RECOVERY.md) for the operational prerequisites,
+restore isolation, data scope and completion criteria. The metadata checker
+`backend/scripts/backup-preflight.mjs` was executed and correctly exited 2
+for the unprotected managed-backup state. The synthetic restore drill passed
+again and cleaned up. No real production data was exported; external storage,
+database connectivity, encryption keys, scheduling and full recovery remain
+to be configured. This does not establish an operational backup.
+
 Implemented on the staging branch and separate test services; production is
 not deployed or migrated by this iteration.
 

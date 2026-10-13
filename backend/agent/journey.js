@@ -1,3 +1,4 @@
+import { createJourneyRunner } from './ai-resilience.js'
 import {safeLog} from './observability.js'
 const MODES = ["vent", "understand", "calm"]
 const urgentPattern = /(?<!non )\b(voglio (?:morire|suicidarmi|farmi del male)|sto per (?:suicidarmi|farmi del male)|i (?:want to|am going to) (?:kill myself|hurt myself|die)|end my life)\b/i
@@ -52,6 +53,7 @@ Restituisci SOLO JSON: {"reply":"testo", "summary":"${closing ? "sintesi modific
 }
 
 export function registerJourneyRoutes(app, { authenticate, openai, supabase }) {
+  const runJourney = createJourneyRunner()
   app.post("/api/journey/turn", async (req, reply) => {
     const user = await authenticate(req, reply)
     if (!user) return
@@ -64,9 +66,10 @@ export function registerJourneyRoutes(app, { authenticate, openai, supabase }) {
       reply: urgentSupport(language),
     }
     try {
+      return await runJourney(user.id, req.body, async resilientGenerate => {
       const messagesForModel = buildJourneyMessages(req.body)
       const generate = async extra => {
-        const result = await openai.chat.completions.create({ model: "gpt-4o-mini", messages: extra ? [messagesForModel[0], { role: "system", content: extra }, ...messagesForModel.slice(1)] : messagesForModel, response_format: { type: "json_object" }, temperature: 0.5, max_tokens: 350, store: false })
+        const result = await resilientGenerate(openai, { model: "gpt-4o-mini", messages: extra ? [messagesForModel[0], { role: "system", content: extra }, ...messagesForModel.slice(1)] : messagesForModel, response_format: { type: "json_object" }, temperature: 0.5, max_tokens: 350, store: false })
         return JSON.parse(result.choices[0]?.message?.content || "{}")
       }
       let output = await generate()
@@ -85,6 +88,7 @@ export function registerJourneyRoutes(app, { authenticate, openai, supabase }) {
       const bounded=response.slice(0,2000)
       if(!final && output.urgent!==true && (bounded.match(/\?/g)||[]).length!==1)throw new Error('invalid_question_count')
       return { reply: bounded, summary: final && output.urgent !== true ? output.summary.slice(0, 2500) : "", urgent: output.urgent === true, final: final && output.urgent !== true }
+      })
     } catch (error) {
       const event=error?.message==='invalid_question_count'?'journey_question_format_failed':error?.message==='invalid_output'?'journey_output_format_failed':error instanceof SyntaxError?'journey_json_format_failed':'journey_provider_failed'
       safeLog.warn(event,{providerStatus:error?.status,errorCode:error?.code})

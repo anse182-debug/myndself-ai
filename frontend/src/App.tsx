@@ -447,7 +447,7 @@ const Spinner = () => (
   <div className="w-4 h-4 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin" />
 )
 
-type TabId = "oggi" | "insight" | "guidata" | "chat" | "condivisione"
+type TabId = "oggi" | "insight" | "guidata" | "chat" | "condivisione" | "impostazioni"
 
 export default function App() {
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false)
@@ -1357,6 +1357,7 @@ const CHECKIN_COPY_7D =
       { id: "insight", label: dict.tabs.insights },
       { id: "chat", label: dict.tabs.chat },
       { id: "condivisione", label: dict.tabs.sharing },
+      { id: "impostazioni", label: language === "en" ? "Settings" : "Impostazioni" },
     ]
     // ---------- RENDER ----------
     return (
@@ -1856,6 +1857,11 @@ const reflectionDaysCount = moodSeries?.length ?? 0
           </section>}
           {/* Tabs */}
           <TabsNav />
+          {currentTab === "impostazioni" && <section aria-labelledby="settings-title" className="w-full max-w-6xl mx-auto mb-6">
+            <div className="px-4 sm:px-6 mb-4">
+              <h2 id="settings-title" className="text-xl font-semibold">{language === "en" ? "Settings" : "Impostazioni"}</h2>
+              <p className="mt-1 text-sm text-gray-400">{language === "en" ? "Manage AI memory, your data and your account." : "Gestisci la memoria AI, i tuoi dati e il tuo account."}</p>
+            </div>
           <details className="w-full max-w-6xl mx-auto mb-3">
             <summary className="mx-4 sm:mx-6 min-h-11 cursor-pointer rounded-xl border border-white/10 px-4 py-3 text-sm text-gray-300">{language === "en" ? "AI memory settings" : "Impostazioni della memoria AI"} · {memoryEnabled ? (language === "en" ? "On" : "Attiva") : (language === "en" ? "Off" : "Disattivata")}</summary>
             <div className="mt-3"><MemoryControls key={session.user.id} token={session.access_token} apiBase={API_BASE}
@@ -1869,8 +1875,10 @@ const reflectionDaysCount = moodSeries?.length ?? 0
             } finally { setSession(null) }
           }} />
 
+          </section>}
+
           {/* CONTENUTO PRINCIPALE */}
-          <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">
+          {currentTab !== "impostazioni" && <section className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-10">
             {/* Banner nota emotiva (sopra le tab) */}
             {currentTab !== "guidata" && <section className="mb-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/5 px-4 py-3 flex gap-3 items-start">
               <div className="mt-0.5 text-lg">💭</div>
@@ -2365,7 +2373,7 @@ const reflectionDaysCount = moodSeries?.length ?? 0
                 )}
               </aside>
             </div>
-          </section>
+          </section>}
 
           <footer className="w-full max-w-6xl mx-auto px-4 sm:px-6 pb-6 pt-2 text-[10px] text-gray-500 text-center">
             © {new Date().getFullYear()} MyndSelf.ai — Uno spazio sicuro per le

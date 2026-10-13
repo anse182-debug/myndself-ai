@@ -1,5 +1,21 @@
 # Technical audit: first hardening iteration
 
+## Logging and observability follow-up
+
+Application runtime logs now use static event catalogs and explicit allowed
+fields. Error objects, messages, stacks, email/user IDs, body, query, cookies
+and credentials are discarded. Server-generated request IDs and registered
+route templates correlate errors; generic framework/404 responses prevent
+echoing input. Per-process 60-second counters report errors, 429, slow requests
+and max duration; >=5% server errors with >=20 requests emits a degradation
+event in logs. Fatal events exit without printing error content. Client logs
+contain static events only. 46 backend tests, 5 policy tests, build and local
+full-process validation passed. Test deployments on 64d4b10 are live; public
+checks and browser export/delete flow passed. Render log-read API returns 403,
+so remote log content remains uninspected through that API. Automatic external
+notifications, historical-log cleanup, platform log controls and retention
+remain outstanding. See [OBSERVABILITY.md](OBSERVABILITY.md).
+
 ## Recent-authentication follow-up
 
 Account deletion now requires a recognized AMR authentication timestamp within

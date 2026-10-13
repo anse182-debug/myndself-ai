@@ -70,3 +70,14 @@ anonima 401, JSON invalido 400 e route sconosciuta 404; header presente e
 nessun valore sintetico ripetuto nelle risposte o negli eventi osservati.
 46 test backend, 5 test della policy e build frontend passati. Tutta la
 pubblicazione riguarda solo i progetti test; produzione invariata.
+
+## Verifica pubblicata
+
+Vercel READY e Render live sul commit 64d4b10. Sul backend pubblico verificati
+200/401/400/404, ID server indipendente dagli header client e valori sintetici
+assenti dalle risposte. Il browser legge x-request-id attraverso CORS; la prova
+mobile/desktop di Impostazioni, export e cancellazione è passata, con cleanup
+dell'account sintetico. L'API Render per leggere i log restituisce HTTP 403:
+il contenuto dei log remoti non è stato ispezionato tramite quel canale.
+Il formato e l'assenza dei valori sintetici sono verificati nei test e nello
+stdout del processo locale, inclusa la finestra aggregata di 60 secondi.

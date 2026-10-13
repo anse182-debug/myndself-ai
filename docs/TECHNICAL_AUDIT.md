@@ -1,5 +1,19 @@
 # Technical audit: first hardening iteration
 
+## Recent-authentication follow-up
+
+Account deletion now requires a recognized AMR authentication timestamp within
+10 minutes from the exact bearer already verified by Supabase getUser. JWT iat
+and account-wide last_sign_in_at cannot renew this privilege. Both challenge
+and execution enforce the check; the UI offers local sign-out and a new login
+when denied. Test deployments on 47add80 are live. 39 backend tests and build
+passed. Published browser checks covered successful fresh-session deletion
+and rejection of a genuinely signed refreshed session whose synthetic AMR
+record was aged past the limit in test. The latter preserved the account and
+successfully prompted local sign-out. All synthetic accounts were removed,
+no email sent. External-copy procedures, log retention, backup and production
+release requirements remain separate outstanding work.
+
 ## Personal-data follow-up
 
 The test-only migration 002 adds service-role RPC for owned-row export and

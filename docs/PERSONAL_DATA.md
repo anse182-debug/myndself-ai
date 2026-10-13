@@ -109,3 +109,13 @@ e verificato senza spedire email, AMR originale preservato dopo refresh,
 e sessione firmata verificata contro clock di test oltre i 10 minuti. In quel
 caso export consentito, challenge e cancellazione respinti, account preservato.
 È stata ripetuta anche la prova delle 16 tabelle con accesso fresco.
+
+Frontend e backend test sono live sul commit 47add80. La prova nel browser
+con sessione recente ha confermato export, cancellazione e logout. Per la
+prova con sessione vecchia, solo il record AMR della sessione di un account
+sintetico è stato portato a 11 minuti prima nel progetto test; Supabase ha poi
+emesso un token firmato rinnovato mantenendo quel momento di autenticazione.
+Sul backend pubblicato, col clock reale, export consentito e challenge 403;
+il messaggio e il pulsante di riautenticazione hanno funzionato, la sessione
+locale è stata rimossa e l'account è rimasto intatto fino al cleanup assistito
+del test. Nessuna email inviata e nessun dato di produzione coinvolto.

@@ -73,3 +73,18 @@ prove di trattamento e revisione indipendente rimangono da completare.
 Migrazione e prove soltanto nel test. Produzione richiede backup recuperabile,
 rilascio coordinato, riautenticazione e procedure per le copie esterne.
 Il controllo schema comprende ora funzioni privacy, ACL e trigger di esistenza.
+
+## Verifica pubblicata (13 ottobre 2026)
+
+Frontend Vercel READY e backend Render live sul commit f850ad9, esclusivamente
+nei progetti test. Nel browser a 390px, con un account sintetico, sono stati
+verificati download JSON reale, blocco della conferma errata, cancellazione
+digitando DELETE e logout/pulizia sessione locale. Il download è stato letto
+per verificarne l'account proprietario. Nessuna email inviata; trasporto HTTPS
+verificato, senza disabilitare TLS. L'account della prova è stato eliminato.
+
+Il controllo finale del database conferma tre migrazioni e riferimento schema
+coerente. La prova separata con due account ha controllato tutte le 16 tabelle,
+rollback iniettato e preservazione dell'altro account. 37 test backend, 5 test
+policy e build frontend passati. Queste prove non attestano cancellazione dei
+log dei fornitori né una revisione legale o clinica.

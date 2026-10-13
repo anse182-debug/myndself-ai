@@ -1,5 +1,19 @@
 # Technical audit: first hardening iteration
 
+## CI and branch protection follow-up
+
+Checks now includes a governance job covering release policy and management
+script syntax. A GitHub API runner verifies the current remote staging commit,
+successful Checks workflow and app-bound job results before proposing or
+applying main protection. The agreed solo-maintainer policy requires PRs,
+current successful checks and resolved conversations, including for admins,
+without a second reviewer. Existing protection is never silently replaced.
+Local frozen installs, 32 backend tests, 5 policy tests, audits and frontend
+build passed. GitHub API access is currently blocked by proxy egress policy;
+api.github.com was added to the saved cloud draft, requiring publication.
+Remote CI and actual main protection remain unverified/unapplied. See
+[RELEASE_CHECKS.md](RELEASE_CHECKS.md).
+
 ## Migration ledger follow-up
 
 The test database now has a private migration ledger with SHA-256 checksums

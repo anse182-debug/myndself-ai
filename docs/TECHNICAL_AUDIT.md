@@ -1,5 +1,17 @@
 # Technical audit: first hardening iteration
 
+## Migration ledger follow-up
+
+The test database now has a private migration ledger with SHA-256 checksums
+for the two existing migrations, adopted without replaying their SQL. The
+test-only runner checks observed schema metadata against its committed
+reference and last recorded state. Pending migration DDL, ledger writes and
+post-schema validation share a transaction. Live synthetic checks verified
+commit, rollback of both DDL and ledger on mismatch, and detection of a schema
+change outside the runner. Fixtures were removed. See
+[DATABASE_MIGRATIONS.md](DATABASE_MIGRATIONS.md) for scope and limitations.
+No production adoption or migration was performed; backups remain suspended.
+
 ## Backup follow-up (13 October 2026)
 
 Read-only management API inspection confirms the organization is Free, with

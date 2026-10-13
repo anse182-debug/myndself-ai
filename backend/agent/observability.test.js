@@ -63,6 +63,13 @@ test('sufficient traffic with five percent server errors emits a degradation sig
   assert.equal(degradation.requests,20);assert.equal(degradation.server_errors,1)
   assert.equal(degradation.request_id,undefined)
 })
+test('empty windows reach the monitor without logging false recovery or request metrics',async t=>{
+  const app=Fastify({logger:false});t.after(()=>app.close());const windows=[],lines=[]
+  const logger=createSafeLogger({write:line=>lines.push(JSON.parse(line))})
+  const {flush}=registerObservability(app,{logger,onWindow:summary=>windows.push(summary)})
+  flush();await Promise.resolve()
+  assert.equal(windows.length,1);assert.equal(windows[0].requests,0);assert.equal(lines.length,0)
+})
 test('runtime code cannot bypass the approved logging sinks',async()=>{
   const root=new URL('../../',import.meta.url)
   const server=await fs.readFile(new URL('backend/index.js',root),'utf8')

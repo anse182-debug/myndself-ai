@@ -1,4 +1,5 @@
 import { safeLog, registerObservability, registerProcessDiagnostics } from "./agent/observability.js"
+import { configuredAlerts } from "./agent/alerts.js"
 import { registerPersonalDataRoutes } from "./agent/personal-data.js"
 import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemory } from "./agent/memory.js"
 // backend/index.js
@@ -47,7 +48,7 @@ if (!SUPABASE_URL || !SUPABASE_KEY)
 // ====== INIT ======
 registerProcessDiagnostics()
 const app = Fastify({ logger: false, trustProxy: 1, requestIdHeader: false, genReqId: () => crypto.randomUUID() })
-registerObservability(app)
+registerObservability(app, { onWindow: configuredAlerts() })
 const allowedOrigins = (process.env.CORS_ORIGIN || "https://myndself.ai,https://www.myndself.ai,https://myndself-test.vercel.app,http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean)
 await app.register(cors, { origin: allowedOrigins, methods: ["GET", "POST", "DELETE", "OPTIONS"], exposedHeaders: ["x-request-id"] })
 

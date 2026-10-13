@@ -32,8 +32,9 @@ richiesta lenta produce un evento con stato e durata. Il logger non conserva
 un database di tracce e non invia dati a un nuovo servizio esterno.
 
 Con almeno 20 richieste in una finestra e almeno 5% di errori server, viene
-emesso service_error_rate_high. È un segnale nei log, non una notifica email,
-Slack o paging. I contatori sono per processo, non distribuiti; non sono P95,
+emesso service_error_rate_high. Senza attivazione esplicita è un segnale nei
+log. Il test ora collega gli avvisi email come descritto in
+[ALERTS.md](ALERTS.md); non invia Slack o paging. I contatori sono per processo, non distribuiti; non sono P95,
 metriche di billing o disponibilità globale. L'ultima finestra può andare
 persa se il processo viene terminato prima del flush. Successi senza errori
 non vengono registrati uno per uno.
@@ -46,8 +47,8 @@ rimanere limitato agli operatori autorizzati.
 
 ## Limiti operativi ancora da completare
 
-- Canale di allarme, destinatario e responsabilità della risposta. Nessuna
-  notifica a terzi viene inviata da questo lavoro.
+- Responsabilità della risposta e monitor esterno. Il canale email test è
+  configurato verso il destinatario concordato; produzione non attivata.
 - Retention e cancellazione dei log storici nei provider. Cambiare il codice
   non rimuove log precedenti. Le URL reali possono ancora comparire nei log
   di accesso delle piattaforme, inclusi endpoint legacy con parametri: questo

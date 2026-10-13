@@ -23,18 +23,19 @@ export function createSafeLogger({write=line=>console.log(line),routes=new Set()
 }
 const runtimeRoutes=new Set()
 export const safeLog=createSafeLogger({routes:runtimeRoutes})
-export function registerObservability(app,{logger=safeLog,intervalMs=60000}={}) {
+export function registerObservability(app,{logger=safeLog,intervalMs=60000,onWindow}={}) {
   const routes=new Set()
   const started=new WeakMap()
   let windowStarted=performance.now()
   let counts={requests:0,server_errors:0,client_errors:0,rate_limited:0,slow:0,max_duration_ms:0}
   const flush=()=>{
     const time=performance.now()
+    const summary={...counts,window_seconds:Math.max(1,(time-windowStarted)/1000)}
     if(counts.requests)requestContext.run(undefined,()=>{
-      const summary={...counts,window_seconds:Math.max(1,(time-windowStarted)/1000)}
       logger.info('request_metrics',summary)
       if(counts.requests>=20 && counts.server_errors/counts.requests>=0.05)logger.warn('service_error_rate_high',summary)
     })
+    if(onWindow)requestContext.run(undefined,()=>Promise.resolve().then(()=>onWindow(summary)).catch(()=>logger.warn('monitor_delivery_failed')))
     counts={requests:0,server_errors:0,client_errors:0,rate_limited:0,slow:0,max_duration_ms:0}
     windowStarted=time
   }

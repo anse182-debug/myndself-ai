@@ -1,5 +1,18 @@
 # Technical audit: first hardening iteration
 
+## Operational email alert follow-up
+
+The user chose email alerts to info@myndself.ai. The test Render service now
+has explicit monitor enablement, destination and sender, reread after updates.
+The controller sends only aggregate metrics with incident deduplication,
+30-minute reminders, two sampled healthy windows for recovery, bounded retry
+backoff and stable payload/idempotency for uncertain delivery. Alerting is
+disabled by default elsewhere and does not include patient data. One technical
+test email was accepted by Resend; inbox delivery is not independently proven.
+53 backend tests pass. This internal monitor cannot detect its own process
+being down or zero traffic; an independent external check and log retention
+remain necessary. See [ALERTS.md](ALERTS.md). No production configuration changed.
+
 ## Logging and observability follow-up
 
 Application runtime logs now use static event catalogs and explicit allowed

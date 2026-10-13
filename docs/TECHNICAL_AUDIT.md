@@ -84,3 +84,26 @@ backup/PITR recovery, disaster recovery time or backup retention guarantees.
 - Configure branch protection and observe CI before gating production releases.
 - Add distributed request budgets if services run multiple instances.
 - Independent security and mental-health safety review.
+
+## Live test deployment verification
+
+Render now builds with npm ci and checks /health; Vercel test also installs with
+npm ci. Both test deployments are live. A real two-account synthetic audit
+confirmed 401 for anonymous legacy reads, successful owner-injected mood
+creation/read, 403 for cross-user reads/writes and aliases, rejection of ordinary
+sessions on job endpoints, anonymous PDF access with a valid capability and
+rejection after revocation, and 429 for the thirteenth AI-route request. Invalid
+chat bodies were used for the rate-limit drill to avoid model charges.
+Accounts and fixture records were removed afterward. No production operations
+were performed.
+
+Published UI viewport checks at 320/360/390px and the complete short journey
+(edited summary, ratings, idempotent save, resume and synthetic urgent branch)
+passed after the framework/toolchain updates. HTTPS-verified browser transport
+and suppressed welcome emails were used as in earlier staging checks. There
+are 32 local tests. Remote GitHub CI status is still not independently observed.
+The new cloud npm-ci installation/startup instructions are saved as a draft;
+review/save/publish the environment to activate and retain them for later tasks.
+Production still runs the previous implementation: promoting this security
+revision requires a coordinated frontend/backend rollout, authentication-aware
+clients, exact CORS origins, and a separately reviewed database/backup plan.

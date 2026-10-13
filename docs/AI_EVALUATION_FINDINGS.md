@@ -85,3 +85,7 @@ non sono duplicati quando già presenti esattamente all'inizio. Se il modello
 marca urgent=true, il backend usa supporto emergenza controllato e scarta
 istruzioni/sintesi generate, anche con testo generato assente. Urgenza con
 tipo diverso da boolean viene rifiutata. I test verificano anche questi casi.
+
+### Verifica della pubblicazione di test
+
+Il backend di test è live sul commit `0ee13372850b99958380e478173f9d2e34e92c62` (deploy `dep-db72s2ij9qps73b13iq0`). Richieste autenticate con account sintetici hanno verificato citazione narrativa, chiusura senza supposizioni introdotte dall’assistente, risposta urgente controllata e limite esplicito sulla disponibilità permanente. Account sintetici eliminati dopo i controlli. Un primo controllo sulla sintesi cercava erroneamente l’assenza della parola università anche quando presente nella correzione dell’utente; la verifica è stata corretta usando un caso in cui tale informazione compare soltanto nel messaggio dell’assistente. Produzione non modificata; revisione clinica ancora pendente.

@@ -29,6 +29,8 @@ jobs:
         working-directory: backend
       - run: npm test
         working-directory: backend
+      - run: node evals/run.mjs --validate
+        working-directory: backend
       - run: npm audit --omit=dev --audit-level=high
         working-directory: backend
       - run: node --check index.js

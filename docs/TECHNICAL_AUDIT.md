@@ -1,5 +1,18 @@
 # Technical audit: first hardening iteration
 
+## Expanded AI evaluation
+
+The synthetic evaluation suite now has 36 Italian/English scenarios, including
+clinical boundaries, dependency, minors, coercion and multi-turn grounding.
+Offline fixture validation is in backend CI; live evaluation never persists
+data. One live run completed all cases: 35/36 automatic passes, with a quoted
+fictional phrase triggering the immediate-risk branch incorrectly. Preliminary
+technical review also identified vague boundaries and a summary detail sourced
+only from an assistant message. These findings are not human/clinical approval.
+All human review sheets remain pending and release_approved is false. See
+[AI_REVIEW.md](AI_REVIEW.md) and [AI_EVALUATION_FINDINGS.md](AI_EVALUATION_FINDINGS.md).
+No model prompt, risk matcher or application behavior was changed by this work.
+
 ## Operational email alert follow-up
 
 The user chose email alerts to info@myndself.ai. The test Render service now

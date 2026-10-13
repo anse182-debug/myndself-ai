@@ -2,7 +2,7 @@ import crypto from 'node:crypto'
 import {safeLog} from './observability.js'
 const fields=['requests','server_errors','client_errors','rate_limited','slow','max_duration_ms','window_seconds']
 export function createAlertController({send,now=Date.now,logger=safeLog,environment='test'}) {
-  let incident=null,pending=null,lastSuccessful=0,nextRetry=0,failures=0,healthy=0,inFlight=false
+  let incident=null,pending=null,lastSuccessful=null,nextRetry=0,failures=0,healthy=0,inFlight=false
   const cooldown=30*60*1000
   async function observe(input) {
     if(inFlight)return
@@ -15,10 +15,12 @@ export function createAlertController({send,now=Date.now,logger=safeLog,environm
     if(!degraded && !incident){pending=null;failures=0;nextRetry=0;return}
     if(!degraded && healthy<2)return
     const kind=degraded?'degraded':'recovered'
-    if(degraded && incident && now()-lastSuccessful<cooldown)return
+    if(degraded && incident && lastSuccessful!==null && now()-lastSuccessful<cooldown)return
     if(now()<nextRetry)return
     if(!pending || pending.kind!==kind)pending={kind,incident:incident||crypto.randomUUID(),notification:crypto.randomUUID(),observedAt:new Date(now()).toISOString(),environment:environment==='production'?'production':'test',metrics}
-    const payload=pending;inFlight=true
+    const payload=pending;
+    if(degraded)incident=payload.incident // Track the observed episode even if acceptance is uncertain.
+    inFlight=true
     try {
       await send(payload)
       failures=0;nextRetry=0;lastSuccessful=now()

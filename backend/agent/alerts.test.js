@@ -24,6 +24,12 @@ test('in-flight delivery cannot cause concurrent duplicates',async()=>{
   const {observe}=createAlertController({logger:quietLogger,send:async()=>{count++;await pending}})
   const first=observe(bad);await observe(bad);assert.equal(count,1);release();await first
 })
+test('an uncertain initial acceptance still receives recovery once sampled and retry is allowed',async()=>{
+  let time=0;const attempts=[];let fail=true
+  const {observe}=createAlertController({now:()=>time,logger:quietLogger,send:async a=>{attempts.push(a);if(fail)throw Error('response lost')}})
+  await observe(bad);time=5*60*1000;fail=false;await observe(good);await observe(good)
+  assert.equal(attempts[1].kind,'recovered');assert.equal(attempts[1].incident,attempts[0].incident)
+})
 test('low traffic and invalid input do not alert or claim recovery',async()=>{
   const sent=[];const {observe}=createAlertController({logger:quietLogger,send:async a=>sent.push(a)})
   await observe({...bad,requests:19});await observe({...bad,requests:NaN});await observe({...bad,server_errors:21});assert.equal(sent.length,0)

@@ -9,7 +9,7 @@ The controller sends only aggregate metrics with incident deduplication,
 backoff and stable payload/idempotency for uncertain delivery. Alerting is
 disabled by default elsewhere and does not include patient data. One technical
 test email was accepted by Resend; inbox delivery is not independently proven.
-53 backend tests pass. This internal monitor cannot detect its own process
+54 backend tests pass. This internal monitor cannot detect its own process
 being down or zero traffic; an independent external check and log retention
 remain necessary. See [ALERTS.md](ALERTS.md). No production configuration changed.
 

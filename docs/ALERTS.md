@@ -30,7 +30,8 @@ Un solo invio in corso per processo. Fallimenti: backoff 5/10/20/30 minuti,
 con limite 30 minuti; una nuova osservazione avvia il retry quando ammesso.
 La stessa notifica conserva payload e Idempotency-Key tra i tentativi, evitando
 un duplicato se Resend ha accettato una richiesta la cui risposta è andata
-persa. I promemoria hanno una chiave distinta. Lo stato è in memoria: riavvii
+persa. Il rientro rimane comunicabile anche se la prima accettazione è
+incerta. I promemoria hanno una chiave distinta. Lo stato è in memoria: riavvii
 possono azzerare cooldown/incidente e interrompere un retry; più istanze
 richiedono un registro condiviso prima di promettere un limite globale.
 
@@ -59,3 +60,8 @@ senza traffico. Il prossimo controllo necessario è un monitor esterno di
 raggiungibilità, indipendente da Render, con responsabilità della risposta e
 retention dei log da definire. La lettura API dei log Render è ancora bloccata
 con 403; la dashboard rimane il canale operativo previsto.
+
+La lettura dello stato consegna tramite API Resend ha restituito HTTP 401;
+non si presume consegna in casella dalla sola accettazione dell'invio.
+54 test backend passati; nessun incidente fittizio è stato provocato nel
+servizio pubblicato per generare ulteriori email.

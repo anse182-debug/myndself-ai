@@ -65,3 +65,10 @@ La lettura dello stato consegna tramite API Resend ha restituito HTTP 401;
 non si presume consegna in casella dalla sola accettazione dell'invio.
 54 test backend passati; nessun incidente fittizio è stato provocato nel
 servizio pubblicato per generare ulteriori email.
+
+Il backend Render test è live sul commit 59058cc, con le tre variabili monitor
+verificate. Health 200 e export anonimo 401 conservano l'ID server. La catena
+HTTP -> finestra metriche -> controller è stata verificata su Fastify locale
+con trasporto email finto: 19 successi e un 503 hanno prodotto un solo avviso
+aggregato, senza parametri o testo della richiesta. Non è stata provocata una
+notifica aggiuntiva sul servizio pubblico. Produzione invariata.

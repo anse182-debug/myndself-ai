@@ -1,4 +1,17 @@
 import crypto from 'node:crypto'
+// Use only after getUser has verified this exact bearer token. iat is not
+// authentication time: refreshing a session must not renew destructive access.
+export function hasRecentAuthentication(req, user, now=Date.now()) {
+  try {
+    const token=String(req.headers.authorization||'').match(/^Bearer\s+(\S+)$/i)?.[1]
+    if(!token || token.split('.').length!==3)return false
+    const claims=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString('utf8'))
+    if(claims.sub!==user.id || !Array.isArray(claims.amr))return false
+    const seconds=now/1000
+    return claims.amr.some(a=>['password','otp','magiclink','oauth','sso/saml'].includes(a.method)
+      && Number.isFinite(a.timestamp) && a.timestamp<=seconds+30 && a.timestamp>=seconds-600)
+  } catch {return false}
+}
 export function registerPersonalDataRoutes(app, {supabase, authenticate, now=Date.now}) {
   const confirmations=new Map()
   const tokenHash=req=>crypto.createHash('sha256').update(String(req.headers.authorization||'')).digest('hex')
@@ -17,6 +30,7 @@ export function registerPersonalDataRoutes(app, {supabase, authenticate, now=Dat
   app.post('/api/account/deletion-challenge',async(req,reply)=>{
     noCache(reply)
     const user=await authenticate(req,reply);if(!user)return reply
+    if(!hasRecentAuthentication(req,user,now()))return reply.code(403).send({error:'reauthentication_required'})
     for(const [id,c] of confirmations)if(c.expires<=now())confirmations.delete(id)
     if(confirmations.size>=10000 && !confirmations.has(user.id))return reply.code(503).send({error:'try_later'})
     const challenge=crypto.randomBytes(32).toString('hex')
@@ -26,6 +40,7 @@ export function registerPersonalDataRoutes(app, {supabase, authenticate, now=Dat
   app.delete('/api/account',async(req,reply)=>{
     noCache(reply)
     const user=await authenticate(req,reply);if(!user)return reply
+    if(!hasRecentAuthentication(req,user,now()))return reply.code(403).send({error:'reauthentication_required'})
     const c=confirmations.get(user.id)
     if(req.body?.confirmation!=='DELETE'||!c||c.expires<=now()||c.token!==tokenHash(req)||c.challenge!==req.body?.challenge)return reply.code(400).send({error:'confirmation_required'})
     if(c.busy)return reply.code(409).send({error:'deletion_in_progress'})

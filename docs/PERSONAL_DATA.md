@@ -45,8 +45,14 @@ in questa sezione, separata dai percorsi di riflessione e chat.
 Budget separato di quattro richieste account al minuto. Export rifiutato oltre
 5000 righe per categoria principale o 10 MiB serializzati; nessun successo
 parziale. Volumi superiori richiedono assistenza. Il challenge è in memoria:
-riavvio/cambio istanza richiede una nuova conferma. Non sostituisce una
-riautenticazione recente, ancora necessaria prima della produzione.
+riavvio/cambio istanza richiede una nuova conferma. Entrambi gli endpoint di
+cancellazione richiedono anche un'autenticazione negli ultimi 10 minuti.
+Il momento è ricavato da AMR del medesimo token verificato tramite getUser,
+con corrispondenza del subject. iat e last_sign_in_at non estendono la finestra:
+refresh e accessi da altri dispositivi non rinnovano questa autorizzazione.
+AMR assente, non riconosciuto o senza timestamp viene respinto. Il flusso
+invita a uscire dalla sessione locale e accedere di nuovo; non invia email
+automaticamente e non elimina dati durante la riautenticazione.
 
 ## Cancellazione atomica
 
@@ -72,7 +78,7 @@ dichiara soddisfatta una cancellazione su tutti i sistemi. Retention dei log,
 prove di trattamento e revisione indipendente rimangono da completare.
 
 Migrazione e prove soltanto nel test. Produzione richiede backup recuperabile,
-rilascio coordinato, riautenticazione e procedure per le copie esterne.
+rilascio coordinato e procedure per le copie esterne.
 Il controllo schema comprende ora funzioni privacy, ACL e trigger di esistenza.
 
 ## Verifica pubblicata (13 ottobre 2026)
@@ -96,3 +102,10 @@ raggiungibili da menu, voce attiva riconoscibile, nessuna eccedenza orizzontale
 e target menu di almeno 44px. La preferenza memoria rimane invariata quando si
 cambia sezione. Download, cancellazione confermata e logout sono stati
 rieseguiti dalla nuova posizione con un account sintetico poi eliminato.
+
+La protezione successiva di accesso recente è verificata con 39 test backend,
+build frontend e token Supabase reali di account sintetici: link magico generato
+e verificato senza spedire email, AMR originale preservato dopo refresh,
+e sessione firmata verificata contro clock di test oltre i 10 minuti. In quel
+caso export consentito, challenge e cancellazione respinti, account preservato.
+È stata ripetuta anche la prova delle 16 tabelle con accesso fresco.

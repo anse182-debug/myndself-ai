@@ -1868,7 +1868,12 @@ const reflectionDaysCount = moodSeries?.length ?? 0
               enabled={memoryEnabled} onChange={changeMemoryPreference} language={language} /></div>
           </details>
 
-          <PersonalDataControls token={session.access_token} apiBase={API_BASE} language={language} onDeleted={async () => {
+          <PersonalDataControls token={session.access_token} apiBase={API_BASE} language={language} onReauthenticate={async () => {
+            const { error } = await supabase.auth.signOut({ scope: "local" })
+            if (error) throw error
+            setSession(null)
+            setCurrentTab("oggi")
+          }} onDeleted={async () => {
             try {
               for (const key of Object.keys(localStorage)) if (key.startsWith("myndself_")) localStorage.removeItem(key)
               await supabase.auth.signOut({ scope: "local" })

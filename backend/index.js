@@ -1,3 +1,4 @@
+import { safeLog, registerObservability, registerProcessDiagnostics } from "./agent/observability.js"
 import { registerPersonalDataRoutes } from "./agent/personal-data.js"
 import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemory } from "./agent/memory.js"
 // backend/index.js
@@ -44,9 +45,11 @@ if (!SUPABASE_URL || !SUPABASE_KEY)
   throw new Error("Missing SUPABASE_URL / SUPABASE_KEY")
 
 // ====== INIT ======
-const app = Fastify({ logger: false, trustProxy: 1 })
+registerProcessDiagnostics()
+const app = Fastify({ logger: false, trustProxy: 1, requestIdHeader: false, genReqId: () => crypto.randomUUID() })
+registerObservability(app)
 const allowedOrigins = (process.env.CORS_ORIGIN || "https://myndself.ai,https://www.myndself.ai,https://myndself-test.vercel.app,http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean)
-await app.register(cors, { origin: allowedOrigins, methods: ["GET", "POST", "DELETE", "OPTIONS"] })
+await app.register(cors, { origin: allowedOrigins, methods: ["GET", "POST", "DELETE", "OPTIONS"], exposedHeaders: ["x-request-id"] })
 
 // Native fetch honors Node's configured HTTPS proxy in the cloud environment.
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY, fetch: globalThis.fetch })
@@ -187,7 +190,7 @@ async function getDominantEmotionForLast7Days(userId) {
     .gte("at", sevenDaysAgo.toISOString());
 
   if (error) {
-    console.error("getDominantEmotion supabase error", error);
+    safeLog.error('get_dominant_emotion_supabase_error', { errorCode: error?.code, providerStatus: error?.status });
     throw error;
   }
 
@@ -320,7 +323,7 @@ async function sendWeeklyEmailForUser(user) {
     emotion = res.emotion;
     entriesCount = res.entriesCount;
   } catch (err) {
-    console.error("getDominantEmotionForLast7Days error", userId, err);
+    safeLog.error('get_dominant_emotion_for_last7_days_error', { errorCode: err?.code, providerStatus: err?.status });
   }
 
   // 2) preparo il prompt per il Mentor
@@ -383,7 +386,7 @@ Rispondi sempre in italiano, con massimo 4–6 frasi.
       (aiResponse || "").trim() ||
       "Questa settimana hai attraversato emozioni preziose, anche se non tutte sono arrivate fino alle parole. Concediti di riconoscere il semplice fatto di esserci, qui e ora. Che cosa ti colpisce di più se ripensi agli ultimi giorni?";
   } catch (err) {
-    console.error("weekly email AI error", userId, err);
+    safeLog.error('weekly_email_ai_error', { errorCode: err?.code, providerStatus: err?.status });
     mentorText =
       "Questa settimana hai attraversato emozioni preziose, anche se non tutte sono arrivate fino alle parole. Concediti di riconoscere il semplice fatto di esserci, qui e ora. Che cosa ti colpisce di più se ripensi agli ultimi giorni?";
   }
@@ -413,7 +416,7 @@ Rispondi sempre in italiano, con massimo 4–6 frasi.
       status: "sent",
     });
   } catch (err) {
-    console.error("weekly email send error", userId, err);
+    safeLog.error('weekly_email_send_error', { errorCode: err?.code, providerStatus: err?.status });
     await supabase.from("weekly_email_log").insert({
       user_id: userId,
       status: "error",
@@ -444,13 +447,13 @@ async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
     })
 
     if (error) {
-      console.warn("⚠️ getSimilarMemory RPC missing or failed:", error.message)
+      safeLog.warn('get_similar_memory_rpc_missing_or_failed', { errorCode: error?.code, providerStatus: error?.status })
       return []
     }
 
     return await resolveUserMemories(supabase, user_id, data || [])
   } catch (err) {
-    console.warn("⚠️ getSimilarMemory failed:", err.message)
+    safeLog.warn('get_similar_memory_failed', { errorCode: err?.code, providerStatus: err?.status })
     return []
   }
 }
@@ -458,7 +461,7 @@ async function getSimilarMemory({ user_id, content, matchCount = 3 }) {
 
 async function sendWelcomeEmail({ to, name }) {
   if (!RESEND_API_KEY) {
-    console.warn("⚠️ RESEND_API_KEY non impostata, salto welcome email")
+    safeLog.warn('resend_api_key_non_impostata_salto_welcome_email')
     return
   }
 
@@ -508,10 +511,10 @@ Il tuo Mentor AI`
 
     if (!res.ok) {
       const body = await res.text()
-      console.warn("⚠️ sendWelcomeEmail failed:", res.status, body)
+      safeLog.warn('send_welcome_email_failed', { providerStatus: res.status })
     }
   } catch (err) {
-    console.warn("⚠️ sendWelcomeEmail error:", err.message)
+    safeLog.warn('send_welcome_email_error', { errorCode: err?.code, providerStatus: err?.status })
   }
 }
 
@@ -598,7 +601,7 @@ async function updateEmotionProfile(user_id) {
         { onConflict: "user_id" }
       )
   } catch (e) {
-    console.warn("⚠️ updateEmotionProfile failed:", e.message)
+    safeLog.warn('update_emotion_profile_failed', { errorCode: e?.code, providerStatus: e?.status })
   }
 }
 
@@ -652,7 +655,7 @@ async function handleReflection(req, reply) {
 
     reply.send({ reflection, tags, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
-    console.error("❌ Reflection error:", err)
+    safeLog.error('reflection_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 }
@@ -664,10 +667,10 @@ async function insertAgentRitualEvent(payload) {
       .insert([payload])
 
     if (error) {
-      console.error("agent_ritual_events insert error", error)
+      safeLog.error('agent_ritual_events_insert_error', { errorCode: error?.code, providerStatus: error?.status })
     }
   } catch (err) {
-    console.error("agent_ritual_events unexpected error", err)
+    safeLog.error('agent_ritual_events_unexpected_error', { errorCode: err?.code, providerStatus: err?.status })
   }
 }
 
@@ -817,7 +820,7 @@ app.get("/api/metrics", async (req, reply) => {
 
     return reply.send({ days })
   } catch (err) {
-    console.error("mood-calendar error", err)
+    safeLog.error('mood_calendar_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -922,7 +925,7 @@ Guidelines:
 
     reply.send({ summary })
   } catch (err) {
-    console.error("❌ Summary error:", err)
+    safeLog.error('summary_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -970,7 +973,7 @@ app.get("/api/analytics/daily", async (req, reply) => {
 
     reply.send({ ok: true, items })
   } catch (err) {
-    console.error("❌ analytics/daily error:", err)
+    safeLog.error('analytics_daily_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1001,7 +1004,7 @@ app.get("/api/analytics/tags", async (req, reply) => {
 
     reply.send({ ok: true, items })
   } catch (err) {
-    console.error("❌ analytics/tags error:", err)
+    safeLog.error('analytics_tags_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1086,7 +1089,7 @@ ${MENTOR_SYSTEM_PROMPT}`,
 
     reply.send({ reply: replyText, memory_sources: similarMemories, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
-    console.error("❌ Chat error:", err)
+    safeLog.error('chat_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 }
@@ -1225,7 +1228,7 @@ Regole importanti:
       done: false,
     });
   } catch (err) {
-    console.error("guided-chat error", err);
+    safeLog.error('guided_chat_error', { errorCode: err?.code, providerStatus: err?.status });
     return reply.code(500).send({ error: "guided-chat failed" });
   }
 });
@@ -1265,7 +1268,7 @@ app.get("/api/mentor-history", async (req, reply) => {
 
     reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    console.error("❌ mentor history error:", err)
+    safeLog.error('mentor_history_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1369,7 +1372,7 @@ const response = await openai.chat.completions.create({
       topTags: tags.slice(0, 5),
     })
   } catch (err) {
-    console.error("❌ Emotional profile error:", err)
+    safeLog.error('emotional_profile_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1481,7 +1484,7 @@ if (isFinal) {
         created_at: new Date().toISOString(),
       })
     } catch (e) {
-      console.warn("⚠️ guided session insert failed:", e.message)
+      safeLog.warn('guided_session_insert_failed', { errorCode: e?.code, providerStatus: e?.status })
     }
 
     // Se è l’ultimo passo, salviamo anche come sintesi negli insight
@@ -1494,7 +1497,7 @@ if (isFinal) {
         })
       }
     } catch (e) {
-      console.warn("⚠️ save guided summary failed:", e.message)
+      safeLog.warn('save_guided_summary_failed', { errorCode: e?.code, providerStatus: e?.status })
     }
 
     // Memoria semantica minimale
@@ -1518,7 +1521,7 @@ if (isFinal) {
 
     return reply.send({ reply: replyText, isFinal })
   } catch (err) {
-    console.error("❌ Guided reflection error:", err)
+    safeLog.error('guided_reflection_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1557,7 +1560,7 @@ app.post("/api/send-welcome-if-needed", async (req, reply) => {
       null
 
     if (!email) {
-      console.warn("⚠️ Nessuna email trovata per user_id", user_id)
+      safeLog.warn('nessuna_email_trovata_per_user_id')
       return reply.send({ sent: false, reason: "no_email" })
     }
 
@@ -1572,7 +1575,7 @@ app.post("/api/send-welcome-if-needed", async (req, reply) => {
 
     reply.send({ sent: true })
   } catch (err) {
-    console.error("❌ send-welcome-if-needed error:", err)
+    safeLog.error('send_welcome_if_needed_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1594,7 +1597,7 @@ async function buildWeeklyRitualForUser(userId) {
     .order("at", { ascending: true })
 
   if (error) {
-    console.error("weekly-ritual: db error", error)
+    safeLog.error('weekly_ritual_db_error', { errorCode: error?.code, providerStatus: error?.status })
     throw error
   }
 
@@ -1683,7 +1686,7 @@ app.get("/api/weekly-ritual", async (req, reply) => {
     const result = await buildWeeklyRitualForUser(user_id)
     return reply.send(result)
   } catch (err) {
-    console.error("❌ weekly-ritual error:", err)
+    safeLog.error('weekly_ritual_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1734,7 +1737,7 @@ app.post("/tasks/send-weekly-ritual-preview", async (req, reply) => {
       to: result.to,
     })
   } catch (err) {
-    console.error("weekly-ritual-preview error:", err)
+    safeLog.error('weekly_ritual_preview_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "weekly_ritual_preview_failed" })
   }
 })
@@ -1796,7 +1799,7 @@ app.get("/api/insights", async (req, reply) => {
       mentor_insight: summaryRow?.summary || null,
     })
   } catch (err) {
-    console.error("❌ Insights error:", err)
+    safeLog.error('insights_error', { errorCode: err?.code, providerStatus: err?.status })
     reply.code(500).send({ error: "request_failed" })
   }
 })
@@ -1818,14 +1821,14 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
     const token = rawHeader.replace(/bearer\s+/i, "").trim();
 
     if (!expected) {
-      console.error("❌ WEEKLY_BATCH_SECRET not set");
+      safeLog.error('weekly_batch_secret_not_set');
       return reply
         .code(500)
         .send({ error: "Server misconfigured: missing secret" });
     }
 
     if (!token || token !== expected) {
-      console.warn("weekly-email-batch unauthorized call");
+      safeLog.warn('weekly_email_batch_unauthorized_call');
 
       return reply.code(401).send({
         error: "Unauthorized",
@@ -1833,13 +1836,13 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
       });
     }
 
-    console.log("✅ weekly-email-batch authorized, proceeding…");
+    safeLog.info('weekly_email_batch_authorized_proceeding');
 
     // prendo tutti gli utenti da Supabase Auth (auth.users)
 const { data, error } = await supabase.auth.admin.listUsers();
 
 if (error) {
-  console.error("weekly-email-batch listUsers error", error);
+  safeLog.error('weekly_email_batch_list_users_error', { errorCode: error?.code, providerStatus: error?.status });
   throw error;
 }
 
@@ -1854,7 +1857,7 @@ const users = rawUsers
   }));
 
 if (!users || users.length === 0) {
-  console.log("weekly-email-batch: no auth users with email");
+  safeLog.info('weekly_email_batch_no_auth_users_with_email');
   return reply.send({ ok: true, count: 0 });
 }
 
@@ -1867,20 +1870,18 @@ if (!users || users.length === 0) {
         success += 1;
       } catch (err) {
         failures += 1;
-        console.error("weekly-email-batch user error", u.email, err);
+        safeLog.error('weekly_email_batch_user_error', { errorCode: err?.code, providerStatus: err?.status });
       }
     }
 
-    console.log(
-      `weekly-email-batch completed: total=${users.length}, success=${success}, failures=${failures}`
-    );
+    safeLog.info('weekly_email_batch_completed_total');
 
     return reply.send({ ok: true, count: users.length, success, failures });
   } catch (err) {
-    console.error("weekly-email-batch fatal error", err);
+    safeLog.error('weekly_email_batch_fatal_error', { errorCode: err?.code, providerStatus: err?.status });
     return reply
       .code(500)
-      .send({ error: err.message || "Batch error (unexpected)" });
+      .send({ error: "batch_failed" });
   }
 });
 
@@ -1923,7 +1924,7 @@ app.post("/api/therapist/share", async (req, reply) => {
       note: "Condividi questo token con il terapeuta. Chiunque lo possiede può aprire il report finché non scade.",
     })
   } catch (err) {
-    console.error("❌ therapist/share error:", err)
+    safeLog.error('therapist_share_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "therapist_share_failed" })
   }
 })
@@ -2088,7 +2089,7 @@ return reply.code(403).send(`
       .order("at", { ascending: true })
 
     if (eErr) throw eErr
-    console.log("PDF entries count:", entries?.length ?? 0)
+    safeLog.info('pdf_entries_count')
 
     // 2b) guided sessions (chat_sessions) ✅
     // NB: prendo le più recenti in modo semplice e poi le mostro in ordine recente->vecchio
@@ -2283,11 +2284,11 @@ const clampLines = (s, maxLines = 3) => {
     reply.raw.on("close", onClose)
 
     doc.on("error", (e) => {
-      console.error("❌ pdfkit error:", e)
+      safeLog.error('pdfkit_error', { errorCode: e?.code, providerStatus: e?.status })
       try { reply.raw.destroy(e) } catch {}
     })
     reply.raw.on("error", (e) => {
-      console.error("❌ response stream error:", e)
+      safeLog.error('response_stream_error', { errorCode: e?.code, providerStatus: e?.status })
       try { doc.end() } catch {}
     })
 
@@ -2428,7 +2429,7 @@ doc.fillColor(TEXT)
     doc.end()
     await new Promise((resolve) => reply.raw.on("finish", resolve))
   } catch (err) {
-    console.error("❌ therapist/report.pdf error:", err)
+    safeLog.error('therapist_report_pdf_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "therapist_report_failed" })
   }
 })
@@ -2453,7 +2454,7 @@ app.post("/api/therapist/revoke-all", async (req, reply) => {
     if (error) throw error
     return reply.send({ ok: true })
   } catch (err) {
-    console.error("❌ therapist/revoke-all error:", err)
+    safeLog.error('therapist_revoke_all_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "therapist_revoke_all_failed" })
   }
 })
@@ -2534,7 +2535,7 @@ app.get("/api/ritual-message", async (req, reply) => {
         hasCompletedGuidedRecently = recentChats.length > 0
       }
     } catch (e) {
-      console.warn("chat_sessions lookup skipped", e)
+      safeLog.warn('chat_sessions_lookup_skipped', { errorCode: e?.code, providerStatus: e?.status })
     }
 
     // pattern mirror view
@@ -2551,7 +2552,7 @@ app.get("/api/ritual-message", async (req, reply) => {
         mirrorRow = mirrorData[0]
       }
     } catch (e) {
-      console.warn("v_emotion_mirror_last_7d lookup skipped", e)
+      safeLog.warn('v_emotion_mirror_last_7d_lookup_skipped', { errorCode: e?.code, providerStatus: e?.status })
     }
 
     const lastEntry = Array.isArray(lastEntries) ? lastEntries[0] : null
@@ -2839,7 +2840,7 @@ await insertAgentRitualEvent({
       },
     })
   } catch (err) {
-    console.error("ritual-message error", err)
+    safeLog.error('ritual_message_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({
       error: "ritual_message_generation_failed",
     })
@@ -2860,7 +2861,7 @@ app.post("/agent/ritual-message", async (req, reply) => {
       reason: "no_matching_mode",
     })
   } catch (err) {
-    req.log?.error?.(err)
+    safeLog.error('ritual_generation_failed', { errorCode: err?.code })
     return reply.code(500).send({
       error: "ritual_message_generation_failed",
     })
@@ -2893,7 +2894,7 @@ app.post("/api/ritual-event", async (req, reply) => {
 
     return reply.send({ ok: true })
   } catch (err) {
-    console.error("ritual-event route error", err)
+    safeLog.error('ritual_event_route_error', { errorCode: err?.code, providerStatus: err?.status })
     return reply.code(500).send({ error: "unexpected_error" })
   }
 })
@@ -2904,8 +2905,8 @@ app.post("/api/ritual-event", async (req, reply) => {
 // =============================================================
 try {
   await app.listen({ port: Number(PORT), host: "0.0.0.0" })
-  console.log(`MyndSelf backend running on ${PORT}`)
+  safeLog.info('mynd_self_backend_running_on')
 } catch (error) {
-  console.error("backend_start_failed", { name: error.name, code: error.code })
+  safeLog.error('backend_start_failed', { errorCode: error?.code, providerStatus: error?.status })
   process.exitCode = 1
 }

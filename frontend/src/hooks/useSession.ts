@@ -1,3 +1,4 @@
+import { clientLog } from "../utils/clientLog"
 // frontend/src/hooks/useSession.ts
 
 import { useEffect, useState } from "react"
@@ -9,9 +10,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
 
 if (!supabaseUrl || !supabaseAnonKey) {
   // Questo non blocca la build, ma ti avvisa in console se manca la config
-  console.warn(
-    "[MyndSelf] VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY non sono configurate."
-  )
+  clientLog.warn('mynd_self_vite_supabase_url_o_vite_supabase_anon_key_non_sono_configurate')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -37,7 +36,7 @@ export function useSession(): UseSessionResult {
         setLoading(false)
       })
       .catch((err) => {
-        console.error("useSession getSession error:", err)
+        clientLog.error('use_session_get_session_error')
         if (isMounted) setLoading(false)
       })
 

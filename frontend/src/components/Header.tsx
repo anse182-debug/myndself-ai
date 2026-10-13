@@ -1,3 +1,4 @@
+import { clientLog } from "../utils/clientLog"
 import React from "react"
 import { useSession, supabase } from "../hooks/useSession"
 import { showToast } from "../utils/toast"
@@ -19,7 +20,7 @@ const Header: React.FC = () => {
         "success"
       )
     } catch (err: any) {
-      console.error("magic link error:", err)
+      clientLog.error('magic_link_error')
       showToast(
         "Non sono riuscito a inviare il link magico. Riprova tra poco.",
         "error"
@@ -32,7 +33,7 @@ const Header: React.FC = () => {
       await supabase.auth.signOut()
       showToast("Sei uscito da MyndSelf.ai", "info")
     } catch (err: any) {
-      console.error("logout error:", err)
+      clientLog.error('logout_error')
       showToast("Errore durante il logout", "error")
     }
   }

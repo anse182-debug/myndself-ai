@@ -1,3 +1,4 @@
+import { clientLog } from "./utils/clientLog"
 import PersonalDataControls from "./components/PersonalDataControls"
 import ReflectionJourney from "./components/ReflectionJourney"
 import MemoryControls, { type MemoryItem } from "./components/MemoryControls"
@@ -684,7 +685,7 @@ const handleLogin = async () => {
     showToast("Ti ho mandato un link magico via email ✉️", "success")
     setAuthError(null)
   } catch (error: any) {
-    console.error("auth error", error)
+    clientLog.error('auth_error')
     setAuthError(error.message || "Errore durante l'invio del link magico.")
     showToast(error.message || "Errore durante l'invio del link magico.", "error")
   } finally {
@@ -725,7 +726,7 @@ const handleLogin = async () => {
       setRitualMode(null)
     }
   } catch (err) {
-    console.error("ritual message error", err)
+    clientLog.error('ritual_message_error')
     setRitualMessage(null)
     setRitualMode(null)
   } finally {
@@ -750,7 +751,7 @@ const handleLogin = async () => {
       body: JSON.stringify(payload),
     })
   } catch (err) {
-    console.error("ritual event tracking error", err)
+    clientLog.error('ritual_event_tracking_error')
   }
 }
 
@@ -812,7 +813,7 @@ const generateShare = async () => {
 
     showToast("Link di condivisione creato ✅", "success")
   } catch (e: any) {
-    console.error(e)
+    clientLog.error('client_request_failed')
     setShareError(e?.message || dict.common.unexpectedError)
   } finally {
     setShareLoading(false)
@@ -860,7 +861,7 @@ const generateShare = async () => {
 
     showToast("Link revocato ✅", "success")
   } catch (e: any) {
-    console.error(e)
+    clientLog.error('client_request_failed')
     setShareError(e?.message || dict.common.unexpectedError)
   } finally {
     setShareLoading(false)
@@ -937,7 +938,7 @@ if (primaryEmotion) {
   const daysSince = freqRow?.days_since_last_seen
 
   if (freqErr) {
-    console.warn("Temporal mirror fetch error:", freqErr)
+    clientLog.warn('temporal_mirror_fetch_error')
     setTemporalMirrorText(null)
   } else {
     const sentence = buildTemporalMirrorSentence(
@@ -958,7 +959,7 @@ if (primaryEmotion) {
       await refreshEmotionalProfile(uid)
       await loadRitualMessage(uid)
     } catch (err: any) {
-      console.error(err)
+      clientLog.error('client_request_failed')
       showToast(
         dict.reflection.saveError,
         "error"
@@ -996,7 +997,7 @@ if (primaryEmotion) {
         }
       }
     } catch (err) {
-      console.error("emotional profile error", err)
+      clientLog.error('emotional_profile_error')
     } finally {
       setEmotionProfileLoading(false)
     }
@@ -1038,7 +1039,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
     setCalendarDays(days)
     setCalendarMonthOffset(monthOffset)
   } catch (err: any) {
-    console.error("mood calendar error", err)
+    clientLog.error('mood_calendar_error')
     setCalendarError(
       "Non riesco a preparare il calendario emotivo. Riprova più tardi."
     )
@@ -1114,14 +1115,14 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
           setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
         }
       } catch (err) {
-        console.error("weekly ritual error", err)
+        clientLog.error('weekly_ritual_error')
         setWeeklyRitual(null)
         setWeeklyRitualRange(null)
         setWeeklyRitualError("Non sono riuscito a recuperare il rituale.")
       }
       await loadMoodCalendar(userId, calendarMonthOffset)
     } catch (err: any) {
-      console.error(err)
+      clientLog.error('client_request_failed')
       setInsightsError(
         "Non sono riuscito a preparare i tuoi insight. Riprova più tardi."
       )
@@ -1148,7 +1149,7 @@ async function loadMoodCalendar(userId: string, monthOffset = 0) {
         }))
         setSummaryHistory(typed)
       } catch (e) {
-        console.error("summary history error", e)
+        clientLog.error('summary_history_error')
       }
     })()
   }, [session?.user?.id, language])
@@ -1213,7 +1214,7 @@ function buildTemporalMirrorSentence(
           setChatMessages(restored)
         }
       } catch (e) {
-        console.error("init fetch error:", e)
+        clientLog.error('init_fetch_error')
       }
     })()
   }, [session])
@@ -1248,7 +1249,7 @@ const handleChatSend = async () => {
       ])
     }
   } catch (e) {
-    console.error("chat error:", e)
+    clientLog.error('chat_error')
     showToast(dict.chat.error, "error")
   } finally {
     setIsChatLoading(false)
@@ -1286,7 +1287,7 @@ const handleChatSend = async () => {
         setDailyItems(days)
         setTagItems(tags)
       } catch (err) {
-        console.error("metrics error", err)
+        clientLog.error('metrics_error')
       }
     })()
   }, [session?.user?.id, language])

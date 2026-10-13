@@ -3,11 +3,7 @@
 type ToastType = "success" | "error" | "info"
 
 export function showToast(message: string, type: ToastType = "info") {
-  // Versione minimale: log in console
-  const prefix =
-    type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️"
-
-  console.log(`${prefix} ${message}`)
+  // Messages are shown to the user; never copy them into diagnostic logs.
 
   // Se siamo in browser, per ora usiamo solo alert per errori importanti
   if (typeof window !== "undefined") {

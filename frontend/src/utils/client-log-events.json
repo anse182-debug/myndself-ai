@@ -1,0 +1,18 @@
+[
+  "auth_error",
+  "chat_error",
+  "client_request_failed",
+  "emotional_profile_error",
+  "init_fetch_error",
+  "logout_error",
+  "magic_link_error",
+  "metrics_error",
+  "mood_calendar_error",
+  "mynd_self_vite_supabase_url_o_vite_supabase_anon_key_non_sono_configurate",
+  "ritual_event_tracking_error",
+  "ritual_message_error",
+  "summary_history_error",
+  "temporal_mirror_fetch_error",
+  "use_session_get_session_error",
+  "weekly_ritual_error"
+]

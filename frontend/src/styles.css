@@ -1,6 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../tailwind.config.js";
 
 :root { --font-title: 'Poppins', system-ui, sans-serif; --font-body: 'Inter', system-ui, sans-serif; }
 * { font-family: var(--font-body); }

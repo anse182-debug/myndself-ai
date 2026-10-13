@@ -6,7 +6,8 @@ import { registerMemoryRoutes, resolveUserMemories, memoryContext, saveUserMemor
 import { buildReflectionMessages, extractUserEmotionTags } from "./agent/reflection.js"
 import Fastify from "fastify"
 import { registerJourneyRoutes } from "./agent/journey.js"
-import { registerStagingGuard } from "./agent/staging.js"
+import { registerAccessControl, registerRequestBudgets } from "./agent/security.js"
+import rateLimit from "@fastify/rate-limit"
 import cors from "@fastify/cors"
 import OpenAI from "openai"
 import { createClient } from "@supabase/supabase-js"
@@ -42,8 +43,9 @@ if (!SUPABASE_URL || !SUPABASE_KEY)
   throw new Error("Missing SUPABASE_URL / SUPABASE_KEY")
 
 // ====== INIT ======
-const app = Fastify({ logger: false })
-await app.register(cors, { origin: "*", methods: ["GET", "POST", "DELETE", "OPTIONS"] })
+const app = Fastify({ logger: false, trustProxy: 1 })
+const allowedOrigins = (process.env.CORS_ORIGIN || "https://myndself.ai,https://www.myndself.ai,https://myndself-test.vercel.app,http://localhost:5173").split(",").map(value => value.trim()).filter(Boolean)
+await app.register(cors, { origin: allowedOrigins, methods: ["GET", "POST", "DELETE", "OPTIONS"] })
 
 // Native fetch honors Node's configured HTTPS proxy in the cloud environment.
 const openai = new OpenAI({ apiKey: OPENAI_API_KEY, fetch: globalThis.fetch })
@@ -78,6 +80,7 @@ function getBearerToken(req) {
 }
 
 async function requireSupabaseUser(req, reply) {
+  if (req.authenticatedUser) return req.authenticatedUser
   const jwt = getBearerToken(req)
   if (!jwt) {
     reply.code(401).send({ error: "missing_bearer_token" })
@@ -91,7 +94,10 @@ async function requireSupabaseUser(req, reply) {
   return data.user // { id, email, ... }
 }
 
-if (process.env.STAGING_MODE === "true") registerStagingGuard(app, requireSupabaseUser)
+await app.register(rateLimit, { global: false })
+registerAccessControl(app, requireSupabaseUser, { WEEKLY_BATCH_SECRET: process.env.WEEKLY_BATCH_SECRET, WEEKLY_RITUAL_CRON_KEY })
+registerRequestBudgets(app)
+app.get("/health", async () => ({ status: "ok" }))
 
 
 // ====== SYSTEM PROMPT (G3) ======
@@ -644,7 +650,7 @@ async function handleReflection(req, reply) {
     reply.send({ reflection, tags, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
     console.error("❌ Reflection error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 }
 
@@ -670,14 +676,16 @@ app.post("/api/reflect", handleReflection) // alias compatibilità
 //  MOOD (GET/POST)
 // =============================================================
 app.post("/api/mood", async (req, reply) => {
-  const entry = req.body
-  if (!entry?.user_id) return reply.code(400).send({ error: "Missing user_id" })
+  const body = req.body || {}
+  if (typeof body.mood !== "string" || !body.mood.trim() || body.mood.length > 1000 || (body.note != null && (typeof body.note !== "string" || body.note.length > 2000))) return reply.code(400).send({ error: "invalid_mood" })
+  const entry = { user_id: req.authenticatedUser.id, mood: body.mood.trim(), note: body.note || "", at: new Date().toISOString() }
   try {
-    await supabase.from("mood_entries").insert(entry)
+    const { error } = await supabase.from("mood_entries").insert(entry)
+    if (error) throw error
     await updateEmotionProfile(entry.user_id)
     reply.send({ ok: true })
   } catch (err) {
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -693,7 +701,7 @@ app.get("/api/mood", async (req, reply) => {
       .order("at", { ascending: false })
     reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -807,7 +815,7 @@ app.get("/api/metrics", async (req, reply) => {
     return reply.send({ days })
   } catch (err) {
     console.error("mood-calendar error", err)
-    return reply.code(500).send({ error: err.message })
+    return reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -911,7 +919,7 @@ Guidelines:
     reply.send({ summary })
   } catch (err) {
     console.error("❌ Summary error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -926,7 +934,7 @@ app.get("/api/summary/history", async (req, reply) => {
       .order("created_at", { ascending: false })
     reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -959,7 +967,7 @@ app.get("/api/analytics/daily", async (req, reply) => {
     reply.send({ ok: true, items })
   } catch (err) {
     console.error("❌ analytics/daily error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -990,7 +998,7 @@ app.get("/api/analytics/tags", async (req, reply) => {
     reply.send({ ok: true, items })
   } catch (err) {
     console.error("❌ analytics/tags error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1003,7 +1011,7 @@ app.get("/api/analytics/tags", async (req, reply) => {
 registerMemoryRoutes(app, { supabase, authenticate: requireSupabaseUser })
 registerJourneyRoutes(app, { supabase, openai, authenticate: requireSupabaseUser })
 
-app.post("/api/chat", async (req, reply) => {
+async function handleChat(req, reply) {
   const user = await requireSupabaseUser(req, reply)
   if (!user) return
   const user_id = user.id
@@ -1073,98 +1081,14 @@ ${MENTOR_SYSTEM_PROMPT}`,
     reply.send({ reply: replyText, memory_sources: similarMemories, memory_saved: memory_enabled === true ? memorySaved : null })
   } catch (err) {
     console.error("❌ Chat error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
-})
+}
 
-// Alias per compatibilità con il frontend: /api/mentor-chat → stessa logica di /api/chat
-// =============================================================
-//  MENTOR CHAT (alias più robusto, usato dal frontend)
-// =============================================================
-app.post("/api/mentor-chat", async (req, reply) => {
-  const body = req.body || {}
+// Both chat routes share authenticated identity and bounded message validation.
+app.post("/api/chat", handleChat)
+app.post("/api/mentor-chat", handleChat)
 
-  // accettiamo sia user_id che userId, per sicurezza
-  const user_id = body.user_id || body.userId
-  const messages = Array.isArray(body.messages) ? body.messages : []
-
-  if (!user_id) {
-    console.error("mentor-chat: missing user_id", body)
-    return reply.code(400).send({ error: "Missing user_id" })
-  }
-
-  try {
-    // prendo ultimo messaggio dell'utente, se esiste
-    const lastUserMessage = [...messages].reverse().find(
-      (m) => m.role === "user"
-    )
-    const userText = lastUserMessage?.content || ""
-
-    // usiamo un contesto corto sugli ultimi messaggi (se ci sono)
-    const shortContext = messages.slice(-10)
-
-    const systemPrompt = `
-Sei MyndSelf Mentor, una guida emotiva gentile.
-Usi uno stile vicino a CBT/ACT:
-- validi quello che la persona prova
-- aiuti a mettere in relazione pensieri, emozioni, corpo e bisogni
-- chiudi al massimo con UNA domanda aperta che invita a guardarsi dentro.
-
-Regole:
-- Risposte brevi (3–6 frasi).
-- Tono caldo, non giudicante, mai direttivo.
-- Niente emoji.
-- Non dare consigli rigidi ("devi", "dovresti"), ma inviti morbidi.
-`.trim()
-
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.75,
-      max_tokens: 280,
-      messages: [
-        { role: "system", content: systemPrompt },
-        // se non ci sono messaggi, diamo comunque un input contestuale minimo
-        ...(shortContext.length
-          ? shortContext
-          : [
-              {
-                role: "user",
-                content:
-                  "L'utente ha aperto una chat riflessiva ma non ha ancora scritto nulla di specifico. Offri una domanda morbida per iniziare.",
-              },
-            ]),
-      ],
-    })
-
-    const replyText =
-      completion.choices?.[0]?.message?.content?.trim() ||
-      "Ti ho ascoltato. Possiamo restare un momento con quello che senti?"
-
-    // salviamo qualcosa in memoria, se vuoi riusarla più avanti
-    if (userText) {
-      await saveToMemory({ user_id, content: userText, source: "chat" })
-    }
-    await saveToMemory({ user_id, content: replyText, source: "chat_reply" })
-
-    // salvataggio della sessione
-    await supabase.from("chat_sessions").insert({
-      user_id,
-      messages,
-      reply: replyText,
-      created_at: new Date().toISOString(),
-    })
-
-    return reply.send({ reply: replyText })
-  } catch (err) {
-    console.error("❌ Mentor chat error:", err)
-    return reply.code(500).send({ error: err.message })
-  }
-})
-
-// ----------------------------------------------
-// Riflessone guidata (breve, con chiusura morbida)
-// ----------------------------------------------
-// --- Riflessione guidata (versione con chiusura) ---
 app.post("/api/guided-chat", async (req, reply) => {
  const { user_id, message, step } = req.body || {}
  const turnIndex = Number.isFinite(step) ? Number(step) : 1
@@ -1316,7 +1240,7 @@ app.get("/api/chat/history", async (req, reply) => {
 
     reply.send({ ok: true, items: data || [] })
   } catch (err) {
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1336,7 +1260,7 @@ app.get("/api/mentor-history", async (req, reply) => {
     reply.send({ ok: true, items: data || [] })
   } catch (err) {
     console.error("❌ mentor history error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1355,7 +1279,7 @@ app.post("/api/subscribe", async (req, reply) => {
     if (err.message?.includes("duplicate")) {
       reply.send({ ok: true, message: "Already subscribed" })
     } else {
-      reply.code(500).send({ error: err.message })
+      reply.code(500).send({ error: "request_failed" })
     }
   }
 })
@@ -1439,7 +1363,7 @@ const response = await openai.chat.completions.create({
     })
   } catch (err) {
     console.error("❌ Emotional profile error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 // =============================================================
@@ -1587,7 +1511,7 @@ if (isFinal) {
     return reply.send({ reply: replyText, isFinal })
   } catch (err) {
     console.error("❌ Guided reflection error:", err)
-    return reply.code(500).send({ error: err.message })
+    return reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1641,7 +1565,7 @@ app.post("/api/send-welcome-if-needed", async (req, reply) => {
     reply.send({ sent: true })
   } catch (err) {
     console.error("❌ send-welcome-if-needed error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 async function buildWeeklyRitualForUser(userId) {
@@ -1751,7 +1675,7 @@ app.get("/api/weekly-ritual", async (req, reply) => {
     return reply.send(result)
   } catch (err) {
     console.error("❌ weekly-ritual error:", err)
-    return reply.code(500).send({ error: err.message })
+    return reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1864,7 +1788,7 @@ app.get("/api/insights", async (req, reply) => {
     })
   } catch (err) {
     console.error("❌ Insights error:", err)
-    reply.code(500).send({ error: err.message })
+    reply.code(500).send({ error: "request_failed" })
   }
 })
 
@@ -1892,9 +1816,7 @@ app.post("/api/weekly-email-batch", async (req, reply) => {
     }
 
     if (!token || token !== expected) {
-      console.warn("⚠️ weekly-email-batch unauthorized call", {
-        tokenSnippet: token ? token.slice(0, 6) + "..." : null,
-      });
+      console.warn("weekly-email-batch unauthorized call");
 
       return reply.code(401).send({
         error: "Unauthorized",
@@ -2971,6 +2893,10 @@ app.post("/api/ritual-event", async (req, reply) => {
 // =============================================================
 //  START
 // =============================================================
-app.listen({ port: PORT, host: "0.0.0.0" }, () => {
-  console.log(`🚀 MyndSelf backend (G3) running on ${PORT}`)
-})
+try {
+  await app.listen({ port: Number(PORT), host: "0.0.0.0" })
+  console.log(`MyndSelf backend running on ${PORT}`)
+} catch (error) {
+  console.error("backend_start_failed", { name: error.name, code: error.code })
+  process.exitCode = 1
+}

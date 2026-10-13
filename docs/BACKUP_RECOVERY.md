@@ -17,12 +17,44 @@ node --use-env-proxy backend/scripts/backup-preflight.mjs
 Esce con codice 2 quando non trova backup gestiti/PITR per produzione; non è
 una verifica della presenza o dell'integrità delle future copie esterne.
 
+## Destinazione scelta: Google Drive
+
+Il responsabile ha scelto Google Drive. Non è disponibile un collegamento
+Drive utilizzabile in questa sessione; la sola variabile di credenziali Google
+dell'ambiente non dimostra accesso al Drive del responsabile.
+
+Usare una cartella dedicata `MyndSelf Backups`, con accesso generale
+**Limitato**, senza link pubblico. Conservare esclusivamente copie cifrate e
+manifest non sensibili. Il Drive non garantisce automaticamente regione UE,
+immutabilità o retention dei file: verificarle in base all'account utilizzato.
+Evitare che il runner cancelli l'ultima copia valida in caso di upload fallito.
+
+Per automatizzare gli upload usare un runner persistente con `rclone` e un
+remote Drive autorizzato tramite OAuth dal proprietario. Configurare la
+cartella come root del remote; questa scelta limita la destinazione operativa,
+ma non riduce da sola i permessi OAuth concessi. Preferire l'ambito
+`drive.file` dove compatibile con il flusso scelto e verificare la visibilità
+della cartella. Un service account richiede invece una configurazione Drive
+compatibile, per esempio uno Shared Drive, e non va presunto funzionante su
+un normale Drive personale.
+
+Conservare il refresh token/configurazione `rclone` nel secret store del
+runner, con accesso ristretto; mai nel repository, in chat o nelle variabili
+pubbliche del frontend. Non affidarsi a un access token temporaneo per i job
+giornalieri. Verificare prima upload e download di un artefatto sintetico
+cifrato nella cartella, confrontando il SHA-256 locale con quello ricalcolato
+dal download. La verifica va eseguita con il reale account del runner.
+
+Il collegamento di un'app Drive alla chat può aiutare a individuare una
+cartella, ma non sostituisce credenziali persistenti e pianificazione del
+runner. Mancano ancora il link della cartella e l'autorizzazione OAuth del
+runner, oltre ai prerequisiti database e cifratura elencati sotto.
+
 ## Configurazione ancora necessaria
 
-- Servizio di archiviazione e bucket privato dedicato, regione UE quando
-  disponibile; accesso pubblico disattivato, versionamento e credenziali
-  separate per upload e recupero. Confermare costi e retention prima di creare
-  risorse a pagamento. Non mettere dati reali nel repository o nello snapshot
+- Cartella Drive dedicata con accesso limitato, autorizzazione del runner e
+  spazio sufficiente. Confermare costi e retention prima di creare risorse a
+  pagamento. Non mettere dati reali nel repository o nello snapshot
   dell'ambiente cloud.
 - Un runner affidabile che supporti connessioni PostgreSQL/TLS e una versione
   di `pg_dump` compatibile con il server. Questo ambiente ha il proxy HTTPS

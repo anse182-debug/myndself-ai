@@ -236,3 +236,7 @@ review/save/publish the environment to activate and retain them for later tasks.
 Production still runs the previous implementation: promoting this security
 revision requires a coordinated frontend/backend rollout, authentication-aware
 clients, exact CORS origins, and a separately reviewed database/backup plan.
+
+### Budget AI persistente nel test — 14 ottobre 2026
+
+Attivo limite applicativo prudente di 10 USD/mese UTC su tutte le chiamate chat ed embedding del backend di test. Riserve atomiche su database, contatori token aggregati senza identità o contenuti, accesso alle funzioni limitato al ruolo di servizio. Migrazione 003 verificata e applicata solo al test. Client condiviso con timeout e retry SDK disabilitati, mantenendo le protezioni aggiuntive di Un momento. Verifiche: 76 test backend, 5 regole di rilascio, 36 fixture offline, prova concorrente DB e richiesta autenticata sul deploy live. Dettagli e limiti in `AI_BUDGET.md`: la soglia non è un tetto imposto dal provider; le riserve sono prudenziali e non rimborsate, i token effettivi sono registrati al meglio. Produzione invariata.

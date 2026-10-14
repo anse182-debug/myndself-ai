@@ -27,3 +27,7 @@ Richiede `SUPABASE_ACCESS_TOKEN` nell’ambiente; non stampa credenziali. Il rep
 ## Verifica
 
 Migrazione 003 prima provata e annullata in transazione, verificando soglia e permessi; poi applicata con registro checksum e confronto dello schema. Prova concorrente sul database di test: 20 riserve simultanee da un micro-USD con capacità residua di 10 micro-USD, esattamente 10 accettate e 10 rifiutate. Sono rimasti 10 micro-USD e 10 riserve sintetiche nel contatore, senza chiamate OpenAI. Accesso anonimo rifiutato. Nessun dato utente coinvolto.
+
+### Pubblicazione e prova reale del 14 ottobre 2026
+
+Backend di test live sul commit `14fed48029375410c4973ed350b694f25b617f95`, deploy Render `dep-db7jfq25b2lc7386flcg`, variabile `AI_MONTHLY_BUDGET_USD=10`. Due richieste autenticate identiche simultanee hanno condiviso la risposta: una sola nuova riserva da 4259 micro-USD; registrati 555 token input e 47 output. La risposta urgente deterministica non ha aggiunto riserve. Account sintetico eliminato. Nessuna trascrizione salvata dai controlli. Passati 76 test backend e 5 test delle regole di rilascio, validate 36 fixture offline e verificati schema e quattro checksum delle migrazioni. Produzione non modificata.

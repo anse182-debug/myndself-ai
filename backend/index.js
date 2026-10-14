@@ -1,3 +1,4 @@
+import { budgetedOpenAI, monthlyBudget } from './agent/ai-budget.js'
 import { safeLog, registerObservability, registerProcessDiagnostics } from "./agent/observability.js"
 import { configuredAlerts } from "./agent/alerts.js"
 import { registerPersonalDataRoutes } from "./agent/personal-data.js"
@@ -53,8 +54,9 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "https://myndself.ai,https://
 await app.register(cors, { origin: allowedOrigins, methods: ["GET", "POST", "DELETE", "OPTIONS"], exposedHeaders: ["x-request-id"] })
 
 // Native fetch honors Node's configured HTTPS proxy in the cloud environment.
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY, fetch: globalThis.fetch })
+const rawOpenai = new OpenAI({ apiKey: OPENAI_API_KEY, fetch: globalThis.fetch })
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+const openai = budgetedOpenAI({ client: rawOpenai, supabase, limit: monthlyBudget(process.env.AI_MONTHLY_BUDGET_USD) })
 
 const THERAPIST_SHARE_TTL_DAYS = Number(process.env.THERAPIST_SHARE_TTL_DAYS || 30)
 

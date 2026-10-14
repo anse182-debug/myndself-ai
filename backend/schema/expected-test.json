@@ -883,6 +883,251 @@
   },
   {
     "kind": "column",
+    "name": "ai_budget_months.calls",
+    "definition": {
+      "udt_name": "int8",
+      "data_type": "bigint",
+      "scope_name": null,
+      "table_name": "ai_budget_months",
+      "udt_schema": "pg_catalog",
+      "column_name": "calls",
+      "domain_name": null,
+      "is_identity": "NO",
+      "is_nullable": "NO",
+      "udt_catalog": "postgres",
+      "is_generated": "NEVER",
+      "is_updatable": "YES",
+      "scope_schema": null,
+      "table_schema": "app_private",
+      "domain_schema": null,
+      "interval_type": null,
+      "numeric_scale": 0,
+      "scope_catalog": null,
+      "collation_name": null,
+      "column_default": "0",
+      "domain_catalog": null,
+      "dtd_identifier": "3",
+      "identity_cycle": "NO",
+      "identity_start": null,
+      "collation_schema": null,
+      "identity_maximum": null,
+      "identity_minimum": null,
+      "ordinal_position": 3,
+      "collation_catalog": null,
+      "numeric_precision": 64,
+      "character_set_name": null,
+      "datetime_precision": null,
+      "identity_increment": null,
+      "interval_precision": null,
+      "identity_generation": null,
+      "is_self_referencing": "NO",
+      "maximum_cardinality": null,
+      "character_set_schema": null,
+      "character_set_catalog": null,
+      "generation_expression": null,
+      "character_octet_length": null,
+      "numeric_precision_radix": 2,
+      "character_maximum_length": null
+    }
+  },
+  {
+    "kind": "column",
+    "name": "ai_budget_months.input_tokens",
+    "definition": {
+      "udt_name": "int8",
+      "data_type": "bigint",
+      "scope_name": null,
+      "table_name": "ai_budget_months",
+      "udt_schema": "pg_catalog",
+      "column_name": "input_tokens",
+      "domain_name": null,
+      "is_identity": "NO",
+      "is_nullable": "NO",
+      "udt_catalog": "postgres",
+      "is_generated": "NEVER",
+      "is_updatable": "YES",
+      "scope_schema": null,
+      "table_schema": "app_private",
+      "domain_schema": null,
+      "interval_type": null,
+      "numeric_scale": 0,
+      "scope_catalog": null,
+      "collation_name": null,
+      "column_default": "0",
+      "domain_catalog": null,
+      "dtd_identifier": "4",
+      "identity_cycle": "NO",
+      "identity_start": null,
+      "collation_schema": null,
+      "identity_maximum": null,
+      "identity_minimum": null,
+      "ordinal_position": 4,
+      "collation_catalog": null,
+      "numeric_precision": 64,
+      "character_set_name": null,
+      "datetime_precision": null,
+      "identity_increment": null,
+      "interval_precision": null,
+      "identity_generation": null,
+      "is_self_referencing": "NO",
+      "maximum_cardinality": null,
+      "character_set_schema": null,
+      "character_set_catalog": null,
+      "generation_expression": null,
+      "character_octet_length": null,
+      "numeric_precision_radix": 2,
+      "character_maximum_length": null
+    }
+  },
+  {
+    "kind": "column",
+    "name": "ai_budget_months.month",
+    "definition": {
+      "udt_name": "date",
+      "data_type": "date",
+      "scope_name": null,
+      "table_name": "ai_budget_months",
+      "udt_schema": "pg_catalog",
+      "column_name": "month",
+      "domain_name": null,
+      "is_identity": "NO",
+      "is_nullable": "NO",
+      "udt_catalog": "postgres",
+      "is_generated": "NEVER",
+      "is_updatable": "YES",
+      "scope_schema": null,
+      "table_schema": "app_private",
+      "domain_schema": null,
+      "interval_type": null,
+      "numeric_scale": null,
+      "scope_catalog": null,
+      "collation_name": null,
+      "column_default": null,
+      "domain_catalog": null,
+      "dtd_identifier": "1",
+      "identity_cycle": "NO",
+      "identity_start": null,
+      "collation_schema": null,
+      "identity_maximum": null,
+      "identity_minimum": null,
+      "ordinal_position": 1,
+      "collation_catalog": null,
+      "numeric_precision": null,
+      "character_set_name": null,
+      "datetime_precision": 0,
+      "identity_increment": null,
+      "interval_precision": null,
+      "identity_generation": null,
+      "is_self_referencing": "NO",
+      "maximum_cardinality": null,
+      "character_set_schema": null,
+      "character_set_catalog": null,
+      "generation_expression": null,
+      "character_octet_length": null,
+      "numeric_precision_radix": null,
+      "character_maximum_length": null
+    }
+  },
+  {
+    "kind": "column",
+    "name": "ai_budget_months.output_tokens",
+    "definition": {
+      "udt_name": "int8",
+      "data_type": "bigint",
+      "scope_name": null,
+      "table_name": "ai_budget_months",
+      "udt_schema": "pg_catalog",
+      "column_name": "output_tokens",
+      "domain_name": null,
+      "is_identity": "NO",
+      "is_nullable": "NO",
+      "udt_catalog": "postgres",
+      "is_generated": "NEVER",
+      "is_updatable": "YES",
+      "scope_schema": null,
+      "table_schema": "app_private",
+      "domain_schema": null,
+      "interval_type": null,
+      "numeric_scale": 0,
+      "scope_catalog": null,
+      "collation_name": null,
+      "column_default": "0",
+      "domain_catalog": null,
+      "dtd_identifier": "5",
+      "identity_cycle": "NO",
+      "identity_start": null,
+      "collation_schema": null,
+      "identity_maximum": null,
+      "identity_minimum": null,
+      "ordinal_position": 5,
+      "collation_catalog": null,
+      "numeric_precision": 64,
+      "character_set_name": null,
+      "datetime_precision": null,
+      "identity_increment": null,
+      "interval_precision": null,
+      "identity_generation": null,
+      "is_self_referencing": "NO",
+      "maximum_cardinality": null,
+      "character_set_schema": null,
+      "character_set_catalog": null,
+      "generation_expression": null,
+      "character_octet_length": null,
+      "numeric_precision_radix": 2,
+      "character_maximum_length": null
+    }
+  },
+  {
+    "kind": "column",
+    "name": "ai_budget_months.reserved_microusd",
+    "definition": {
+      "udt_name": "int8",
+      "data_type": "bigint",
+      "scope_name": null,
+      "table_name": "ai_budget_months",
+      "udt_schema": "pg_catalog",
+      "column_name": "reserved_microusd",
+      "domain_name": null,
+      "is_identity": "NO",
+      "is_nullable": "NO",
+      "udt_catalog": "postgres",
+      "is_generated": "NEVER",
+      "is_updatable": "YES",
+      "scope_schema": null,
+      "table_schema": "app_private",
+      "domain_schema": null,
+      "interval_type": null,
+      "numeric_scale": 0,
+      "scope_catalog": null,
+      "collation_name": null,
+      "column_default": "0",
+      "domain_catalog": null,
+      "dtd_identifier": "2",
+      "identity_cycle": "NO",
+      "identity_start": null,
+      "collation_schema": null,
+      "identity_maximum": null,
+      "identity_minimum": null,
+      "ordinal_position": 2,
+      "collation_catalog": null,
+      "numeric_precision": 64,
+      "character_set_name": null,
+      "datetime_precision": null,
+      "identity_increment": null,
+      "interval_precision": null,
+      "identity_generation": null,
+      "is_self_referencing": "NO",
+      "maximum_cardinality": null,
+      "character_set_schema": null,
+      "character_set_catalog": null,
+      "generation_expression": null,
+      "character_octet_length": null,
+      "numeric_precision_radix": 2,
+      "character_maximum_length": null
+    }
+  },
+  {
+    "kind": "column",
     "name": "ai_memory.content",
     "definition": {
       "udt_name": "text",
@@ -8191,6 +8436,20 @@
   },
   {
     "kind": "constraint",
+    "name": "ai_budget_months.ai_budget_months_pkey",
+    "definition": {
+      "definition": "PRIMARY KEY (month)"
+    }
+  },
+  {
+    "kind": "constraint",
+    "name": "ai_budget_months.ai_budget_months_reserved_microusd_check",
+    "definition": {
+      "definition": "CHECK (reserved_microusd >= 0)"
+    }
+  },
+  {
+    "kind": "constraint",
     "name": "ai_memory.ai_memory_pkey",
     "definition": {
       "definition": "PRIMARY KEY (id)"
@@ -8437,6 +8696,17 @@
   },
   {
     "kind": "function",
+    "name": "record_ai_usage(p_month date, p_input bigint, p_output bigint)",
+    "definition": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.record_ai_usage(p_month date, p_input bigint, p_output bigint)\n RETURNS void\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nbegin\n if p_input is null or p_output is null or p_input < 0 or p_output < 0 then raise exception 'invalid_ai_usage'; end if;\n update app_private.ai_budget_months set input_tokens = input_tokens + p_input, output_tokens = output_tokens + p_output where month = p_month;\nend;\n$function$\n"
+    }
+  },
+  {
+    "kind": "function",
     "name": "require_existing_account()",
     "definition": {
       "acl": [
@@ -8444,6 +8714,17 @@
         "service_role=X/postgres"
       ],
       "definition": "CREATE OR REPLACE FUNCTION public.require_existing_account()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare account_id text;\nbegin\n account_id := to_jsonb(new)->>tg_argv[0];\n if account_id is not null then\n  perform id from auth.users where id=account_id::uuid for key share;\n  if not found then raise exception 'account_missing'; end if;\n end if;\n return new;\nend $function$\n"
+    }
+  },
+  {
+    "kind": "function",
+    "name": "reserve_ai_budget(p_cost bigint, p_limit bigint)",
+    "definition": {
+      "acl": [
+        "postgres=X/postgres",
+        "service_role=X/postgres"
+      ],
+      "definition": "CREATE OR REPLACE FUNCTION public.reserve_ai_budget(p_cost bigint, p_limit bigint)\n RETURNS date\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare period date := date_trunc('month', now() at time zone 'UTC')::date; accepted date;\nbegin\n if p_cost is null or p_limit is null or p_cost <= 0 or p_limit <= 0 or p_limit > 1000000000 then raise exception 'invalid_ai_budget'; end if;\n insert into app_private.ai_budget_months(month) values(period) on conflict do nothing;\n update app_private.ai_budget_months set reserved_microusd = reserved_microusd + p_cost, calls = calls + 1\n where month = period and reserved_microusd <= p_limit - p_cost returning month into accepted;\n if accepted is null then raise exception 'ai_budget_exhausted'; end if;\n return accepted;\nend;\n$function$\n"
     }
   },
   {
@@ -8778,6 +9059,90 @@
       "table_name": "agent_ritual_events",
       "is_grantable": "NO",
       "table_schema": "public",
+      "privilege_type": "UPDATE",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.DELETE",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "DELETE",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.INSERT",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "INSERT",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.REFERENCES",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "REFERENCES",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.SELECT",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "SELECT",
+      "with_hierarchy": "YES"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.TRIGGER",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "TRIGGER",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.TRUNCATE",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
+      "privilege_type": "TRUNCATE",
+      "with_hierarchy": "NO"
+    }
+  },
+  {
+    "kind": "grant",
+    "name": "ai_budget_months.postgres.UPDATE",
+    "definition": {
+      "grantee": "postgres",
+      "table_name": "ai_budget_months",
+      "is_grantable": "YES",
+      "table_schema": "app_private",
       "privilege_type": "UPDATE",
       "with_hierarchy": "NO"
     }
@@ -20243,6 +20608,13 @@
   },
   {
     "kind": "index",
+    "name": "ai_budget_months.ai_budget_months_pkey",
+    "definition": {
+      "definition": "CREATE UNIQUE INDEX ai_budget_months_pkey ON app_private.ai_budget_months USING btree (month)"
+    }
+  },
+  {
+    "kind": "index",
     "name": "ai_memory.ai_memory_pkey",
     "definition": {
       "definition": "CREATE UNIQUE INDEX ai_memory_pkey ON public.ai_memory USING btree (id)"
@@ -20563,6 +20935,16 @@
     "name": "agent_ritual_events",
     "definition": {
       "rls": true,
+      "kind": "r",
+      "options": null,
+      "force_rls": false
+    }
+  },
+  {
+    "kind": "relation",
+    "name": "ai_budget_months",
+    "definition": {
+      "rls": false,
       "kind": "r",
       "options": null,
       "force_rls": false

@@ -1,6 +1,8 @@
 [
   "agent_ritual_events_insert_error",
   "agent_ritual_events_unexpected_error",
+  "ai_budget_reservation_failed",
+  "ai_usage_record_failed",
   "analytics_daily_error",
   "analytics_tags_error",
   "backend_start_failed",
